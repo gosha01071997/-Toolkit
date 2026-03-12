@@ -185,7 +185,11 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          # Принудительно устанавливаем Java 17 совместимость
-          sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' app/build.gradle
-          sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' build.gradle 2>/dev/null || true
-          ./gradlew assembleDebug --no-daemon
+          echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
+          echo "android.useAndroidX=true" >> gradle.properties
+          find . -name "*.gradle" -exec sed -i \
+            's/JavaVersion\.VERSION_21/JavaVersion.VERSION_17/g' {} \;
+          find . -name "*.gradle" -exec sed -i \
+            's/jvmTarget = "21"/jvmTarget = "17"/g' {} \;
+          ./gradlew assembleDebug --no-daemon \
+            -Dorg.gradle.java.home=$JAVA_HOME
