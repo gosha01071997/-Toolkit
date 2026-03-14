@@ -102,12 +102,12 @@ const NOISE_GUIDE = [
   {
     symptom: "Нестабильность / провалы в BCI",
     causes: ["Плохой контакт в тракте", "Насыщение усилителя", "Неправильная позиция клещей", "Недостаточная мощность усилителя", "Рассогласование импедансов"],
-    checks: ["Проверьте все ВЧ-разъёмы", "Контролируйте ток усилителя", "Используйте ferrite bead на кабеле DUT", "Измерьте VSWR тракта"]
+    checks: ["Проверьте все ВЧ-разъёмы", "Контролируйте ток усилителя", "Установите ферритовый сердечник на кабеле Изделия", "Измерьте VSWR тракта"]
   },
   {
     symptom: "Трудности в диапазоне 40–80 MHz",
     causes: ["Резонанс короткого кабеля (~1–2 м)", "Слабое coupling клещей", "Конфигурация жгута", "Положение GND-соединения"],
-    checks: ["Измените длину кабеля DUT", "Смените тип/модель BCI-клещей", "Проверьте расположение GND-соединения", "Добавьте ферритовые кольца"]
+    checks: ["Измените длину кабеля Изделия", "Смените тип/модель BCI-клещей", "Проверьте расположение GND-соединения", "Добавьте ферритовые кольца"]
   },
   {
     symptom: "Высокий уровень фона",
@@ -115,9 +115,9 @@ const NOISE_GUIDE = [
     checks: ["Проверьте заземление опорной плоскости", "Отключите лишнее оборудование", "Замените кабели на экранированные", "Используйте гальваническую развязку"]
   },
   {
-    symptom: "DUT не воспроизводит FAIL на повторном испытании",
-    causes: ["Режим работы DUT изменился", "Температурный дрейф", "Изменение конфигурации жгута"],
-    checks: ["Зафиксируйте режим DUT в протоколе", "Прогрейте DUT перед испытанием", "Задокументируйте схему расположения кабелей"]
+    symptom: "Изделие не воспроизводит ОТКАЗ на повторном испытании",
+    causes: ["Режим работы Изделия изменился", "Температурный дрейф", "Изменение конфигурации жгута"],
+    checks: ["Зафиксируйте режим Изделия в протоколе", "Прогрейте Изделие перед испытанием", "Задокументируйте схему расположения кабелей Изделия"]
   },
 ];
 
@@ -164,13 +164,13 @@ function getCableLoss(type, freqMHz, lengthM) {
 
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
-  app: { fontFamily: "'IBM Plex Sans', 'Roboto', sans-serif", background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" },
+  app: { fontFamily: "'IBM Plex Sans', 'Roboto', sans-serif", background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative" },
   header: { position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: C.dark, color: "#fff", padding: "14px 20px 12px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", zIndex: 100 },
   headerTitle: { fontSize: 18, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
   nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 100 },
   navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "74px 14px 80px" },
+  content: { flex: 1, overflowY: "auto", padding: "74px 14px 80px", marginTop: 0 },
   card: { background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
@@ -1285,8 +1285,9 @@ const TESTS_DATA = [
     criteria: "Работоспособность ИРИ сохраняется в течение воздействия и после его прекращения.",
     setup: [
       "Источник питания (регулируемый AC/DC)",
-      "Катушка Гельмгольца или однородная индукционная катушка",
-      "Измеритель напряжённости магнитного поля (тесламетр / гауссметр)",
+      "Катушка Гельмгольца или индукционная катушка",
+      "Компас прецизионный БГ-1 (калиброванный, с поверкой)",
+      "Магнитометр портативный МТМ-01 (с поверкой)",
       "ИРИ (изделие — объект испытаний)",
       "Монитор работоспособности ИРИ",
       "Опорная плоскость заземления",
@@ -1303,14 +1304,15 @@ const TESTS_DATA = [
     normDoc: "ГОСТ РВ 20.57.306-98, п.20.4. Уровни воздействия по степеням жёсткости 1–4.",
     criteria: "ИРИ сохраняет работоспособность во время воздействия (критерий I) или самовосстанавливается (критерий II).",
     setup: [
-      "Генератор сигналов (CW + AM 80% / 1 кГц)",
-      "Усилитель мощности широкополосный",
-      "Направленный ответвитель",
-      "CDN (сеть связи/развязки) для цепей питания",
-      "Токовые клещи BCI (для жгутов кабелей)",
-      "Монитор тока (контрольные клещи)",
-      "ИРИ",
+      "Генератор сигналов CIT-100/A (10 кГц – 1200 МГц, AM/IM)",
+      "Усилитель мощности РА-00140-54C (9 кГц – 400 МГц, 230 Вт)",
+      "Токовый инжектор IP-DR250 с калибровочным устройством",
+      "Монитор тока МР-50 (10 кГц – 400 МГц, диаметр 46 мм)",
+      "Комплект BCI-ACC-MIL (нагрузки 50 Ом, аттенюаторы, кабели СВЧ)",
+      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
+      "ИРИ в рабочем режиме",
       "Монитор работоспособности ИРИ",
+      "ПО BCI-LAB",
     ]
   },
   {
@@ -1324,14 +1326,20 @@ const TESTS_DATA = [
     normDoc: "ГОСТ РВ 20.57.306-98, п.20.5. Напряжённость поля 1–20 В/м в зависимости от степени жёсткости.",
     criteria: "ИРИ сохраняет работоспособность во время облучения (критерий I) или самовосстанавливается (критерий II).",
     setup: [
-      "Генератор сигналов (CW + AM 80% / 1 кГц)",
-      "Усилитель мощности широкополосный",
-      "Направленный ответвитель",
-      "Антенна излучающая (рупорная, bilog, логопериодическая)",
-      "Датчик (монитор) напряжённости поля",
-      "Безэховая (полубезэховая) камера или TEM-ячейка",
-      "ИРИ",
+      "Генератор сигналов АКИП-3208 (9 кГц – 2,1 ГГц)",
+      "Усилитель мощности WA-00225-60C (2–250 МГц, 1000 Вт)",
+      "Усилитель мощности WA-0810-60C (80–1000 МГц, 1 кВт)",
+      "РЧ коммутатор КА22-1S3-2N3 (до 6 ГГц, 3 модуля SP3T)",
+      "Измеритель мощности NRP6AN (8 кГц – 6 ГГц, ±23 дБм)",
+      "Пробник поля LSProbe 2.0 R (9 кГц – 18 ГГц, 1-1000 В/м, ВОЛС)",
+      "Антенна рупорная П6-160 (200 МГц – 2,8 ГГц)",
+      "Антенна логопериодическая П6-522 (60–3000 МГц, 3 кВт)",
+      "Линия излучающая симметричная ИЛ-0210-2 (1–200 МГц, 2 кВт)",
+      "Мачта антенная ТСМ-02-2 с антенным адаптером",
+      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
+      "ИРИ в рабочем режиме",
       "Монитор работоспособности ИРИ",
+      "ПО PROVE-EMC RF-LAB",
     ]
   },
   {
@@ -1345,12 +1353,14 @@ const TESTS_DATA = [
     normDoc: "ГОСТ РВ 20.57.306-98, п.25. Уровни напряжения ±2, ±4, ±6, ±8 кВ (контактный) и до ±15 кВ (воздушный).",
     criteria: "ИРИ сохраняет работоспособность во время воздействия и после него.",
     setup: [
-      "Генератор электростатических разрядов (пистолет ЭСР)",
-      "Горизонтальная опорная металлическая плита (ГОМП)",
-      "Вертикальная опорная металлическая плита (ВОМП)",
+      "Генератор ЭСР ЭСР-30К (до 30 кВ, 150пФ/330 Ом, разрядные наконечники)",
+      "Делитель напряжения калибровочный РН-5000 (до 30 кВ)",
+      "Калибровочная мишень ИШ-2,0 ВЧ (2 Ом, 30 кВ)",
+      "Осциллограф цифровой MSO8204 (4 кан., 2 ГГц, 10 ГВыб/с)",
+      "Стол испытательный деревянный 2,5×0,9×0,9 м (лиственница)",
+      "Горизонтальная опорная металлическая плита (ГОМП, оцинк. сталь 2 мм)",
+      "Вертикальная пластина связи 0,5×0,5 м + кабель 2 м с резисторами 2×470 кОм",
       "Изолирующая подставка под ИРИ (толщина 10 см)",
-      "Заземляющий кабель пистолета ЭСР",
-      "Резистор разряда 330 Ом (в составе пистолета)",
       "ИРИ",
     ]
   },
@@ -1365,13 +1375,20 @@ const TESTS_DATA = [
     normDoc: "ГОСТ РВ 20.57.306-98, п.21. Нормы по степеням жёсткости и видам помех.",
     criteria: "Уровни кондуктивных и радиационных помех не превышают допустимых значений для данной степени жёсткости.",
     setup: [
-      "Эквивалент сети (ЛИСН / LISN, 50 мкГн)",
-      "Измерительный приёмник ЭМП (с детекторами QP / Peak / Average)",
-      "Антенна измерительная (рамочная, bilog, логопериодическая)",
-      "Опорная плоскость заземления",
-      "Экранированная безэховая камера или полигон OATS",
+      "Измерительный приёмник 9010F+9060 (10 кГц – 6000 МГц, CISPR 16-1-1)",
+      "Анализатор спектра АСРВ-22С (9 кГц – 22 ГГц, -99,7 дБн/Гц)",
+      "ЛИСН NNBM 8126 A890 (70/100 А, 600В DC/270В AC, до 400 МГц)",
+      "ЛИСН NNBL 8226-2 (50 мкГн+5 Ом, 9 кГц–100 МГц, двухканальный)",
+      "Токосъёмник ТИ2-4 (9 кГц – 400 МГц)",
+      "Токосъёмник EZ-17 (9 кГц – 400 МГц, до 2А CW/100А имп.)",
+      "Пробник Я6-124 тип 1 (100 Гц – 1000 МГц)",
+      "Антенна штыревая активная П6-120М (9 кГц – 30 МГц)",
+      "Антенна биконическая П6-121М1 (30–300 МГц)",
+      "Антенна логопериодическая П6-122М2 (300–6000 МГц)",
+      "Антенна рупорная двухгребневая П6-223 (0,8–18 ГГц)",
+      "Мачта антенная ТСМ-02-2 с антенным адаптером",
+      "ПО Лаборант ЭМС",
       "ИРИ в рабочем режиме",
-      "Кабели с ферритовыми фильтрами",
     ]
   },
   {
@@ -1426,8 +1443,8 @@ const CHECKLIST_BEFORE = [
   "Калибровки актуальны",
   "Все кабели подключены и проверены",
   "Заземление стенда проверено",
-  "Режим работы DUT выбран и зафиксирован",
-  "Мониторинг работоспособности DUT активен",
+  "Режим работы Изделия выбран и зафиксирован",
+  "Мониторинг работоспособности Изделия активен",
   "Условия безопасности выполнены",
   "Фотографии стенда сделаны",
   "Протокол и заметки подготовлены",
@@ -1497,7 +1514,7 @@ function DiagWire({ points, color = "#1A2233", dashed = false }) {
   return <path d={d} stroke={color} strokeWidth={1.5} fill="none" strokeDasharray={dashed ? "4,3" : "none"} />;
 }
 // Ground plane bar
-function DiagGndPlane({ x, y, w, label = "Опорная плоскость GND" }) {
+function DiagGndPlane({ x, y, w, label = "Опорная плоскость заземления (ОПЗ)" }) {
   return (
     <g>
       <rect x={x} y={y} width={w} height={10} fill="#BDC3CC" stroke="#7A8494" strokeWidth={1} rx={2} />
@@ -1512,11 +1529,11 @@ function DiagCE() {
     <svg width="100%" viewBox="0 0 340 160" style={{ display: "block" }}>
       <DiagGndPlane x={10} y={140} w={320} />
       {/* AC Mains */}
-      <DiagBox x={10} y={10} w={60} h={36} label={"AC\nМРЕЖА"} fill="#FFF4E5" stroke="#E07B00" />
+      <DiagBox x={10} y={10} w={60} h={36} label={"Сеть\nпитания"} fill="#FFF4E5" stroke="#E07B00" />
       {/* LISN */}
       <DiagBox x={100} y={10} w={60} h={36} label={"LISN"} sub="эквив. сети" fill="#EAF0FD" stroke="#1E5BE8" />
       {/* DUT */}
-      <DiagBox x={185} y={10} w={60} h={36} label={"DUT"} fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={185} y={10} w={60} h={36} label={"Изделие"} fill="#E6F7EE" stroke="#1A9B5A" />
       {/* Receiver */}
       <DiagBox x={270} y={10} w={60} h={36} label={"EMC\nПрием."} fill="#EAF0FD" stroke="#1E5BE8" />
       {/* Wires horizontal */}
@@ -1540,7 +1557,7 @@ function DiagRE() {
     <svg width="100%" viewBox="0 0 340 180" style={{ display: "block" }}>
       <DiagGndPlane x={10} y={160} w={320} />
       {/* DUT */}
-      <DiagBox x={20} y={60} w={70} h={40} label={"DUT"} fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={20} y={60} w={70} h={40} label={"Изделие"} fill="#E6F7EE" stroke="#1A9B5A" />
       {/* Cables with ferrites */}
       <DiagWire points={[[90, 80], [140, 80]]} color="#1A9B5A" />
       <rect x={108} y={74} width={14} height={12} rx={3} fill="#7A8494" stroke="#3A4255" strokeWidth={1} />
@@ -1575,11 +1592,11 @@ function DiagCI() {
       {/* Coupler */}
       <DiagBox x={160} y={20} w={55} h={36} label={"Напр.\nответв."} fill="#EAF0FD" stroke="#1E5BE8" />
       {/* CDN */}
-      <DiagBox x={235} y={20} w={50} h={36} label={"CDN"} fill="#EAF0FD" stroke="#1E5BE8" />
+      <DiagBox x={235} y={20} w={50} h={36} label={"СРП"} fill="#EAF0FD" stroke="#1E5BE8" />
       {/* DUT */}
-      <DiagBox x={235} y={90} w={70} h={40} label={"DUT"} fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={235} y={90} w={70} h={40} label={"Изделие"} fill="#E6F7EE" stroke="#1A9B5A" />
       {/* Monitor */}
-      <DiagBox x={85} y={100} w={60} h={36} label={"Монитор\nDUT"} fill="#FDECEA" stroke="#D93025" />
+      <DiagBox x={85} y={100} w={60} h={36} label={"Монитор\nИзделия"} fill="#FDECEA" stroke="#D93025" />
       {/* Arrows horizontal */}
       <DiagArrow x1={65} y1={38} x2={85} y2={38} color="#E07B00" />
       <DiagArrow x1={140} y1={38} x2={160} y2={38} color="#1E5BE8" />
@@ -1612,7 +1629,7 @@ function DiagRI() {
       {/* Field Sensor */}
       <DiagBox x={238} y={80} w={60} h={36} label={"Датчик\nполя"} fill="#FFF4E5" stroke="#E07B00" />
       {/* DUT */}
-      <DiagBox x={100} y={105} w={70} h={45} label={"DUT"} sub="безэховая камера" fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={100} y={105} w={70} h={45} label={"Изделие"} sub="безэховая камера" fill="#E6F7EE" stroke="#1A9B5A" />
       {/* Arrows */}
       <DiagArrow x1={65} y1={33} x2={85} y2={33} color="#E07B00" />
       <DiagArrow x1={140} y1={33} x2={160} y2={33} color="#1E5BE8" />
@@ -1640,7 +1657,7 @@ function DiagBCI() {
       {/* Coupler */}
       <DiagBox x={160} y={15} w={55} h={36} label={"Напр.\nответв."} fill="#EAF0FD" stroke="#1E5BE8" />
       {/* DUT */}
-      <DiagBox x={250} y={95} w={75} h={45} label={"DUT"} fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={250} y={95} w={75} h={45} label={"Изделие"} fill="#E6F7EE" stroke="#1A9B5A" />
       {/* Cable harness */}
       <DiagWire points={[[215, 33], [290, 33], [290, 95]]} color="#1E5BE8" />
       <DiagLabel x={253} y={28} text="жгут" color="#1A2233" />
@@ -1678,7 +1695,7 @@ function DiagESD() {
       <rect x={295} y={50} width={10} height={100} rx={2} fill="#BDC3CC" stroke="#7A8494" strokeWidth={1} />
       <DiagLabel x={315} y={100} text="VGP" color="#3A4255" />
       {/* DUT on HGP */}
-      <DiagBox x={120} y={80} w={80} h={38} label={"DUT"} sub="изол. 10 см" fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={120} y={80} w={80} h={38} label={"Изделие"} sub="изол. 10 см от ПЗ" fill="#E6F7EE" stroke="#1A9B5A" />
       {/* ESD gun */}
       <DiagBox x={10} y={78} w={65} h={36} label={"ESD\nпистолет"} fill="#FDECEA" stroke="#D93025" />
       {/* ESD discharge arrow */}
@@ -1709,7 +1726,7 @@ function DiagEFT() {
       {/* Capacitive clamp */}
       <DiagBox x={120} y={95} w={65} h={36} label={"Ёмк.\nзажим"} sub="сигн. порт" fill="#EAF0FD" stroke="#1E5BE8" />
       {/* DUT */}
-      <DiagBox x={230} y={55} w={75} h={50} label={"DUT"} fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={230} y={55} w={75} h={50} label={"Изделие"} fill="#E6F7EE" stroke="#1A9B5A" />
       {/* AC power */}
       <DiagBox x={230} y={20} w={75} h={28} label={"AC Питание"} fill="#FFF4E5" stroke="#E07B00" />
       {/* Connections */}
@@ -1736,9 +1753,9 @@ function DiagSurge() {
       {/* CDN */}
       <DiagBox x={130} y={20} w={65} h={45} label={"CDN /\nЭкв. сети"} fill="#EAF0FD" stroke="#1E5BE8" />
       {/* DUT */}
-      <DiagBox x={240} y={30} w={80} h={65} label={"DUT"} fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={240} y={30} w={80} h={65} label={"Изделие"} fill="#E6F7EE" stroke="#1A9B5A" />
       {/* AC Mains */}
-      <DiagBox x={10} y={90} w={75} h={36} label={"AC\nМРЕЖА"} fill="#FFF4E5" stroke="#E07B00" />
+      <DiagBox x={10} y={90} w={75} h={36} label={"Сеть\nпитания"} fill="#FFF4E5" stroke="#E07B00" />
       {/* Connections */}
       <DiagArrow x1={85} y1={42} x2={130} y2={42} color="#D93025" label="1,2/50 мкс" />
       <DiagArrow x1={195} y1={42} x2={240} y2={55} color="#1E5BE8" />
@@ -1768,7 +1785,7 @@ function DiagPFMF() {
       {/* Coil windings */}
       {[0, 1, 2, 3].map(i => <ellipse key={i} cx={170} cy={90 + i * 8} rx={35} ry={4} fill="none" stroke="#7A8494" strokeWidth={1.2} />)}
       {/* DUT inside coil */}
-      <DiagBox x={143} y={82} w={54} h={30} label={"DUT"} fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={143} y={82} w={54} h={30} label={"Изделие"} fill="#E6F7EE" stroke="#1A9B5A" />
       {/* Field sensor */}
       <DiagBox x={250} y={20} w={65} h={40} label={"Датчик\nполя"} fill="#FFF4E5" stroke="#E07B00" />
       {/* Connections */}
@@ -1790,15 +1807,15 @@ function DiagVDI() {
     <svg width="100%" viewBox="0 0 340 170" style={{ display: "block" }}>
       <DiagGndPlane x={10} y={150} w={320} />
       {/* AC Mains */}
-      <DiagBox x={10} y={20} w={65} h={40} label={"AC\nМРЕЖА"} fill="#FFF4E5" stroke="#E07B00" />
+      <DiagBox x={10} y={20} w={65} h={40} label={"Сеть\nпитания"} fill="#FFF4E5" stroke="#E07B00" />
       {/* Voltage dip generator */}
       <DiagBox x={105} y={20} w={80} h={40} label={"Генератор\nпровалов"} fill="#FDECEA" stroke="#D93025" />
       {/* LISN */}
       <DiagBox x={215} y={20} w={55} h={40} label={"LISN"} sub="опц." fill="#EAF0FD" stroke="#1E5BE8" />
       {/* DUT */}
-      <DiagBox x={160} y={100} w={90} h={40} label={"DUT"} sub="с AC-питанием" fill="#E6F7EE" stroke="#1A9B5A" />
+      <DiagBox x={160} y={100} w={90} h={40} label={"Изделие"} sub="с AC-питанием" fill="#E6F7EE" stroke="#1A9B5A" />
       {/* Monitor */}
-      <DiagBox x={10} y={100} w={70} h={40} label={"Монитор\nDUT"} fill="#FDECEA" stroke="#D93025" />
+      <DiagBox x={10} y={100} w={70} h={40} label={"Монитор\nИзделия"} fill="#FDECEA" stroke="#D93025" />
       {/* Connections */}
       <DiagArrow x1={75} y1={40} x2={105} y2={40} color="#E07B00" label="230 V" />
       <DiagArrow x1={185} y1={40} x2={215} y2={40} color="#1E5BE8" />
@@ -3012,7 +3029,7 @@ function LogForm({ entry, onSave, onCancel }) {
             </select>
           </Field>
         </div>
-        <Field label="Проект / Изделие (DUT)"><input style={styles.input} value={form.project} onChange={e => set("project", e.target.value)} placeholder="Название изделия" /></Field>
+        <Field label="Проект / Наименование Изделия"><input style={styles.input} value={form.project} onChange={e => set("project", e.target.value)} placeholder="Название изделия" /></Field>
         <Field label="Тип испытания">
           <select style={styles.select} value={form.testType} onChange={e => set("testType", e.target.value)}>
             {TEST_TYPES.map(t => <option key={t}>{t}</option>)}
@@ -3023,7 +3040,7 @@ function LogForm({ entry, onSave, onCancel }) {
           <Field label="Диапазон частот"><input style={styles.input} value={form.freqRange} onChange={e => set("freqRange", e.target.value)} placeholder="1–400 MHz" /></Field>
         </div>
         <Field label="Уровень воздействия"><input style={styles.input} value={form.level} onChange={e => set("level", e.target.value)} placeholder="10 V/m, 100 mA..." /></Field>
-        <Field label="Заметки по конфигурации"><textarea style={{ ...styles.input, minHeight: 80, resize: "vertical" }} value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Особенности стенда, режим DUT..." /></Field>
+        <Field label="Заметки по конфигурации"><textarea style={{ ...styles.input, minHeight: 80, resize: "vertical" }} value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Особенности стенда, режим Изделия..." /></Field>
         {form.result === "FAIL" && <>
           <Field label="Описание несоответствия"><textarea style={{ ...styles.input, minHeight: 70, resize: "vertical" }} value={form.fail} onChange={e => set("fail", e.target.value)} placeholder="Пик на 142 MHz, превышение 6 dB..." /></Field>
           <Field label="Корректирующее действие"><textarea style={{ ...styles.input, minHeight: 70, resize: "vertical" }} value={form.action} onChange={e => set("action", e.target.value)} placeholder="Добавить ферриты на..." /></Field>
@@ -3096,27 +3113,325 @@ const NAV_ITEMS = [
   { id: "log", icon: "📓", label: "Журнал" },
 ];
 
+// ─── SPLASH SCREEN (PS3 style) ───────────────────────────────────────────────
+function SplashScreen({ onDone }) {
+  const [phase, setPhase] = useState(0); // 0=logo, 1=fade, 2=done
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 2200);
+    const t2 = setTimeout(() => { setPhase(2); onDone(); }, 3000);
+    let p = 0;
+    const iv = setInterval(() => {
+      p += Math.random() * 8 + 3;
+      if (p >= 100) { p = 100; clearInterval(iv); }
+      setProgress(Math.min(p, 100));
+    }, 80);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearInterval(iv); };
+  }, []);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "radial-gradient(ellipse at 30% 40%, #0a1628 0%, #000510 60%, #000000 100%)",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      opacity: phase === 1 ? 0 : 1, transition: "opacity 0.8s ease",
+      fontFamily: "'IBM Plex Sans', sans-serif",
+    }}>
+      {/* Animated background particles */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+        {[...Array(18)].map((_, i) => (
+          <div key={i} style={{
+            position: "absolute",
+            left: `${(i * 37 + 10) % 100}%`,
+            top: `${(i * 53 + 5) % 100}%`,
+            width: i % 3 === 0 ? 3 : 1.5,
+            height: i % 3 === 0 ? 3 : 1.5,
+            borderRadius: "50%",
+            background: i % 4 === 0 ? "#1E5BE8" : i % 4 === 1 ? "#1A9B5A" : "#8A9BB8",
+            opacity: 0.4 + (i % 5) * 0.1,
+            animation: `float${i % 3} ${3 + i % 4}s ease-in-out infinite`,
+          }} />
+        ))}
+      </div>
+      <style>{`
+        @keyframes float0 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        @keyframes float1 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }
+        @keyframes float2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes glow { 0%,100%{opacity:0.7} 50%{opacity:1} }
+        @keyframes scanline { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
+      `}</style>
+
+      {/* Scanline effect */}
+      <div style={{
+        position: "absolute", left: 0, right: 0, height: 2,
+        background: "linear-gradient(90deg, transparent, rgba(30,91,232,0.3), transparent)",
+        animation: "scanline 3s linear infinite", pointerEvents: "none",
+      }} />
+
+      {/* Main logo block */}
+      <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
+        {/* Hexagon icon */}
+        <div style={{
+          width: 96, height: 96, margin: "0 auto 24px",
+          background: "linear-gradient(135deg, #0D1F4E 0%, #1E3A8A 50%, #1E5BE8 100%)",
+          borderRadius: 24, display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 0 40px rgba(30,91,232,0.6), 0 0 80px rgba(30,91,232,0.2), inset 0 1px 0 rgba(255,255,255,0.15)",
+          animation: "glow 2s ease-in-out infinite",
+          border: "1px solid rgba(30,91,232,0.5)",
+        }}>
+          <svg width="52" height="52" viewBox="0 0 52 52">
+            <path d="M26 4 L44 14 L44 34 L26 44 L8 34 L8 14 Z" fill="none" stroke="#1E5BE8" strokeWidth="1.5" opacity="0.4"/>
+            <rect x="12" y="17" width="18" height="3.5" rx="1.5" fill="#1E5BE8"/>
+            <rect x="12" y="24" width="14" height="3.5" rx="1.5" fill="#1E5BE8"/>
+            <rect x="12" y="31" width="18" height="3.5" rx="1.5" fill="#1E5BE8"/>
+            <rect x="12" y="17" width="3.5" height="17.5" rx="1.5" fill="#1E5BE8"/>
+            <path d="M34 20 Q37 17.5 40 20 Q37 22.5 34 20" stroke="#1A9B5A" strokeWidth="2" fill="none" strokeLinecap="round"/>
+            <path d="M34 25.5 Q37 23 40 25.5 Q37 28 34 25.5" stroke="#1A9B5A" strokeWidth="2" fill="none" strokeLinecap="round"/>
+            <path d="M34 31 Q37 28.5 40 31 Q37 33.5 34 31" stroke="#E07B00" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          </svg>
+        </div>
+
+        {/* Title */}
+        <div style={{
+          fontSize: 28, fontWeight: 800, letterSpacing: 3,
+          color: "#FFFFFF", marginBottom: 4,
+          textShadow: "0 0 20px rgba(30,91,232,0.8)",
+        }}>EMC TOOLKIT</div>
+        <div style={{
+          fontSize: 11, letterSpacing: 5, color: "#4A7FD4",
+          textTransform: "uppercase", marginBottom: 8,
+        }}>ИНСТРУМЕНТАРИЙ ИНЖЕНЕРА ЭМС</div>
+        <div style={{ fontSize: 11, color: "#2A4A8A", letterSpacing: 2, marginBottom: 40 }}>
+          ГОСТ РВ 20.57.306
+        </div>
+
+        {/* Progress bar PS3 style */}
+        <div style={{ width: 200, margin: "0 auto" }}>
+          <div style={{
+            width: "100%", height: 2,
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: 2, overflow: "hidden",
+          }}>
+            <div style={{
+              width: `${progress}%`, height: "100%",
+              background: "linear-gradient(90deg, #1E3A8A, #1E5BE8, #4A9FFF)",
+              transition: "width 0.1s linear",
+              boxShadow: "0 0 8px rgba(30,91,232,0.8)",
+            }} />
+          </div>
+          <div style={{ fontSize: 10, color: "#2A4A8A", marginTop: 8, letterSpacing: 2 }}>
+            ЗАГРУЗКА...
+          </div>
+        </div>
+      </div>
+
+      {/* Version */}
+      <div style={{ position: "absolute", bottom: 40, fontSize: 10, color: "#1A2A4A", letterSpacing: 2 }}>
+        v2.0 · 2025
+      </div>
+    </div>
+  );
+}
+
+// ─── EULA SCREEN ─────────────────────────────────────────────────────────────
+function EulaScreen({ onAccept }) {
+  const [scrolled, setScrolled] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9998,
+      background: "#0D1627", display: "flex", flexDirection: "column",
+      fontFamily: "'IBM Plex Sans', sans-serif",
+    }}>
+      {/* Header */}
+      <div style={{
+        background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)",
+        padding: "20px 20px 16px", borderBottom: "1px solid #1E2A40",
+        textAlign: "center",
+      }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>
+          🛡️ Лицензионное соглашение
+        </div>
+        <div style={{ fontSize: 11, color: "#8A9BB8", letterSpacing: 1 }}>
+          ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ
+        </div>
+      </div>
+
+      {/* Text */}
+      <div
+        style={{ flex: 1, overflowY: "auto", padding: "20px 18px", color: "#C8D5E8" }}
+        onScroll={(e) => {
+          const el = e.target;
+          if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setScrolled(true);
+        }}
+      >
+        <div style={{ fontSize: 13, lineHeight: 1.8, color: "#8A9BB8", marginBottom: 12 }}>
+          Версия 1.0 · Дата вступления в силу: 2025 г.
+        </div>
+
+        {[
+          ["1. ПРЕДМЕТ СОГЛАШЕНИЯ",
+           "Настоящее Лицензионное соглашение (далее — Соглашение) является юридически обязывающим договором между Вами (физическим или юридическим лицом) и правообладателем программного обеспечения EMC Engineer Toolkit (далее — Приложение). Устанавливая или используя Приложение, Вы принимаете все условия настоящего Соглашения."],
+          ["2. ИСКЛЮЧИТЕЛЬНЫЕ ПРАВА",
+           "Приложение EMC Engineer Toolkit, включая все его компоненты, базы данных, алгоритмы, интерфейс, методики расчётов, шаблоны протоколов и учебные материалы, является объектом интеллектуальной собственности и защищено законодательством Российской Федерации об авторском праве (Глава 70 ГК РФ), а также международными договорами в области охраны авторских прав."],
+          ["3. ОГРАНИЧЕНИЯ ИСПОЛЬЗОВАНИЯ",
+           "Запрещается: передавать, продавать, сдавать в аренду, распространять или иным образом предоставлять Приложение третьим лицам без письменного разрешения правообладателя; декомпилировать, дизассемблировать или иным способом получать исходный код Приложения; создавать производные произведения на основе Приложения; использовать Приложение в коммерческих целях без лицензии."],
+          ["4. ОТВЕТСТВЕННОСТЬ ЗА НАРУШЕНИЕ",
+           "Незаконное распространение Приложения или его копий влечёт гражданско-правовую ответственность в виде возмещения убытков или выплаты компенсации в размере от 10 000 до 5 000 000 рублей (ст. 1301 ГК РФ), а также уголовную ответственность по ст. 146 УК РФ (до 6 лет лишения свободы при крупном размере ущерба)."],
+          ["5. ПЕРСОНАЛЬНЫЕ ДАННЫЕ",
+           "Приложение функционирует полностью в автономном режиме. Данные, вводимые пользователем (журнал испытаний, протоколы), хранятся исключительно на устройстве пользователя и не передаются третьим лицам. Функция генерации протоколов использует API для обработки запроса — при этом конфиденциальные данные не сохраняются на серверах."],
+          ["6. ОТКАЗ ОТ ГАРАНТИЙ",
+           "Приложение предоставляется «как есть». Правообладатель не несёт ответственности за точность расчётов при их использовании в критически важных системах. Результаты расчётов и протоколы подлежат верификации в соответствии с действующими нормативными документами."],
+          ["7. ОБРАТНАЯ СВЯЗЬ",
+           "По вопросам лицензирования, технической поддержки или сообщения об ошибках обращайтесь через раздел «Настройки» → «Написать разработчику»."],
+        ].map(([title, text]) => (
+          <div key={title} style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#4A9FFF", marginBottom: 6 }}>{title}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.75, color: "#8A9BB8" }}>{text}</div>
+          </div>
+        ))}
+
+        <div style={{
+          background: "rgba(30,91,232,0.1)", border: "1px solid rgba(30,91,232,0.3)",
+          borderRadius: 8, padding: "12px 14px", marginTop: 8, fontSize: 12, color: "#4A9FFF",
+        }}>
+          ℹ️ Прокрутите до конца для активации кнопки принятия
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: "16px 18px 28px", borderTop: "1px solid #1E2A40", background: "#0D1627" }}>
+        <div
+          onClick={() => scrolled && setChecked(!checked)}
+          style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16, cursor: scrolled ? "pointer" : "default" }}
+        >
+          <div style={{
+            width: 22, height: 22, minWidth: 22, borderRadius: 5,
+            border: `2px solid ${checked ? C.accent : "#2A3A5A"}`,
+            background: checked ? C.accent : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.2s",
+          }}>
+            {checked && <span style={{ color: "#fff", fontSize: 13, fontWeight: 900 }}>✓</span>}
+          </div>
+          <div style={{ fontSize: 12, color: "#8A9BB8", lineHeight: 1.6 }}>
+            Я прочитал(а) и принимаю условия Лицензионного соглашения. Я понимаю, что несанкционированное распространение данного приложения нарушает законодательство РФ.
+          </div>
+        </div>
+        <button
+          onClick={() => { if (checked && scrolled) { localStorage.setItem("emc_eula_v1", "1"); onAccept(); } }}
+          disabled={!checked || !scrolled}
+          style={{
+            width: "100%", padding: "15px", borderRadius: 12, border: "none",
+            background: checked && scrolled
+              ? "linear-gradient(135deg, #1A3A6E 0%, #1E5BE8 100%)"
+              : "#1A2A40",
+            color: checked && scrolled ? "#fff" : "#2A3A5A",
+            fontSize: 15, fontWeight: 800, cursor: checked && scrolled ? "pointer" : "not-allowed",
+            fontFamily: "inherit", transition: "all 0.3s",
+            boxShadow: checked && scrolled ? "0 4px 14px rgba(30,91,232,0.4)" : "none",
+          }}
+        >
+          {!scrolled ? "Прокрутите текст до конца ↓" : !checked ? "Отметьте согласие ↑" : "✓ Принять и продолжить"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
+function SettingsScreen({ onClose }) {
+  return (
+    <div style={{ padding: "0 0 20px" }}>
+      <button onClick={onClose} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
+        ‹ Назад
+      </button>
+      <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", textAlign: "center", padding: "24px 20px", marginBottom: 16 }}>
+        <div style={{ fontSize: 36, marginBottom: 8 }}>⚙️</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Настройки</div>
+        <div style={{ fontSize: 12, color: "#8A9BB8", marginTop: 4 }}>EMC Engineer Toolkit v2.0</div>
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>О ПРИЛОЖЕНИИ</div>
+      <div style={styles.card}>
+        {[
+          ["Версия", "2.0.0"],
+          ["Стандарт", "ГОСТ РВ 20.57.306-98"],
+          ["Разработчик", "EMC Lab Tools"],
+          ["Лицензия", "Коммерческая, однопользовательская"],
+        ].map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ fontSize: 13, color: C.textSec }}>{k}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>ПОДДЕРЖКА</div>
+      <div style={styles.card}>
+        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 12, lineHeight: 1.6 }}>
+          Обнаружили ошибку или хотите предложить улучшение? Напишите разработчику.
+        </div>
+        <a href="mailto:emc.toolkit.dev@gmail.com" style={{
+          display: "block", width: "100%", padding: "12px", borderRadius: 10,
+          background: C.accentLight, border: `1px solid #B8CFFE`,
+          color: C.accent, fontSize: 14, fontWeight: 700, textAlign: "center",
+          textDecoration: "none",
+        }}>
+          ✉️ Написать разработчику
+        </a>
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>ПРАВОВАЯ ИНФОРМАЦИЯ</div>
+      <div style={styles.card}>
+        <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.7 }}>
+          Приложение защищено авторским правом (© 2025). Несанкционированное распространение запрещено и влечёт ответственность по ст. 146 УК РФ и ст. 1301 ГК РФ.
+        </div>
+        <div style={{ marginTop: 10, fontSize: 12, color: C.accent, cursor: "pointer", fontWeight: 600 }}
+          onClick={() => { localStorage.removeItem("emc_eula_v1"); window.location.reload(); }}>
+          📋 Просмотреть лицензионное соглашение
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
+  const [splash, setSplash] = useState(true);
+  const [eula, setEula] = useState(() => !localStorage.getItem("emc_eula_v1"));
   const [tab, setTab] = useState("home");
   const [calcId, setCalcId] = useState(null);
   const [refTab, setRefTab] = useState("abbr");
   const [quizOpen, setQuizOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); };
+  const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
+
+  if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
+  if (eula) return <EulaScreen onAccept={() => setEula(false)} />;
 
   return (
     <div style={styles.app}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
       <div style={styles.header}>
         <div style={{ width: 36, height: 36, borderRadius: 9, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚡</div>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={styles.headerTitle}>EMC Engineer Toolkit</div>
           <div style={styles.headerSub}>Инструментарий инженера ЭМС</div>
         </div>
+        <button
+          onClick={() => setSettingsOpen(!settingsOpen)}
+          style={{ background: "none", border: "none", color: settingsOpen ? C.accent : "#8A9BB8", fontSize: 20, cursor: "pointer", padding: "4px 6px" }}
+        >⚙️</button>
       </div>
       <div style={styles.content}>
-        {quizOpen
+        {settingsOpen
+          ? <SettingsScreen onClose={() => setSettingsOpen(false)} />
+          : quizOpen
           ? <QuizScreen onClose={() => setQuizOpen(false)} />
           : <>
               {tab === "home" && <HomeScreen setTab={handleTab} setCalcId={handleSetCalcId} onQuiz={() => setQuizOpen(true)} />}
@@ -3129,7 +3444,7 @@ export default function App() {
       </div>
       <div style={styles.nav}>
         {NAV_ITEMS.map(n => (
-          <button key={n.id} style={styles.navBtn(tab === n.id && !quizOpen)} onClick={() => { setQuizOpen(false); handleTab(n.id); }}>
+          <button key={n.id} style={styles.navBtn(tab === n.id && !quizOpen && !settingsOpen)} onClick={() => { setQuizOpen(false); setSettingsOpen(false); handleTab(n.id); }}>
             <span style={{ fontSize: 19 }}>{n.icon}</span>
             <span>{n.label}</span>
           </button>
