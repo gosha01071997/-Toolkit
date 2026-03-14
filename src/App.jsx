@@ -164,13 +164,13 @@ function getCableLoss(type, freqMHz, lengthM) {
 
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
-  app: { fontFamily: "'IBM Plex Sans', 'Roboto', sans-serif", background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative" },
-  header: { position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: C.dark, color: "#fff", padding: "14px 20px 12px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", zIndex: 100 },
+  app: { fontFamily: "'IBM Plex Sans', 'Roboto', sans-serif", background: C.bg, height: "100vh", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
+  header: { background: C.dark, color: "#fff", padding: "14px 20px 12px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", flexShrink: 0 },
   headerTitle: { fontSize: 18, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
-  nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 100 },
+  nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", flexShrink: 0 },
   navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "74px 14px 80px", marginTop: 0 },
+  content: { flex: 1, overflowY: "auto", padding: "16px 14px 20px" },
   card: { background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
@@ -3150,7 +3150,7 @@ function SplashScreen({ onDone }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
       background: "#000510",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
@@ -3219,7 +3219,7 @@ function EulaScreen({ onAccept }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 9998,
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998,
       background: "#0D1627", display: "flex", flexDirection: "column",
       fontFamily: "'IBM Plex Sans', sans-serif",
     }}>
