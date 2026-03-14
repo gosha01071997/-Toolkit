@@ -3662,7 +3662,7 @@ function EulaScreen({ onAccept, onDecline }) {
 }
 
 function AppInner() {
-
+  const [splash, setSplash] = useState(true);
   const [tab, setTab] = useState("home");
   const [calcId, setCalcId] = useState(null);
   const [refTab, setRefTab] = useState("abbr");
@@ -3670,6 +3670,8 @@ function AppInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
 
+
+  if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
 
   const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
