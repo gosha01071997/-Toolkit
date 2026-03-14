@@ -3113,6 +3113,23 @@ const NAV_ITEMS = [
   { id: "log", icon: "📓", label: "Журнал" },
 ];
 
+// ─── ERROR BOUNDARY ──────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: "" }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error: String(error) }; }
+  render() {
+    if (this.state.hasError) return (
+      <div style={{ padding: 30, fontFamily: "sans-serif", background: "#0D1627", minHeight: "100vh", color: "#fff" }}>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: "#D93025" }}>⚠️ Ошибка загрузки</div>
+        <div style={{ fontSize: 12, color: "#8A9BB8", marginBottom: 16, lineHeight: 1.6 }}>Пожалуйста переустановите приложение или обратитесь к разработчику.</div>
+        <div style={{ fontSize: 10, color: "#4A5568", fontFamily: "monospace", background: "#1A2A40", padding: 10, borderRadius: 6 }}>{this.state.error}</div>
+        <button onClick={() => this.setState({ hasError: false })} style={{ marginTop: 16, padding: "10px 20px", background: "#1E5BE8", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, cursor: "pointer" }}>Попробовать снова</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 // ─── SPLASH SCREEN (PS3 style) ───────────────────────────────────────────────
 function SplashScreen({ onDone }) {
   const [phase, setPhase] = useState(0); // 0=logo, 1=fade, 2=done
@@ -3321,7 +3338,7 @@ function EulaScreen({ onAccept }) {
           </div>
         </div>
         <button
-          onClick={() => { if (checked && scrolled) { localStorage.setItem("emc_eula_v1", "1"); onAccept(); } }}
+          onClick={() => { if (checked && scrolled) { try { localStorage.setItem("emc_eula_v1", "1"); } catch(e) {} onAccept(); } }}
           disabled={!checked || !scrolled}
           style={{
             width: "100%", padding: "15px", borderRadius: 12, border: "none",
@@ -3390,7 +3407,7 @@ function SettingsScreen({ onClose }) {
           Приложение защищено авторским правом (© 2025). Несанкционированное распространение запрещено и влечёт ответственность по ст. 146 УК РФ и ст. 1301 ГК РФ.
         </div>
         <div style={{ marginTop: 10, fontSize: 12, color: C.accent, cursor: "pointer", fontWeight: 600 }}
-          onClick={() => { localStorage.removeItem("emc_eula_v1"); window.location.reload(); }}>
+          onClick={() => { try { localStorage.removeItem("emc_eula_v1"); } catch(e) {} window.location.reload(); }}>
           📋 Просмотреть лицензионное соглашение
         </div>
       </div>
@@ -3399,9 +3416,11 @@ function SettingsScreen({ onClose }) {
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function App() {
+function AppInner() {
   const [splash, setSplash] = useState(true);
-  const [eula, setEula] = useState(() => !localStorage.getItem("emc_eula_v1"));
+  const [eula, setEula] = useState(() => {
+    try { return !localStorage.getItem("emc_eula_v1"); } catch(e) { return false; }
+  });
   const [tab, setTab] = useState("home");
   const [calcId, setCalcId] = useState(null);
   const [refTab, setRefTab] = useState("abbr");
@@ -3451,5 +3470,13 @@ export default function App() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppInner />
+    </ErrorBoundary>
   );
 }
