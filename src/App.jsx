@@ -3662,28 +3662,14 @@ function EulaScreen({ onAccept, onDecline }) {
 }
 
 function AppInner() {
-  const [eula, setEula] = useState(() => {
-    try { return !localStorage.getItem("emc_eula_accepted_v1"); } catch(e) { return false; }
-  });
+
   const [tab, setTab] = useState("home");
   const [calcId, setCalcId] = useState(null);
   const [refTab, setRefTab] = useState("abbr");
   const [quizOpen, setQuizOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  if (eula) return (
-    <EulaScreen
-      onAccept={() => {
-        try { localStorage.setItem("emc_eula_accepted_v1", "1"); } catch(e) {}
-        setEula(false);
-      }}
-      onDecline={() => {
-        // Close app — in Capacitor this exits, in browser goes blank
-        try { window.close(); } catch(e) {}
-        document.body.innerHTML = '<div style="background:#000;color:#333;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-size:14px;">Приложение закрыто</div>';
-      }}
-    />
-  );
+
 
   const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
