@@ -119,13 +119,13 @@ jobs:
           app.on('window-all-closed', () => {
             if (process.platform !== 'darwin') app.quit()
           })
-          "@ | Out-File -FilePath electron/main.js -Encoding UTF8
+          "@ | Out-File -FilePath electron/main.cjs -Encoding UTF8
 
       - name: Add Electron config to package.json
         shell: pwsh
         run: |
           $pkg = Get-Content package.json | ConvertFrom-Json
-          $pkg | Add-Member -Force -NotePropertyName "main" -NotePropertyValue "electron/main.js"
+          $pkg | Add-Member -Force -NotePropertyName "main" -NotePropertyValue "electron/main.cjs"
           $pkg | Add-Member -Force -NotePropertyName "build" -NotePropertyValue @{
             appId = "ru.emc.toolkit"
             productName = "EMC Engineer Toolkit"
