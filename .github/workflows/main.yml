@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK and EXE
 
 on:
   push:
@@ -6,9 +6,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
 
+  # ── JOB 1: Android APK ──────────────────────────
+  build-apk:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,9 +62,87 @@ jobs:
           ./gradlew assembleDebug --no-daemon
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: EMC-Toolkit-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+  # ── JOB 2: Windows EXE ──────────────────────────
+  build-exe:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build React app
+        run: npm run build
+
+      - name: Install Electron and builder
+        run: npm install --save-dev electron electron-builder
+
+      - name: Create Electron main file
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path electron
+          @"
+          const { app, BrowserWindow } = require('electron')
+          const path = require('path')
+
+          function createWindow() {
+            const win = new BrowserWindow({
+              width: 1200,
+              height: 800,
+              icon: path.join(__dirname, '../public/favicon.ico'),
+              webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+              },
+              title: 'EMC Engineer Toolkit'
+            })
+            win.loadFile(path.join(__dirname, '../dist/index.html'))
+            win.setMenuBarVisibility(false)
+          }
+
+          app.whenReady().then(createWindow)
+
+          app.on('window-all-closed', () => {
+            if (process.platform !== 'darwin') app.quit()
+          })
+          "@ | Out-File -FilePath electron/main.js -Encoding UTF8
+
+      - name: Add Electron config to package.json
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $pkg | Add-Member -Force -NotePropertyName "main" -NotePropertyValue "electron/main.js"
+          $pkg | Add-Member -Force -NotePropertyName "build" -NotePropertyValue @{
+            appId = "ru.emc.toolkit"
+            productName = "EMC Engineer Toolkit"
+            win = @{ target = "nsis"; icon = "public/favicon.ico" }
+            directories = @{ output = "release" }
+            files = @("dist/**", "electron/**", "public/**")
+          }
+          $pkg | ConvertTo-Json -Depth 10 | Out-File package.json -Encoding UTF8
+
+      - name: Build Windows EXE
+        run: npx electron-builder --win --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: EMC-Toolkit-Windows
+          path: release/*.exe
           retention-days: 30
