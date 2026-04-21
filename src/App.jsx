@@ -4843,6 +4843,9 @@ function VerificationScreen({ onClose }) {
   });
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [adminModal, setAdminModal] = useState(null);
+  const [addForm, setAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
 
   const save = (item) => {
     const newItems = items.map(i => i.id === item.id ? item : i);
