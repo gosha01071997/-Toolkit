@@ -4695,7 +4695,8 @@ function SettingsScreen({ onClose }) {
         {[
           ["Версия", "2.0.0"],
           ["Стандарт", "ГОСТ РВ 20.57.306-98"],
-          ["Разработчик", "EMC Lab Tools"],
+          ["Разработчик", "Кондратьев Г.Д."],
+          ["Консультант", "Григоренко М.А."],
           ["Лицензия", "Коммерческая, однопользовательская"],
         ].map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
