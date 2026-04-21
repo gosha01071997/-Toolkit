@@ -4130,12 +4130,40 @@ function EquipDetailCard({ e, onBack, getEquipSVG }) {
 }
 
 function EquipmentTab() {
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(null);
+ const [search, setSearch] = useState("");
+const [selected, setSelected] = useState(null);
+const [adminModal, setAdminModal] = useState(null);
+const [addForm, setAddForm] = useState(false);
+const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
+const [customEquip, setCustomEquip] = useState(() => {
+  try { return JSON.parse(localStorage.getItem("emc_custom_equip_v1") || "[]"); } catch(e) { return []; }
+});
   const arms = ["Все", "АРМ1", "АРМ2/3", "АРМ4", "АРМ5", "АРМ6", "АРМ7", "АРМ8", "АРМ9"];
   const [armFilter, setArmFilter] = useState("Все");
+const allEquip = [...EQUIPMENT_DATA, ...customEquip];
 
-  const filtered = EQUIPMENT_DATA.filter(e => {
+const requestAdmin = (title, action) => setAdminModal({ title, action });
+
+const deleteCustom = (id) => {
+  requestAdmin("Удаление оборудования", () => {
+    const updated = customEquip.filter(e => e.id !== id);
+    setCustomEquip(updated);
+    try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
+    setAdminModal(null);
+  });
+};
+
+const addEquip = () => {
+  if (!newItem.name) return;
+  const item = { ...newItem, id: `custom_${Date.now()}` };
+  const updated = [...customEquip, item];
+  setCustomEquip(updated);
+  try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
+  setAddForm(false);
+  setNewItem({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
+  setAdminModal(null);
+};
+  const filtered = allEquip.filter(e => {
     const q = search.toLowerCase();
     const matchSearch = !q || e.name.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q);
     const matchArm = armFilter === "Все" || e.arm === armFilter || (armFilter === "АРМ2/3" && (e.arm === "АРМ2" || e.arm === "АРМ3" || e.arm === "АРМ2/3"));
@@ -4829,6 +4857,62 @@ function GlobalSearch({ onClose, setTab, setCalcId, onErrors, onVerify, onQuiz }
 
 
 // ─── ПОВЕРКА ОБОРУДОВАНИЯ ────────────────────────────────────────────────────
+async function checkAdminCode(code) {
+  const buf = await crypto.subtle.digest(
+    "SHA-256", new TextEncoder().encode(code)
+  );
+  const hex = Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, "0")).join("");
+  const HASH = "35ebad987b2b686a6c0ca08688905ea334d1f2ca18e5babe495a4268762f74a3";
+  return hex === HASH;
+}
+
+function AdminModal({ title, onConfirm, onCancel }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handle = async () => {
+    setLoading(true);
+    const ok = await checkAdminCode(code);
+    setLoading(false);
+    if (ok) { onConfirm(); }
+    else { setError(true); setCode(""); }
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)",
+      display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+      <div style={{ background:C.card, borderRadius:16, padding:24, width:"100%", maxWidth:320 }}>
+        <div style={{ fontSize:28, textAlign:"center", marginBottom:8 }}>🔐</div>
+        <div style={{ fontSize:15, fontWeight:800, color:C.text, textAlign:"center", marginBottom:4 }}>{title}</div>
+        <div style={{ fontSize:12, color:C.textSec, textAlign:"center", marginBottom:16 }}>Введите код администратора</div>
+        <input
+          type="password"
+          value={code}
+          onChange={e => { setCode(e.target.value); setError(false); }}
+          onKeyDown={e => e.key === "Enter" && handle()}
+          placeholder="Код"
+          style={{ ...styles.input, textAlign:"center", letterSpacing:4, fontSize:18, marginBottom:8,
+            borderColor: error ? C.fail : C.border }}
+        />
+        {error && <div style={{ fontSize:12, color:C.fail, textAlign:"center", marginBottom:8 }}>Неверный код</div>}
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={onCancel} style={{ flex:1, padding:"11px", borderRadius:8,
+            border:`1px solid ${C.border}`, background:C.bg, color:C.textSec,
+            fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>Отмена</button>
+          <button onClick={handle} disabled={loading || !code}
+            style={{ flex:1, padding:"11px", borderRadius:8, border:"none",
+              background: code ? C.accent : C.border, color:"#fff",
+              fontSize:14, fontWeight:700, cursor: code ? "pointer" : "not-allowed",
+              fontFamily:"inherit" }}>
+            {loading ? "..." : "Войти"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function VerificationScreen({ onClose }) {
   const [items, setItems] = useState(() => {
     try {
@@ -4846,7 +4930,29 @@ function VerificationScreen({ onClose }) {
   const [adminModal, setAdminModal] = useState(null);
   const [addForm, setAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
+const requestAdmin = (title, action) => {
+  setAdminModal({ title, action });
+};
 
+const deleteItem = (id) => {
+  requestAdmin("Удаление оборудования", () => {
+    const newItems = items.filter(i => i.id !== id);
+    setItems(newItems);
+    try { localStorage.setItem("emc_verification_v1", JSON.stringify(newItems)); } catch(e) {}
+    setAdminModal(null);
+  });
+};
+
+const addItem = () => {
+  if (!newItem.name) return;
+  const item = { ...newItem, id: `custom_${Date.now()}`, status: "unknown" };
+  const newItems = [...items, item];
+  setItems(newItems);
+  try { localStorage.setItem("emc_verification_v1", JSON.stringify(newItems)); } catch(e) {}
+  setAddForm(false);
+  setNewItem({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
+  setAdminModal(null);
+};
   const save = (item) => {
     const newItems = items.map(i => i.id === item.id ? item : i);
     setItems(newItems);
@@ -4913,8 +5019,10 @@ function VerificationScreen({ onClose }) {
 
   return (
     <div>
-      <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:12, display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
-
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+  <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
+  <button onClick={() => setAddForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
+</div>
       {/* Summary */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
         {[
@@ -4934,7 +5042,30 @@ function VerificationScreen({ onClose }) {
         })}
       </div>
 
-      {/* List */}
+     {addForm && (
+  <div style={styles.card}>
+    <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:10 }}>Новое оборудование</div>
+    {[
+      { label:"Наименование", key:"name", placeholder:"Название прибора" },
+      { label:"Тип", key:"type", placeholder:"Измерительный приёмник" },
+      { label:"АРМ", key:"arm", placeholder:"АРМ1" },
+      { label:"Номер свидетельства", key:"certNum", placeholder:"№ 12345/2025" },
+      { label:"Дата поверки", key:"certDate", type:"date" },
+      { label:"Следующая поверка", key:"nextDate", type:"date" },
+    ].map(f => (
+      <div key={f.key} style={{ marginBottom:8 }}>
+        <div style={{ fontSize:11, color:C.textSec, marginBottom:3 }}>{f.label}</div>
+        <input style={{ ...styles.input, fontSize:13 }} type={f.type||"text"}
+          value={newItem[f.key]||""} placeholder={f.placeholder||""}
+          onChange={e => setNewItem(p => ({...p, [f.key]:e.target.value}))} />
+      </div>
+    ))}
+    <div style={{ display:"flex", gap:8, marginTop:4 }}>
+      <button onClick={() => setAddForm(false)} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${C.border}`, background:"transparent", color:C.textSec, cursor:"pointer", fontFamily:"inherit" }}>Отмена</button>
+      <button onClick={() => requestAdmin("Добавление оборудования", addItem)} disabled={!newItem.name} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:newItem.name?C.accent:C.border, color:"#fff", fontWeight:700, cursor:newItem.name?"pointer":"not-allowed", fontFamily:"inherit" }}>Добавить</button>
+    </div>
+  </div>
+)} {/* List */}
       {filtered.map(item => {
         const sc = STATUS_CONFIG[item.status];
         const daysLeft = item.nextDate ? Math.floor((new Date(item.nextDate)-new Date())/86400000) : null;
@@ -4955,11 +5086,24 @@ function VerificationScreen({ onClose }) {
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
                 <div style={{ background:sc.bg, color:sc.color, borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{sc.label}</div>
                 <div style={{ fontSize:16, color:C.textSec }}>›</div>
+<button
+  onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
+  style={{ fontSize:10, padding:"3px 8px", borderRadius:5, border:`1px solid ${C.fail}`,
+    background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit" }}>
+  Удалить
+</button>
               </div>
             </div>
           </div>
         );
       })}
+      {adminModal && (
+  <AdminModal
+    title={adminModal.title}
+    onConfirm={adminModal.action}
+    onCancel={() => setAdminModal(null)}
+  />
+)}
     </div>
   );
 }
