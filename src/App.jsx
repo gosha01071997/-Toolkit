@@ -3472,10 +3472,67 @@ function TestDetail({ test, onBack }) {
 
 function TestsScreen() {
   const [selected, setSelected] = useState(null);
+  const [adminModal, setAdminModal] = useState(null);
+  const [addForm, setAddForm] = useState(false);
+  const [newTest, setNewTest] = useState({ name:"", short:"", standard:"", range:"", desc:"" });
+  const [customTests, setCustomTests] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("emc_custom_tests_v1") || "[]"); } catch(e) { return []; }
+  });
+
+  const allTests = [...TESTS_DATA, ...customTests];
+
+  const requestAdmin = (title, action) => setAdminModal({ title, action });
+
+  const deleteTest = (id) => {
+    requestAdmin("Удаление испытания", () => {
+      const updated = customTests.filter(t => t.id !== id);
+      setCustomTests(updated);
+      try { localStorage.setItem("emc_custom_tests_v1", JSON.stringify(updated)); } catch(e) {}
+      setAdminModal(null);
+    });
+  };
+
+  const addTest = () => {
+    if (!newTest.name) return;
+    const t = { ...newTest, id: `custom_${Date.now()}`, gost: false, setup: [], criteria: "", normDoc: "" };
+    const updated = [...customTests, t];
+    setCustomTests(updated);
+    try { localStorage.setItem("emc_custom_tests_v1", JSON.stringify(updated)); } catch(e) {}
+    setAddForm(false);
+    setNewTest({ name:"", short:"", standard:"", range:"", desc:"" });
+    setAdminModal(null);
+  };
+
   if (selected) return <TestDetail test={selected} onBack={() => setSelected(null)} />;
   return (
     <div>
-      <div style={styles.sectionTitle}>Испытания по ГОСТ РВ 20.57.306</div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={styles.sectionTitle}>Испытания по ГОСТ РВ 20.57.306</div>
+        <button onClick={() => setAddForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
+      </div>
+      {addForm && (
+        <div style={{ ...styles.card, marginBottom:12 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:10 }}>Новое испытание</div>
+          {[
+            { label:"Наименование *", key:"name", placeholder:"Название испытания" },
+            { label:"Короткое обозначение", key:"short", placeholder:"п.20.4" },
+            { label:"Стандарт", key:"standard", placeholder:"ГОСТ РВ 20.57.306" },
+            { label:"Диапазон / параметры", key:"range", placeholder:"0,15 – 400 МГц" },
+            { label:"Описание", key:"desc", placeholder:"Краткое описание испытания" },
+          ].map(f => (
+            <div key={f.key} style={{ marginBottom:8 }}>
+              <div style={{ fontSize:11, color:C.textSec, marginBottom:3 }}>{f.label}</div>
+              <input style={{ ...styles.input, fontSize:13 }} type="text"
+                value={newTest[f.key]||""} placeholder={f.placeholder||""}
+                onChange={e => setNewTest(p => ({...p, [f.key]:e.target.value}))} />
+            </div>
+          ))}
+          <div style={{ display:"flex", gap:8, marginTop:4 }}>
+            <button onClick={() => setAddForm(false)} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${C.border}`, background:"transparent", color:C.textSec, cursor:"pointer", fontFamily:"inherit" }}>Отмена</button>
+            <button onClick={() => requestAdmin("Добавление испытания", addTest)} disabled={!newTest.name} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:newTest.name?C.accent:C.border, color:"#fff", fontWeight:700, cursor:newTest.name?"pointer":"not-allowed", fontFamily:"inherit" }}>Добавить</button>
+          </div>
+        </div>
+      )}
       {/* Header info */}
       <div style={{ ...styles.card, borderLeft: "3px solid #C0392B", marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3486,16 +3543,28 @@ function TestsScreen() {
           </div>
         </div>
       </div>
-      {TESTS_DATA.map(t => (
-        <button key={t.id} onClick={() => setSelected(t)} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", width: "100%", textAlign: "left", margin: "0 0 10px 0", borderLeft: "3px solid #C0392B" }}>
-          <div style={{ width: 50, height: 50, borderRadius: 10, background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#C0392B", minWidth: 50, textAlign: "center", lineHeight: 1.2 }}>{t.short}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{t.name}</div>
-            <div style={{ fontSize: 11, color: "#C0392B", fontWeight: 600, marginTop: 2 }}>{t.standard}</div>
-          </div>
-          <div style={{ fontSize: 10, color: C.textSec, textAlign: "right", maxWidth: 80, lineHeight: 1.3 }}>{t.range}</div>
-        </button>
+      {allTests.map(t => (
+        <div key={t.id} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 12, margin: "0 0 10px 0", borderLeft: "3px solid #C0392B" }}>
+          <button onClick={() => setSelected(t)} style={{ display:"flex", alignItems:"center", gap:12, flex:1, background:"none", border:"none", cursor:"pointer", textAlign:"left", padding:0, fontFamily:"inherit" }}>
+            <div style={{ width: 50, height: 50, borderRadius: 10, background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#C0392B", minWidth: 50, textAlign: "center", lineHeight: 1.2 }}>{t.short || "—"}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{t.name}</div>
+              <div style={{ fontSize: 11, color: "#C0392B", fontWeight: 600, marginTop: 2 }}>{t.standard}</div>
+            </div>
+            <div style={{ fontSize: 10, color: C.textSec, textAlign: "right", maxWidth: 80, lineHeight: 1.3 }}>{t.range}</div>
+          </button>
+          {t.id && t.id.startsWith("custom_") && (
+            <button onClick={() => deleteTest(t.id)} style={{ fontSize:10, padding:"4px 8px", borderRadius:5, border:`1px solid ${C.fail}`, background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>Удалить</button>
+          )}
+        </div>
       ))}
+      {adminModal && (
+        <AdminModal
+          title={adminModal.title}
+          onConfirm={adminModal.action}
+          onCancel={() => setAdminModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -4224,12 +4293,39 @@ const addEquip = () => {
   };
 
   if (selected) {
-    const e = EQUIPMENT_DATA.find(x => x.id === selected);
+    const e = allEquip.find(x => x.id === selected);
     return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} />;
   }
 
   return (
     <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={styles.sectionTitle}>Оборудование</div>
+        <button onClick={() => setAddForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
+      </div>
+      {addForm && (
+        <div style={{ ...styles.card, marginBottom:12 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:10 }}>Новое оборудование</div>
+          {[
+            { label:"Наименование *", key:"name", placeholder:"Название прибора" },
+            { label:"Тип", key:"type", placeholder:"Измерительный приёмник" },
+            { label:"АРМ", key:"arm", placeholder:"АРМ1" },
+            { label:"Характеристики", key:"specs", placeholder:"9 кГц – 6 ГГц" },
+            { label:"Описание", key:"desc", placeholder:"Краткое описание" },
+          ].map(f => (
+            <div key={f.key} style={{ marginBottom:8 }}>
+              <div style={{ fontSize:11, color:C.textSec, marginBottom:3 }}>{f.label}</div>
+              <input style={{ ...styles.input, fontSize:13 }} type="text"
+                value={newItem[f.key]||""} placeholder={f.placeholder||""}
+                onChange={e => setNewItem(p => ({...p, [f.key]:e.target.value}))} />
+            </div>
+          ))}
+          <div style={{ display:"flex", gap:8, marginTop:4 }}>
+            <button onClick={() => setAddForm(false)} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${C.border}`, background:"transparent", color:C.textSec, cursor:"pointer", fontFamily:"inherit" }}>Отмена</button>
+            <button onClick={() => requestAdmin("Добавление оборудования", addEquip)} disabled={!newItem.name} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:newItem.name?C.accent:C.border, color:"#fff", fontWeight:700, cursor:newItem.name?"pointer":"not-allowed", fontFamily:"inherit" }}>Добавить</button>
+          </div>
+        </div>
+      )}
       <div style={styles.searchWrap}>
         <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>🔍</span>
         <input style={{ ...styles.searchInput }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по названию или типу..." />
@@ -4241,19 +4337,29 @@ const addEquip = () => {
       </div>
       <div style={{ fontSize: 11, color: C.textSec, marginBottom: 10 }}>Найдено: {filtered.length} единиц оборудования</div>
       {filtered.map(e => (
-        <div key={e.id} onClick={() => setSelected(e.id)} style={{ ...styles.card, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
-          <div style={{ fontSize: 24, minWidth: 32 }}>{e.icon}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div key={e.id} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginBottom: 8 }}>
+          <div onClick={() => setSelected(e.id)} style={{ fontSize: 24, minWidth: 32, cursor:"pointer" }}>{e.icon}</div>
+          <div onClick={() => setSelected(e.id)} style={{ flex: 1, minWidth: 0, cursor:"pointer" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{e.name}</div>
             <div style={{ fontSize: 11, color: C.textSec, marginBottom: 2 }}>{e.type}</div>
             <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{e.specs}</div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
             <div style={{ fontSize: 10, background: C.accentLight, color: C.accent, borderRadius: 5, padding: "2px 7px", fontWeight: 700 }}>{e.arm}</div>
-            <div style={{ fontSize: 16, color: C.textSec }}>›</div>
+            <div onClick={() => setSelected(e.id)} style={{ fontSize: 16, color: C.textSec, cursor:"pointer" }}>›</div>
+            {e.id && e.id.startsWith("custom_") && (
+              <button onClick={() => deleteCustom(e.id)} style={{ fontSize:10, padding:"3px 8px", borderRadius:5, border:`1px solid ${C.fail}`, background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit" }}>Удалить</button>
+            )}
           </div>
         </div>
       ))}
+      {adminModal && (
+        <AdminModal
+          title={adminModal.title}
+          onConfirm={adminModal.action}
+          onCancel={() => setAdminModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -4723,7 +4829,8 @@ function SettingsScreen({ onClose }) {
         {[
           ["Версия", "2.0.0"],
           ["Стандарт", "ГОСТ РВ 20.57.306-98"],
-          ["Разработчик", "EMC Lab Tools"],
+          ["Разработчик", "Кондратьев Г.Д."],
+          ["Консультант", "Григоренко М.А."],
           ["Лицензия", "Коммерческая, однопользовательская"],
         ].map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
