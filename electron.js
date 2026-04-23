@@ -3,6 +3,8 @@ const path = require('path')
 
 function createWindow() {
   const win = new BrowserWindow({
+    width: 1200,
+    height: 800,
     minWidth: 900,
     minHeight: 600,
     title: 'EMC Pro — Инструментарий инженера ЭМС',
