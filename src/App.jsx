@@ -1304,188 +1304,164 @@ function ErrorsScreen({ onClose }) {
 }
 
 function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
+
+  // SVG иконки для быстрого доступа
+  const QuickIcons = {
+    db: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#3B82F6" strokeWidth="1.5"/><path d="M8 12h8M12 8v8" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 9l6 6M15 9l-6 6" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+    bci: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="#F97316" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
+    cable: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="#8B5CF6" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="12" r="3" stroke="#8B5CF6" strokeWidth="1.5"/></svg>,
+    tests: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    abbr: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#3B82F6" strokeWidth="1.5"/><path d="M7 8h10M7 12h10M7 16h6" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  };
+
   const quick = [
-    { icon: "📡", label: "dB-конвертер", tab: "calc", id: "db" },
-    { icon: "⚡", label: "Расчёт инжекции тока", tab: "calc", id: "bci" },
-    { icon: "🔌", label: "Потери кабеля", tab: "calc", id: "cable" },
-    { icon: "📋", label: "Чек-листы", tab: "tests", id: null },
-    { icon: "📖", label: "Сокращения", tab: "ref", id: "abbr" },
+    { iconKey: "db",    label: "dB-конвертер",        sub: "Преобразование единиц",    tab: "calc", id: "db",    bg: "#EFF6FF" },
+    { iconKey: "bci",   label: "Расчёт инжекции тока", sub: "ГОСТ Р 51317.4.6",         tab: "calc", id: "bci",   bg: "#FFF7ED" },
+    { iconKey: "cable", label: "Потери кабеля",         sub: "Расчёт затухания",         tab: "calc", id: "cable", bg: "#F5F3FF" },
+    { iconKey: "tests", label: "Чек-листы",             sub: "Готовые чек-листы",        tab: "tests",id: null,   bg: "#ECFDF5" },
+    { iconKey: "abbr",  label: "Сокращения",            sub: "Термины и аббревиатуры",   tab: "ref",  id: "abbr",  bg: "#EFF6FF" },
   ];
-  return (
-    <div style={{
-  width: "100%",
-  maxWidth: "none",
-  padding: "24px"
-}}>
-      <div style={{ ...styles.card, background: `linear-gradient(135deg, ${C.dark} 0%, #1E3A6E 100%)`, border: "none" }}>
-        <div style={{ fontSize: 11, color: "#8A9BB8", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>ГОСТ РВ 20.57.306</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>Создано инженером для инженеров</div>
-        <div style={{ fontSize: 13, color: "#8A9BB8", marginTop: 6 }}>Калькуляторы · Испытания · Справочник · Журнал</div>
-      </div>
 
-      <div style={{
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: 16,
-  marginBottom: 12
-}}>
-  {quick.map((q, i) => (
-          <button key={i} onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
-            style={{ ...styles.card, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", border: `1.5px solid ${C.border}`, margin: 0, textAlign: "left" }}>
-            <span style={{ fontSize: 22 }}>{q.icon}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{q.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* QUIZ BUTTON */}
-      <button onClick={onQuiz} style={{
-        width: "100%", marginBottom: 10, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #1A3A6E 0%, #1E5BE8 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(30,91,232,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🧠</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ТЕСТИРОВАНИЕ</div>
-          <div style={{ fontSize: 12, color: "#8AB4F8", marginTop: 3 }}>10 вопросов из базы 200 · Теория и практика ЭМС</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#8AB4F8" }}>›</span>
-      </button>
-
-      <button onClick={onErrors} style={{
-        width: "100%", marginBottom: 10, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #7A1A1A 0%, #C0392B 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(192,57,43,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🔥</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ТИПОВЫЕ ОШИБКИ</div>
-          <div style={{ fontSize: 12, color: "#FFB3B3", marginTop: 3 }}>Частые проблемы при испытаниях · Решения</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#FFB3B3" }}>›</span>
-      </button>
-
-      <button onClick={onVerify} style={{
-        width: "100%", marginBottom: 10, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #0A3A1A 0%, #1A9B5A 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(26,155,90,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📅</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ПОВЕРКА ОБОРУДОВАНИЯ</div>
-          <div style={{ fontSize: 12, color: "#A8F0CC", marginTop: 3 }}>Сроки поверки · Свидетельства · Напоминания</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#A8F0CC" }}>›</span>
-      </button>
-
-      <button onClick={() => setTab("ai")} style={{
-        width: "100%", marginBottom: 16, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #2A0A3A 0%, #7B1DC7 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(123,29,199,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🤖</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ИИ-ПОМОЩНИК</div>
-          <div style={{ fontSize: 12, color: "#D4A8F0", marginTop: 3 }}>Ollama (оффлайн) · Claude AI · База знаний EMC Pro</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#D4A8F0" }}>›</span>
-      </button>
-
-      <div style={styles.sectionTitle}>О приложении</div>
-      <div style={styles.card}>
-        <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6, margin: 0 }}>
-          Профессиональный инструмент для инженеров в области электромагнитной совместимости (ЭМС).
-          Все расчёты выполняются локально на устройстве. Справочники доступны без подключения к интернету.
-        </p>
-        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap" }}>
-          {["ГОСТ РВ 20.57.306", "ГОСТ РВ 6601-001-2008", "КТ-160G", "ГОСТ Р ЭМС"].map(s => <span key={s} style={styles.chip}>{s}</span>)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── dB CONVERTER ─────────────────────────────────────────────────────────────
-function DbConverter() {
-  const [val, setVal] = useState("");
-  const [mode, setMode] = useState("dBuV_V");
-  const modes = [
-    { id: "dBuV_V", label: "dBµV ↔ V" },
-    { id: "dBm_W", label: "dBm ↔ W" },
-    { id: "dBuA_A", label: "dBµA ↔ A" },
-    { id: "dBuVm_Vm", label: "dBµV/m ↔ V/m" },
+  const sections = [
+    {
+      label: "Тестирование", sub: "10 вопросов из базы\nТеория и практика ЭМС",
+      color: "#3B82F6", bg: "#EFF6FF",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.5"/><path d="M9.5 8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5c0 1.5-1.5 2-1.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="17" r="1" fill="white"/></svg>,
+      action: onQuiz
+    },
+    {
+      label: "Типовые ошибки", sub: "Частые проблемы при\nиспытаниях и решения",
+      color: "#F97316", bg: "#FFF7ED",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      action: onErrors
+    },
+    {
+      label: "Проверка оборудования", sub: "Сроки поверки, свидетельства,\nнапоминания",
+      color: "#10B981", bg: "#ECFDF5",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/></svg>,
+      action: onVerify
+    },
+    {
+      label: "ИИ-помощник", sub: "Claude AI на базе знаний\nEMC Pro",
+      color: "#8B5CF6", bg: "#F5F3FF",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="white" strokeWidth="1.5"/><path d="M6 21v-1a6 6 0 0112 0v1" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+      action: () => setTab("ai")
+    },
   ];
-  const n = parseNum(val);
-  const results = useMemo(() => {
-    if (isNaN(n)) return null;
-    if (mode === "dBuV_V") {
-      const v = dbConvert.dBuV_to_V(n);
-      const db = dbConvert.V_to_dBuV(n);
-      return [
-        { label: `${fmt(n)} dBµV → V`, value: `${fmt(v, 6)} V` },
-        { label: `${fmt(n)} V → dBµV`, value: `${fmt(db)} dBµV` },
-        { label: "µV", value: `${fmt(v * 1e6)} µV` },
-        { label: "mV", value: `${fmt(v * 1e3, 6)} mV` },
-      ];
-    }
-    if (mode === "dBm_W") {
-      const w = dbConvert.dBm_to_W(n);
-      const db = dbConvert.W_to_dBm(n);
-      return [
-        { label: `${fmt(n)} dBm → W`, value: `${fmt(w, 6)} W` },
-        { label: `${fmt(n)} W → dBm`, value: `${fmt(db)} dBm` },
-        { label: "mW", value: `${fmt(w * 1e3, 4)} mW` },
-        { label: "µW", value: `${fmt(w * 1e6, 2)} µW` },
-      ];
-    }
-    if (mode === "dBuA_A") {
-      const a = dbConvert.dBuA_to_A(n);
-      const db = dbConvert.A_to_dBuA(n);
-      return [
-        { label: `${fmt(n)} dBµA → A`, value: `${fmt(a, 8)} A` },
-        { label: `${fmt(n)} A → dBµA`, value: `${fmt(db)} dBµA` },
-        { label: "mA", value: `${fmt(a * 1e3, 6)} mA` },
-        { label: "µA", value: `${fmt(a * 1e6, 3)} µA` },
-      ];
-    }
-    if (mode === "dBuVm_Vm") {
-      const vm = dbConvert.dBuVm_to_Vm(n);
-      const db = dbConvert.Vm_to_dBuVm(n);
-      return [
-        { label: `${fmt(n)} dBµV/m → V/m`, value: `${fmt(vm, 6)} V/m` },
-        { label: `${fmt(n)} V/m → dBµV/m`, value: `${fmt(db)} dBµV/m` },
-      ];
-    }
-    return null;
-  }, [n, mode]);
 
   return (
-    <div>
-      <div style={styles.sectionTitle}>dB-конвертер</div>
-      <div style={styles.card}>
-        <InnerTabs tabs={modes} active={mode} onSet={setMode} />
-        <Field label="Введите значение">
-          <input style={styles.input} type="number" value={val} onChange={e => setVal(e.target.value)} placeholder="Например: 40" />
-        </Field>
-        {results && <ResultBox rows={results} lastNoLine />}
-        {val && isNaN(n) && <div style={{ color: C.fail, fontSize: 12, marginTop: 6 }}>Введите корректное число</div>}
-      </div>
-      <div style={styles.card}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.textSec, marginBottom: 8 }}>СПРАВКА ПО ФОРМУЛАМ</div>
-        {[
-          ["dBµV → V", "V = 10^((dBµV − 120) / 20)"],
-          ["dBm → W", "W = 10^(dBm / 10) / 1000"],
-          ["dBµA → A", "A = 10^((dBµA − 120) / 20)"],
-        ].map(([l, f]) => (
-          <div key={l} style={{ borderBottom: `1px solid ${C.border}`, padding: "6px 0", display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, color: C.textSec }}>{l}</span>
-            <span style={{ fontSize: 12, fontFamily: "monospace", color: C.text }}>{f}</span>
+    <div style={{ width: "100%", height: "100%", overflowY: "auto", background: "#F8FAFC" }}>
+      <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 28, maxWidth: 1400 }}>
+
+        {/* HERO */}
+        <div style={{
+          background: "linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%)",
+          borderRadius: 20, padding: "32px 40px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          border: "1px solid #DBEAFE", overflow: "hidden", position: "relative", minHeight: 220
+        }}>
+          <div style={{ flex: 1, zIndex: 1 }}>
+            <div style={{ fontSize: 38, fontWeight: 800, color: "#1E293B", lineHeight: 1.2, marginBottom: 12 }}>
+              Инструментарий<br/>инженера <span style={{ color: "#3B82F6" }}>ЭМС</span>
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#475569", marginBottom: 6 }}>Точные расчёты. Быстро. Без ошибок.</div>
+            <div style={{ fontSize: 13, color: "#94A3B8", marginBottom: 24, maxWidth: 380 }}>
+              Профессиональный инструмент для задач в области электромагнитной совместимости
+            </div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => setTab("calc")} style={{
+                padding: "12px 24px", borderRadius: 10, background: "#3B82F6",
+                color: "#fff", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14,
+                display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(59,130,246,0.4)"
+              }}>▶ Начать работу</button>
+              <button onClick={() => setTab("ref")} style={{
+                padding: "12px 24px", borderRadius: 10, background: "#fff",
+                color: "#475569", border: "1px solid #E2E8F0", cursor: "pointer", fontSize: 14,
+                display: "flex", alignItems: "center", gap: 8
+              }}>📖 Справочники</button>
+            </div>
           </div>
-        ))}
+
+          {/* ДЕКОРАТИВНЫЙ ЩИТ + ВОЛНЫ */}
+          <div style={{ position: "relative", width: 380, height: 180, flexShrink: 0 }}>
+            {/* Волны */}
+            <svg style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)" }} width="260" height="100" viewBox="0 0 260 100" fill="none">
+              <path d="M0 50 Q20 20 40 50 Q60 80 80 50 Q100 20 120 50 Q140 80 160 50 Q180 20 200 50 Q220 80 240 50 Q250 35 260 50" stroke="#BFDBFE" strokeWidth="2" fill="none"/>
+              <path d="M0 60 Q20 30 40 60 Q60 90 80 60 Q100 30 120 60 Q140 90 160 60 Q180 30 200 60 Q220 90 240 60 Q250 45 260 60" stroke="#DBEAFE" strokeWidth="1.5" fill="none"/>
+            </svg>
+            {/* Щит */}
+            <svg style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)" }} width="160" height="180" viewBox="0 0 160 180" fill="none">
+              <path d="M80 8 L148 35 L148 90 C148 128 80 168 80 168 C80 168 12 128 12 90 L12 35 Z" fill="#EFF6FF" stroke="#BFDBFE" strokeWidth="2"/>
+              <path d="M80 20 L136 43 L136 90 C136 122 80 155 80 155 C80 155 24 122 24 90 L24 43 Z" fill="#DBEAFE" stroke="#93C5FD" strokeWidth="1.5"/>
+              <path d="M55 88 L72 105 L108 72" stroke="#3B82F6" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* БЫСТРЫЙ ДОСТУП */}
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#1E293B", marginBottom: 16 }}>Быстрый доступ</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
+            {quick.map((q, i) => (
+              <button key={i} onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
+                style={{
+                  background: "#fff", padding: "20px 16px", borderRadius: 16,
+                  cursor: "pointer", display: "flex", flexDirection: "column", gap: 12,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0",
+                  textAlign: "left", position: "relative"
+                }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: q.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {QuickIcons[q.iconKey]}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1E293B", marginBottom: 4 }}>{q.label}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8" }}>{q.sub}</div>
+                </div>
+                <div style={{ position: "absolute", bottom: 16, right: 16, color: "#CBD5E1", fontSize: 18 }}>›</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ОСНОВНЫЕ РАЗДЕЛЫ */}
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#1E293B", marginBottom: 16 }}>Основные разделы</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+            {sections.map((s, i) => (
+              <button key={i} onClick={s.action} style={{
+                background: "#fff", padding: "24px", borderRadius: 16,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)", cursor: "pointer",
+                border: "1px solid #E2E8F0", textAlign: "left"
+              }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                  {s.icon}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", marginBottom: 8 }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6, marginBottom: 16, whiteSpace: "pre-line" }}>{s.sub}</div>
+                <div style={{ color: s.color, fontSize: 13, fontWeight: 600 }}>Перейти →</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* О ПРИЛОЖЕНИИ */}
+        <div style={{
+          background: "#fff", borderRadius: 16, padding: "20px 24px",
+          border: "1px solid #E2E8F0", display: "flex", alignItems: "center", gap: 16
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>ℹ️</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: "#64748B" }}>
+              Профессиональный инструмент для инженеров в области электромагнитной совместимости (ЭМС). Работает без интернета.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            {["ГОСТ РВ 20.57.306", "ГОСТ Р 51317", "CISPR 16", "IEC 61000"].map(s => (
+              <span key={s} style={{ background: "#EFF6FF", color: "#3B82F6", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{s}</span>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -5948,34 +5924,109 @@ function AppInner() {
 
 
 
+  const sideNavItems = [
+    { id: "home",   label: "Главная",      svgPath: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10" },
+    { id: "calc",   label: "Калькуляторы", svgPath: "M4 6h16M4 10h16M4 14h16M4 18h16" },
+    { id: "tests",  label: "Испытания",    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+    { id: "ref",    label: "Справочники",  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+    { id: "equip",  label: "Оборудование", svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
+    { id: "verify", label: "Поверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
+    { id: "ai",     label: "ИИ-помощник",  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
+    { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+  ];
+
   return (
-    <div style={styles.app}>
-      
-      <div style={styles.header}>
-        <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(145deg, #0D1F4E, #1E5BE8)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(74,159,255,0.4)" }}>
-          <svg width="22" height="22" viewBox="0 0 52 52">
-            <rect x="12" y="17" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
-            <rect x="12" y="24" width="14" height="3.5" rx="1.5" fill="#4A9FFF"/>
-            <rect x="12" y="31" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
-            <rect x="12" y="17" width="3.5" height="17.5" rx="1.5" fill="#4A9FFF"/>
-            <path d="M34 20 Q37 17.5 40 20 Q37 22.5 34 20" stroke="#1A9B5A" strokeWidth="2" fill="none" strokeLinecap="round"/>
-            <path d="M34 25.5 Q37 23 40 25.5 Q37 28 34 25.5" stroke="#1A9B5A" strokeWidth="2" fill="none" strokeLinecap="round"/>
-            <path d="M34 31 Q37 28.5 40 31 Q37 33.5 34 31" stroke="#E07B00" strokeWidth="2" fill="none" strokeLinecap="round"/>
-          </svg>
+    <div style={{ display: "flex", height: "100vh", background: "#F0F4FF", fontFamily: "'Roboto','Arial',sans-serif" }}>
+
+      {/* БОКОВАЯ НАВИГАЦИЯ */}
+      <div style={{
+        width: 220, background: "#fff", borderRight: `1px solid ${C.border}`,
+        display: "flex", flexDirection: "column", flexShrink: 0,
+        boxShadow: "2px 0 8px rgba(0,0,0,0.04)"
+      }}>
+        {/* Лого */}
+        <div style={{ padding: "20px 20px 16px", borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(145deg, #0D1F4E, #1E5BE8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="20" height="20" viewBox="0 0 52 52">
+                <rect x="12" y="17" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
+                <rect x="12" y="24" width="14" height="3.5" rx="1.5" fill="#4A9FFF"/>
+                <rect x="12" y="31" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
+                <rect x="12" y="17" width="3.5" height="17.5" rx="1.5" fill="#4A9FFF"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>Инструментарий<br/>инженера ЭМС</div>
+            </div>
+          </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={styles.headerTitle}>Инструментарий инженера ЭМС</div>
-          <div style={styles.headerSub}>ГОСТ РВ 20.57.306</div>
+
+        {/* Навигация */}
+        <div style={{ flex: 1, padding: "12px 12px", overflowY: "auto" }}>
+          {sideNavItems.map(n => {
+            const isActive = !quizOpen && !settingsOpen && !errorsOpen && !searchOpen && (
+              n.id === "verify" ? verifyOpen :
+              n.id === "equip" ? (tab === "ref" && refTab === "equip" && !verifyOpen) :
+              n.id === "ref" ? (tab === "ref" && refTab !== "equip" && !verifyOpen) :
+              (tab === n.id && !verifyOpen)
+            );
+            const handleClick = () => {
+              setQuizOpen(false); setSettingsOpen(false); setErrorsOpen(false); setSearchOpen(false);
+              if (n.id === "verify") { setVerifyOpen(true); }
+              else if (n.id === "equip") { setVerifyOpen(false); setRefTab("equip"); handleTab("ref"); }
+              else if (n.id === "ref") { setVerifyOpen(false); setRefTab("abbr"); handleTab("ref"); }
+              else { setVerifyOpen(false); handleTab(n.id); }
+            };
+            return (
+              <button key={n.id} onClick={handleClick} style={{
+                width: "100%", padding: "10px 14px", borderRadius: 10, border: "none",
+                background: isActive ? C.accentLight : "transparent",
+                color: isActive ? C.accent : C.textSec,
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+                fontSize: 14, fontWeight: isActive ? 700 : 400,
+                marginBottom: 2, textAlign: "left",
+                borderLeft: isActive ? `3px solid ${C.accent}` : "3px solid transparent",
+              }}>
+                <span style={{ fontSize: 18 }}>{n.icon}</span>
+                <span>{n.label}</span>
+              </button>
+            );
+          })}
         </div>
-        <button
-          onClick={() => setSearchOpen(true)}
-          style={{ background: "none", border: "none", color: "#8A9BB8", fontSize: 20, cursor: "pointer", padding: "4px 6px" }}
-        >🔍</button>
-        <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          style={{ background: "none", border: "none", color: settingsOpen ? C.accent : "#8A9BB8", fontSize: 20, cursor: "pointer", padding: "4px 6px" }}
-        >⚙️</button>
+
+        {/* Статус + версия */}
+        <div style={{ padding: "16px", borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A" }}></div>
+            <span style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>Офлайн режим</span>
+          </div>
+          <div style={{ fontSize: 11, color: C.textSec }}>Все функции доступны</div>
+          <div style={{ fontSize: 11, color: C.textSec, marginTop: 4 }}>v2.0.0</div>
+        </div>
       </div>
+
+      {/* ОСНОВНОЙ КОНТЕНТ */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* ВЕРХНЯЯ ПАНЕЛЬ */}
+        <div style={{
+          background: "#fff", borderBottom: `1px solid ${C.border}`,
+          padding: "0 24px", height: 56, display: "flex", alignItems: "center",
+          justifyContent: "space-between", flexShrink: 0
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
+            {settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
+              sideNavItems.find(n => n.id === tab)?.label || "Главная"}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => setSearchOpen(true)} style={{ background: "none", border: "none", color: C.textSec, fontSize: 18, cursor: "pointer", padding: "6px 10px", borderRadius: 8 }}>🔍 Справка</button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "none", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "6px 14px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6 }}>⚙️ Настройки</button>
+          </div>
+        </div>
+
+        {/* КОНТЕНТ */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div style={{ height: "100%" }}>
       <div style={styles.content}>
         {settingsOpen
           ? <SettingsScreen onClose={() => setSettingsOpen(false)} />
@@ -5997,13 +6048,8 @@ function AppInner() {
             </>
         }
       </div>
-      <div style={styles.nav}>
-        {NAV_ITEMS.map(n => (
-          <button key={n.id} style={styles.navBtn(tab === n.id && !quizOpen && !settingsOpen)} onClick={() => { setQuizOpen(false); setSettingsOpen(false); handleTab(n.id); }}>
-            <span style={{ fontSize: 19 }}>{n.icon}</span>
-            <span>{n.label}</span>
-          </button>
-        ))}
+      </div>
+        </div>
       </div>
     </div>
   );
