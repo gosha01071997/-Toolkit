@@ -1312,16 +1312,24 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
     { icon: "📖", label: "Сокращения", tab: "ref", id: "abbr" },
   ];
   return (
-    <div>
+    <div style={{
+  width: "100%",
+  maxWidth: "none",
+  padding: "24px"
+}}>
       <div style={{ ...styles.card, background: `linear-gradient(135deg, ${C.dark} 0%, #1E3A6E 100%)`, border: "none" }}>
         <div style={{ fontSize: 11, color: "#8A9BB8", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>ГОСТ РВ 20.57.306</div>
         <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>Создано инженером для инженеров</div>
         <div style={{ fontSize: 13, color: "#8A9BB8", marginTop: 6 }}>Калькуляторы · Испытания · Справочник · Журнал</div>
       </div>
 
-      <div style={styles.sectionTitle}>Быстрый доступ</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-        {quick.map((q, i) => (
+      <div style={{
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 16,
+  marginBottom: 12
+}}>
+  {quick.map((q, i) => (
           <button key={i} onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
             style={{ ...styles.card, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", border: `1.5px solid ${C.border}`, margin: 0, textAlign: "left" }}>
             <span style={{ fontSize: 22 }}>{q.icon}</span>
