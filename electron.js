@@ -2,13 +2,7 @@ const { app, BrowserWindow, shell } = require('electron')
 const path = require('path')
 
 function createWindow() {
-  const { width, height } = require('electron').screen.getPrimaryDisplay().workAreaSize
-
   const win = new BrowserWindow({
-    width: width,
-    height: height,
-    x: 0,
-    y: 0,
     minWidth: 900,
     minHeight: 600,
     title: 'EMC Pro — Инструментарий инженера ЭМС',
@@ -23,8 +17,8 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'dist', 'index.html'))
 
   win.once('ready-to-show', () => {
-    win.maximize()
     win.show()
+    win.maximize()
   })
 
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -35,9 +29,6 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
 })
 
 app.on('window-all-closed', () => {
