@@ -1351,7 +1351,7 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
 
   return (
     <div style={{ width: "100%", height: "100%", overflowY: "auto", background: "#F8FAFC" }}>
-      <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 28, maxWidth: 1400 }}>
+      <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 28 }}>
 
         {/* HERO */}
         <div style={{
@@ -1382,18 +1382,18 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
             </div>
           </div>
 
-          {/* ДЕКОРАТИВНЫЙ ЩИТ + ВОЛНЫ */}
-          <div style={{ position: "relative", width: 380, height: 180, flexShrink: 0 }}>
-            {/* Волны */}
-            <svg style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)" }} width="260" height="100" viewBox="0 0 260 100" fill="none">
-              <path d="M0 50 Q20 20 40 50 Q60 80 80 50 Q100 20 120 50 Q140 80 160 50 Q180 20 200 50 Q220 80 240 50 Q250 35 260 50" stroke="#BFDBFE" strokeWidth="2" fill="none"/>
-              <path d="M0 60 Q20 30 40 60 Q60 90 80 60 Q100 30 120 60 Q140 90 160 60 Q180 30 200 60 Q220 90 240 60 Q250 45 260 60" stroke="#DBEAFE" strokeWidth="1.5" fill="none"/>
+          {/* ЭКГ + ЩИТ */}
+          <div style={{ position: "relative", width: 420, height: 200, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* ЭКГ линия */}
+            <svg style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)" }} width="280" height="120" viewBox="0 0 280 120" fill="none">
+              <path d="M0 60 L30 60 L45 60 L55 20 L65 100 L75 40 L85 60 L110 60 L125 60 L135 25 L145 95 L155 45 L165 60 L190 60 L205 60 L215 22 L225 98 L235 42 L245 60 L280 60" stroke="#BFDBFE" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M0 70 L30 70 L45 70 L55 35 L65 105 L75 52 L85 70 L110 70 L125 70 L135 38 L145 102 L155 55 L165 70 L190 70 L205 70 L215 36 L225 104 L235 53 L245 70 L280 70" stroke="#DBEAFE" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             {/* Щит */}
-            <svg style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)" }} width="160" height="180" viewBox="0 0 160 180" fill="none">
-              <path d="M80 8 L148 35 L148 90 C148 128 80 168 80 168 C80 168 12 128 12 90 L12 35 Z" fill="#EFF6FF" stroke="#BFDBFE" strokeWidth="2"/>
-              <path d="M80 20 L136 43 L136 90 C136 122 80 155 80 155 C80 155 24 122 24 90 L24 43 Z" fill="#DBEAFE" stroke="#93C5FD" strokeWidth="1.5"/>
-              <path d="M55 88 L72 105 L108 72" stroke="#3B82F6" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }} width="170" height="190" viewBox="0 0 170 190" fill="none">
+              <path d="M85 6 L158 36 L158 96 C158 136 85 174 85 174 C85 174 12 136 12 96 L12 36 Z" fill="#EFF6FF" stroke="#BFDBFE" strokeWidth="2"/>
+              <path d="M85 18 L146 44 L146 96 C146 130 85 162 85 162 C85 162 24 130 24 96 L24 44 Z" fill="#DBEAFE" stroke="#93C5FD" strokeWidth="1.5"/>
+              <path d="M58 92 L76 112 L116 72" stroke="#3B82F6" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
         </div>
@@ -1460,6 +1460,26 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
               <span key={s} style={{ background: "#EFF6FF", color: "#3B82F6", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{s}</span>
             ))}
           </div>
+        </div>
+
+
+
+        {/* СТАТИСТИКА */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+          {[
+            { label: "Испытаний в базе", value: "24", icon: "📋", color: "#3B82F6" },
+            { label: "Калькуляторов", value: "8", icon: "🧮", color: "#10B981" },
+            { label: "Сокращений ЭМС", value: "200+", icon: "📖", color: "#8B5CF6" },
+            { label: "Работает офлайн", value: "100%", icon: "🔒", color: "#F97316" },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "#fff", borderRadius: 16, padding: "20px 24px", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ fontSize: 28 }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>{s.label}</div>
+              </div>
+            </div>
+          ))}
         </div>
 
       </div>
@@ -1533,6 +1553,8 @@ function BciCalc() {
         <div style={styles.warn}>
           ⚠️ Расчёт ориентировочный. Итоговое значение зависит от калибровки тракта и реальной схемы испытания.
         </div>
+
+
       </div>
     </div>
   );
@@ -1616,6 +1638,8 @@ function CableLossCalc() {
             </table>
           </div>
         </div>
+
+
       </div>
     </div>
   );
@@ -1669,6 +1693,8 @@ function PowerGainCalc() {
           </Field>
         </div>
         {res && <ResultBox rows={res} lastNoLine />}
+
+
       </div>
     </div>
   );
@@ -1719,6 +1745,8 @@ function ResonanceCalc() {
         </Field>
         {res && <ResultBox rows={res} lastNoLine />}
         <div style={styles.warn}>Типичные velocity factor: коаксиал — 0.66, воздух — 1.0, FR4 — ~0.5</div>
+
+
       </div>
     </div>
   );
@@ -1761,6 +1789,8 @@ function UnitConverter() {
           </Field>
         </div>
         {results && <ResultBox rows={results} lastNoLine />}
+
+
       </div>
     </div>
   );
@@ -1891,6 +1921,8 @@ function TimeConverter() {
         <div style={{ fontSize: 11, color: C.textSec, marginTop: 8, fontStyle: "italic" }}>
           Нажмите на строку — значение подставится в конвертер
         </div>
+
+
       </div>
     </div>
   );
@@ -3530,11 +3562,11 @@ function TestDetail({ test, onBack }) {
   const innerTabs = [
     { id: "info", label: "Описание" },
     { id: "steps", label: "📋 Шаги" },
+    { id: "schema", label: "📐 Схема стенда" },
     { id: "before", label: "До" },
     { id: "during", label: "Во время" },
     { id: "after", label: "После" },
     { id: "notes", label: "Заметки" },
-
   ];
 
   return (
@@ -3654,6 +3686,7 @@ function TestDetail({ test, onBack }) {
           </div>
         </div>
       )}
+      {tab === "schema" && <SchemaEditor testId={test.id} setupItems={setupItems} />}
       {tab === "before" && <CheckList items={CHECKLIST_BEFORE} checks={checksBefore} setChecks={setChecksBefore} title="Чек-лист ДО испытания" />}
       {tab === "during" && <CheckList items={CHECKLIST_DURING} checks={checksDuring} setChecks={setChecksDuring} title="Чек-лист ВО ВРЕМЯ испытания" />}
       {tab === "after" && <CheckList items={CHECKLIST_AFTER} checks={checksAfter} setChecks={setChecksAfter} title="Чек-лист ПОСЛЕ испытания" />}
@@ -3664,6 +3697,290 @@ function TestDetail({ test, onBack }) {
         </div>
       )}
 
+    </div>
+  );
+}
+
+
+// ─── РЕДАКТОР СХЕМ СТЕНДА ────────────────────────────────────────────────────
+function SchemaEditor({ testId, setupItems }) {
+  const storageKey = `emc_schema_${testId}`;
+
+  const loadSchema = () => {
+    try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch(e) { return null; }
+  };
+
+  const defaultSchema = { nodes: [], edges: [] };
+  const saved = loadSchema();
+  const [nodes, setNodes] = useState(saved ? saved.nodes : []);
+  const [edges, setEdges] = useState(saved ? saved.edges : []);
+  const [dragging, setDragging] = useState(null); // { id, ox, oy }
+  const [connecting, setConnecting] = useState(null); // { fromId }
+  const [editingLabel, setEditingLabel] = useState(null); // { type:'node'|'edge', id, value }
+  const [selectedEdge, setSelectedEdge] = useState(null);
+  const [saved2, setSaved2] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const svgRef = React.useRef(null);
+
+  // Список оборудования из setupItems + стандартные блоки
+  const equipList = [
+    ...setupItems.map(s => s.replace(/^\d+\.\s*/, '').trim()),
+    'Изделие (ИРИ)', 'ОМПЗ', 'Осциллограф', 'Источник питания', 'Нагрузка', 'Фильтр'
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  const saveSchema = (n, e) => {
+    try { localStorage.setItem(storageKey, JSON.stringify({ nodes: n, edges: e })); } catch(ex) {}
+    setSaved2(true);
+    setTimeout(() => setSaved2(false), 2000);
+  };
+
+  const addNode = (label) => {
+    const id = Date.now().toString();
+    const n = [...nodes, { id, label, x: 80 + Math.random() * 400, y: 80 + Math.random() * 200 }];
+    setNodes(n);
+    saveSchema(n, edges);
+  };
+
+  const clearAll = () => { setNodes([]); setEdges([]); saveSchema([], []); setConnecting(null); };
+
+  // Drag handlers
+  const onNodeMouseDown = (e, id) => {
+    if (connecting) {
+      // Complete connection
+      if (connecting.fromId !== id) {
+        const exists = edges.find(e2 => (e2.from === connecting.fromId && e2.to === id) || (e2.from === id && e2.to === connecting.fromId));
+        if (!exists) {
+          const newEdge = { id: Date.now().toString(), from: connecting.fromId, to: id, label: '' };
+          const newEdges = [...edges, newEdge];
+          setEdges(newEdges);
+          saveSchema(nodes, newEdges);
+        }
+        setConnecting(null);
+      }
+      return;
+    }
+    e.stopPropagation();
+    const rect = svgRef.current.getBoundingClientRect();
+    setDragging({ id, ox: e.clientX - rect.left - nodes.find(n => n.id === id).x, oy: e.clientY - rect.top - nodes.find(n => n.id === id).y });
+  };
+
+  const onSvgMouseMove = (e) => {
+    if (!dragging) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = Math.max(60, Math.min(rect.width - 60, e.clientX - rect.left - dragging.ox));
+    const y = Math.max(30, Math.min(rect.height - 30, e.clientY - rect.top - dragging.oy));
+    const newNodes = nodes.map(n => n.id === dragging.id ? { ...n, x, y } : n);
+    setNodes(newNodes);
+  };
+
+  const onSvgMouseUp = () => {
+    if (dragging) { saveSchema(nodes, edges); setDragging(null); }
+  };
+
+  const deleteNode = (id) => {
+    const newNodes = nodes.filter(n => n.id !== id);
+    const newEdges = edges.filter(e => e.from !== id && e.to !== id);
+    setNodes(newNodes); setEdges(newEdges); saveSchema(newNodes, newEdges);
+  };
+
+  const deleteEdge = (id) => {
+    const newEdges = edges.filter(e => e.id !== id);
+    setEdges(newEdges); saveSchema(nodes, newEdges); setSelectedEdge(null);
+  };
+
+  const startEditLabel = (type, id, value) => setEditingLabel({ type, id, value });
+
+  const saveLabel = () => {
+    if (!editingLabel) return;
+    if (editingLabel.type === 'node') {
+      const newNodes = nodes.map(n => n.id === editingLabel.id ? { ...n, label: editingLabel.value } : n);
+      setNodes(newNodes); saveSchema(newNodes, edges);
+    } else {
+      const newEdges = edges.map(e => e.id === editingLabel.id ? { ...e, label: editingLabel.value } : e);
+      setEdges(newEdges); saveSchema(nodes, newEdges);
+    }
+    setEditingLabel(null);
+  };
+
+  // Edge midpoint for label
+  const getEdgeMid = (edge) => {
+    const from = nodes.find(n => n.id === edge.from);
+    const to = nodes.find(n => n.id === edge.to);
+    if (!from || !to) return { x: 0, y: 0 };
+    return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+  };
+
+  const NODE_W = 120, NODE_H = 44;
+
+  return (
+    <div style={{ display: 'flex', gap: 0, height: '100%', flexDirection: 'column' }}>
+      {/* Тулбар */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', flexWrap: 'wrap', borderBottom: `1px solid ${C.border}`, marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Добавить блок:</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+          {equipList.slice(0, 8).map((eq, i) => (
+            <button key={i} onClick={() => addNode(eq)} style={{
+              padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.border}`,
+              background: '#fff', color: C.text, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit'
+            }}>{eq.length > 20 ? eq.slice(0, 18) + '…' : eq}</button>
+          ))}
+          <button onClick={() => setShowAddCustom(!showAddCustom)} style={{
+            padding: '5px 12px', borderRadius: 8, border: `1px dashed ${C.accent}`,
+            background: C.accentLight, color: C.accent, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit'
+          }}>+ Свой блок</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+          {connecting && <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>🔗 Кликни на второй блок</span>}
+          <button onClick={clearAll} style={{ padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.fail}`, background: 'transparent', color: C.fail, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>🗑 Очистить</button>
+          {saved2 && <span style={{ fontSize: 12, color: C.pass, fontWeight: 600 }}>✓ Сохранено</span>}
+        </div>
+      </div>
+
+      {/* Добавить свой блок */}
+      {showAddCustom && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input value={customName} onChange={e => setCustomName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && customName.trim()) { addNode(customName.trim()); setCustomName(''); setShowAddCustom(false); }}}
+            placeholder="Название блока..." style={{ ...styles.input, flex: 1, fontSize: 13 }} />
+          <button onClick={() => { if (customName.trim()) { addNode(customName.trim()); setCustomName(''); setShowAddCustom(false); }}}
+            style={{ padding: '0 16px', borderRadius: 8, border: 'none', background: C.accent, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Добавить</button>
+        </div>
+      )}
+
+      {/* Подсказки */}
+      <div style={{ fontSize: 11, color: C.textSec, marginBottom: 8, display: 'flex', gap: 16 }}>
+        <span>🖱 Перетаскивай блоки</span>
+        <span>🔗 Кнопка "Соединить" → клик на блоки</span>
+        <span>✏️ Двойной клик на блок/стрелку = редактировать</span>
+        <span>✕ Правый клик = удалить</span>
+      </div>
+
+      {/* SVG холст */}
+      <div style={{ flex: 1, minHeight: 400, background: '#F8FAFC', borderRadius: 12, border: `1px solid ${C.border}`, position: 'relative', overflow: 'hidden' }}>
+        {nodes.length === 0 && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', color: C.textSec }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>📐</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Добавьте блоки оборудования выше</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Затем соедините их стрелками</div>
+          </div>
+        )}
+        <svg
+          ref={svgRef}
+          width="100%" height="100%"
+          style={{ cursor: dragging ? 'grabbing' : connecting ? 'crosshair' : 'default', minHeight: 400 }}
+          onMouseMove={onSvgMouseMove}
+          onMouseUp={onSvgMouseUp}
+          onMouseLeave={onSvgMouseUp}
+        >
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#1E5BE8" />
+            </marker>
+            <marker id="arrow-sel" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#E07B00" />
+            </marker>
+          </defs>
+
+          {/* Рёбра */}
+          {edges.map(edge => {
+            const from = nodes.find(n => n.id === edge.from);
+            const to = nodes.find(n => n.id === edge.to);
+            if (!from || !to) return null;
+            const mid = getEdgeMid(edge);
+            const isSelected = selectedEdge === edge.id;
+            const dx = to.x - from.x, dy = to.y - from.y;
+            const len = Math.sqrt(dx*dx + dy*dy) || 1;
+            const ex = to.x - (dx/len) * (NODE_W/2 + 8);
+            const ey = to.y - (dy/len) * (NODE_H/2 + 8);
+            const sx = from.x + (dx/len) * (NODE_W/2 + 4);
+            const sy = from.y + (dy/len) * (NODE_H/2 + 4);
+            return (
+              <g key={edge.id}>
+                <line x1={sx} y1={sy} x2={ex} y2={ey}
+                  stroke={isSelected ? '#E07B00' : '#1E5BE8'} strokeWidth={isSelected ? 2.5 : 2}
+                  markerEnd={isSelected ? 'url(#arrow-sel)' : 'url(#arrow)'}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedEdge(isSelected ? null : edge.id)}
+                  onDoubleClick={() => startEditLabel('edge', edge.id, edge.label)}
+                />
+                {/* Подпись на стрелке */}
+                {edge.label && (
+                  <text x={mid.x} y={mid.y - 6} textAnchor="middle" fontSize="11" fill="#1E5BE8" fontWeight="600" style={{ pointerEvents: 'none' }}>{edge.label}</text>
+                )}
+                {/* Кнопка удаления ребра */}
+                {isSelected && (
+                  <g onClick={() => deleteEdge(edge.id)} style={{ cursor: 'pointer' }}>
+                    <circle cx={mid.x} cy={mid.y} r="10" fill="#FDECEA" stroke="#C0392B" strokeWidth="1.5" />
+                    <text x={mid.x} y={mid.y + 4} textAnchor="middle" fontSize="12" fill="#C0392B">✕</text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Узлы */}
+          {nodes.map(node => (
+            <g key={node.id}
+              onMouseDown={e => onNodeMouseDown(e, node.id)}
+              onDoubleClick={() => startEditLabel('node', node.id, node.label)}
+              onContextMenu={e => { e.preventDefault(); deleteNode(node.id); }}
+              style={{ cursor: connecting ? 'crosshair' : dragging?.id === node.id ? 'grabbing' : 'grab' }}
+            >
+              <rect
+                x={node.x - NODE_W/2} y={node.y - NODE_H/2}
+                width={NODE_W} height={NODE_H} rx="8"
+                fill="#fff" stroke={connecting?.fromId === node.id ? '#E07B00' : C.accent}
+                strokeWidth={connecting?.fromId === node.id ? 2.5 : 1.5}
+                style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.10))' }}
+              />
+              <text x={node.x} y={node.y + 5} textAnchor="middle" fontSize="12" fill={C.text} fontWeight="600"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                {node.label.length > 16 ? node.label.slice(0, 14) + '…' : node.label}
+              </text>
+              {/* Кнопка соединения */}
+              <g onClick={e => { e.stopPropagation(); if (connecting?.fromId === node.id) { setConnecting(null); } else { setConnecting({ fromId: node.id }); }}}
+                style={{ cursor: 'pointer' }}>
+                <circle cx={node.x + NODE_W/2 - 2} cy={node.y - NODE_H/2 + 2} r="9"
+                  fill={connecting?.fromId === node.id ? '#E07B00' : C.accentLight}
+                  stroke={connecting?.fromId === node.id ? '#E07B00' : C.accent} strokeWidth="1.5" />
+                <text x={node.x + NODE_W/2 - 2} y={node.y - NODE_H/2 + 6} textAnchor="middle" fontSize="11"
+                  fill={connecting?.fromId === node.id ? '#fff' : C.accent} style={{ pointerEvents: 'none' }}>⇒</text>
+              </g>
+            </g>
+          ))}
+        </svg>
+
+        {/* Легенда */}
+        {nodes.length > 0 && (
+          <div style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(255,255,255,0.9)', borderRadius: 8, padding: '6px 10px', fontSize: 10, color: C.textSec, border: `1px solid ${C.border}` }}>
+            ПКМ на блок = удалить • Клик на стрелку = выделить
+          </div>
+        )}
+      </div>
+
+      {/* Редактор подписи */}
+      {editingLabel && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: 320, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
+              {editingLabel.type === 'node' ? 'Название блока' : 'Подпись соединения'}
+            </div>
+            <input
+              autoFocus
+              value={editingLabel.value}
+              onChange={e => setEditingLabel({ ...editingLabel, value: e.target.value })}
+              onKeyDown={e => e.key === 'Enter' && saveLabel()}
+              style={{ ...styles.input, marginBottom: 12 }}
+              placeholder={editingLabel.type === 'node' ? 'Название...' : 'Например: AC, RG-58, кабель...'}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={saveLabel} style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: C.accent, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Сохранить</button>
+              <button onClick={() => setEditingLabel(null)} style={{ padding: '10px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4699,6 +5016,8 @@ function QualBasisTab() {
 
       <div style={{ ...styles.card, background: C.warnLight, border: `1px solid #FACEAA`, marginTop: 4 }}>
         <div style={{ fontSize: 12, color: C.warn, lineHeight: 1.7 }}>⚠️ Конкретный состав и степени жёсткости испытаний определяются Программой испытаний (ПИ) на изделие. Данный раздел — справочный.</div>
+
+
       </div>
     </div>
   );
@@ -4763,6 +5082,8 @@ function LogEntry({ entry, onEdit, onDelete }) {
       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
         <button onClick={() => onEdit(entry)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "6px 14px" }}>Редактировать</button>
         <button onClick={() => onDelete(entry.id)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "6px 14px", color: C.fail }}>Удалить</button>
+
+
       </div>
     </div>
   );
@@ -4802,6 +5123,8 @@ function LogForm({ entry, onSave, onCancel }) {
         </>}
         <Field label="Итоговый комментарий"><textarea style={{ ...styles.input, minHeight: 70, resize: "vertical" }} value={form.comment} onChange={e => set("comment", e.target.value)} /></Field>
         <button onClick={() => onSave(form)} style={{ ...styles.btn("primary"), width: "100%", marginTop: 4 }}>Сохранить запись</button>
+
+
       </div>
     </div>
   );
@@ -5209,6 +5532,8 @@ function AiAssistantScreen({ onClose }) {
           disabled={(!input.trim() && !attachedImage) || loading}
           style={{ padding:"0 18px", borderRadius:8, border:"none", background:(input.trim()||attachedImage)&&!loading?C.accent:C.border, color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:15, flexShrink:0 }}
         >→</button>
+
+
       </div>
     </div>
   );
@@ -5290,6 +5615,8 @@ function SettingsScreen({ onClose }) {
           onClick={() => { try { localStorage.removeItem("emc_eula_v1"); } catch(e) {} window.location.reload(); }}>
           📋 Просмотреть лицензионное соглашение
         </div>
+
+
       </div>
     </div>
   );
@@ -5688,6 +6015,8 @@ function EulaScreen({ onAccept, onDecline }) {
         <button onClick={onDecline} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid #1E2A40", background:"transparent", color:"#3A4A6A", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
           Отклонить и закрыть
         </button>
+
+
       </div>
     </div>
   );
@@ -5874,6 +6203,8 @@ function SplashScreen({ onDone }) {
 
       <div style={{ position: "absolute", bottom: 32, fontSize: 9, color: "#0E1E3A", letterSpacing: 2, zIndex: 1 }}>
         v2.0 · 2025
+
+
       </div>
     </div>
   );
@@ -6050,6 +6381,8 @@ function AppInner() {
       </div>
       </div>
         </div>
+
+
       </div>
     </div>
   );
