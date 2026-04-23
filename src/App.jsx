@@ -164,13 +164,13 @@ function getCableLoss(type, freqMHz, lengthM) {
 
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
-  app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
-  header: { background: C.dark, color: "#fff", padding: "14px 20px 12px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", flexShrink: 0 },
+  app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
+  header: { background: C.dark, color: "#fff", padding: "16px 28px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", flexShrink: 0 },
   headerTitle: { fontSize: 18, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
   nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", flexShrink: 0 },
   navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "16px 14px 20px" },
+  content: { flex: 1, overflowY: "auto", padding: "20px 28px 24px" },
   card: { background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
@@ -1360,7 +1360,7 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
       </button>
 
       <button onClick={onVerify} style={{
-        width: "100%", marginBottom: 16, padding: "16px 20px", borderRadius: 14,
+        width: "100%", marginBottom: 10, padding: "16px 20px", borderRadius: 14,
         background: `linear-gradient(135deg, #0A3A1A 0%, #1A9B5A 100%)`,
         border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
         boxShadow: "0 4px 16px rgba(26,155,90,0.25)"
@@ -1371,6 +1371,20 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
           <div style={{ fontSize: 12, color: "#A8F0CC", marginTop: 3 }}>Сроки поверки · Свидетельства · Напоминания</div>
         </div>
         <span style={{ fontSize: 20, color: "#A8F0CC" }}>›</span>
+      </button>
+
+      <button onClick={() => setTab("ai")} style={{
+        width: "100%", marginBottom: 16, padding: "16px 20px", borderRadius: 14,
+        background: `linear-gradient(135deg, #2A0A3A 0%, #7B1DC7 100%)`,
+        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
+        boxShadow: "0 4px 16px rgba(123,29,199,0.25)"
+      }}>
+        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🤖</div>
+        <div style={{ textAlign: "left", flex: 1 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ИИ-ПОМОЩНИК</div>
+          <div style={{ fontSize: 12, color: "#D4A8F0", marginTop: 3 }}>Ollama (оффлайн) · Claude AI · База знаний EMC Pro</div>
+        </div>
+        <span style={{ fontSize: 20, color: "#D4A8F0" }}>›</span>
       </button>
 
       <div style={styles.sectionTitle}>О приложении</div>
@@ -1763,6 +1777,136 @@ function UnitConverter() {
           </Field>
         </div>
         {results && <ResultBox rows={results} lastNoLine />}
+      </div>
+    </div>
+  );
+}
+
+// ─── КОНВЕРТЕР ВРЕМЕНИ ────────────────────────────────────────────────────────
+function TimeConverter() {
+  const [val, setVal] = useState("");
+  const [fromUnit, setFromUnit] = useState("ms");
+
+  const units = [
+    { id: "ns",  label: "нс",  labelFull: "Наносекунды (нс)",   factor: 1e-9  },
+    { id: "us",  label: "мкс", labelFull: "Микросекунды (мкс)", factor: 1e-6  },
+    { id: "ms",  label: "мс",  labelFull: "Миллисекунды (мс)",  factor: 1e-3  },
+    { id: "s",   label: "с",   labelFull: "Секунды (с)",        factor: 1     },
+    { id: "min", label: "мин", labelFull: "Минуты (мин)",       factor: 60    },
+    { id: "h",   label: "ч",   labelFull: "Часы (ч)",           factor: 3600  },
+  ];
+
+  // Контекст для ЭМС — что встречается на каждом диапазоне
+  const EMC_CONTEXT = {
+    ns:  "Фронт ESD-разряда: 0,7–1 нс · Длительность ESD: 60 нс · Фронт EFT-импульса: 5 нс",
+    us:  "Длительность EFT-пачки: 15 мкс · Период импульса EFT: 200 мкс · Фронт Surge: 1,2 мкс",
+    ms:  "Длительность EFT-серии: 15 мс · Пауза между пачками EFT: 300 мс · Период 50 Гц: 20 мс",
+    s:   "Время удержания на частоте (свип): ≥1 с · Интервал между ESD-разрядами: ≥1 с",
+    min: "Время прогрева Изделия: 5–30 мин · Длительность испытания на одной точке: ~1–3 мин",
+    h:   "Полное время испытания BCI: ~2–4 ч · Время испытания RI: ~3–6 ч",
+  };
+
+  const n = parseNum(val);
+  const baseSeconds = !isNaN(n) ? n * (units.find(u => u.id === fromUnit)?.factor || 1) : null;
+
+  const fmt6 = (v) => {
+    if (v === null) return "—";
+    if (v === 0) return "0";
+    if (Math.abs(v) >= 1e9 || (Math.abs(v) < 1e-9 && v !== 0)) return v.toExponential(3);
+    // Убираем лишние нули
+    const s = parseFloat(v.toPrecision(6)).toString();
+    return s;
+  };
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Конвертер времени</div>
+      <div style={styles.card}>
+        <div style={styles.row}>
+          <Field label="Значение">
+            <input
+              style={styles.input}
+              type="number"
+              value={val}
+              onChange={e => setVal(e.target.value)}
+              placeholder="Например: 100"
+            />
+          </Field>
+          <Field label="Из единицы">
+            <select style={styles.select} value={fromUnit} onChange={e => setFromUnit(e.target.value)}>
+              {units.map(u => <option key={u.id} value={u.id}>{u.labelFull}</option>)}
+            </select>
+          </Field>
+        </div>
+
+        {baseSeconds !== null && !isNaN(baseSeconds) && (
+          <div style={styles.resultBox}>
+            {units.map((u, i) => {
+              const converted = baseSeconds / u.factor;
+              const isActive = u.id === fromUnit;
+              return (
+                <div key={u.id} style={{
+                  ...styles.resultRow,
+                  borderBottom: i < units.length - 1 ? `1px solid #D6E4FF` : "none",
+                  background: isActive ? "rgba(30,91,232,0.06)" : "transparent",
+                  borderRadius: 4,
+                  padding: "6px 4px",
+                }}>
+                  <span style={{ ...styles.resultLabel, fontWeight: isActive ? 700 : 400, color: isActive ? C.accent : C.textSec }}>
+                    {u.labelFull}
+                  </span>
+                  <span style={{ ...styles.resultValue, color: isActive ? C.accent : C.text, fontSize: isActive ? 16 : 14 }}>
+                    {fmt6(converted)} {u.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Контекст ЭМС */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>КОНТЕКСТ ЭМС</div>
+      {units.map(u => (
+        <div key={u.id} style={{ ...styles.card, marginBottom: 8, borderLeft: `3px solid ${fromUnit === u.id ? C.accent : C.border}`, cursor: "pointer" }}
+          onClick={() => setFromUnit(u.id)}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: fromUnit === u.id ? C.accent : C.text }}>{u.labelFull}</span>
+            {fromUnit === u.id && <span style={styles.tag("info")}>выбрано</span>}
+          </div>
+          <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.6 }}>{EMC_CONTEXT[u.id]}</div>
+        </div>
+      ))}
+
+      {/* Быстрые значения для ЭМС */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>БЫСТРЫЕ ЗНАЧЕНИЯ ЭМС</div>
+      <div style={styles.card}>
+        {[
+          { label: "Фронт ESD-разряда",          val: "0.7",  unit: "ns",  note: "ГОСТ РВ 20.57.306 п.25" },
+          { label: "Фронт EFT-импульса",          val: "5",    unit: "ns",  note: "IEC 61000-4-4" },
+          { label: "Длительность EFT-импульса",   val: "50",   unit: "ns",  note: "IEC 61000-4-4" },
+          { label: "Фронт Surge (напряжение)",     val: "1200", unit: "us",  note: "1,2/50 мкс" },
+          { label: "Хвост Surge (напряжение)",     val: "50000",unit: "us",  note: "1,2/50 мкс" },
+          { label: "Период сети 50 Гц",            val: "20",   unit: "ms",  note: "Промышленная частота" },
+          { label: "Удержание на точке (свип)",    val: "1",    unit: "s",   note: "ГОСТ РВ 20.57.306 мин." },
+          { label: "Интервал ESD-разрядов",        val: "1",    unit: "s",   note: "Между разрядами" },
+          { label: "Пауза между пачками EFT",      val: "300",  unit: "ms",  note: "IEC 61000-4-4" },
+        ].map((item, i) => (
+          <div key={i}
+            onClick={() => { setVal(item.val); setFromUnit(item.unit); }}
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < 8 ? `1px solid ${C.border}` : "none", cursor: "pointer" }}>
+            <div>
+              <div style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{item.label}</div>
+              <div style={{ fontSize: 11, color: C.textSec }}>{item.note}</div>
+            </div>
+            <div style={{ background: C.accentLight, color: C.accent, borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+              {item.val} {units.find(u => u.id === item.unit)?.label}
+            </div>
+          </div>
+        ))}
+        <div style={{ fontSize: 11, color: C.textSec, marginTop: 8, fontStyle: "italic" }}>
+          Нажмите на строку — значение подставится в конвертер
+        </div>
       </div>
     </div>
   );
@@ -2167,6 +2311,7 @@ function CalculatorsScreen({ calcId, setCalcId }) {
     { id: "caldots", icon: "📋", title: "Таблица калибровочных точек", sub: "Шаг 1% по КТ-160G п.20.5, 20.4, 21.4, 21.5" },
     { id: "powgain", icon: "📶", title: "Мощность и усиление", sub: "Вход → усилитель → выход" },
     { id: "resonance", icon: "〰️", title: "Резонансная частота кабеля", sub: "По длине кабеля" },
+    { id: "time", icon: "⏱️", title: "Конвертер времени", sub: "нс, мкс, мс, с, мин, ч — с контекстом ЭМС" },
     { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение..." },
   ];
 
@@ -2177,6 +2322,7 @@ function CalculatorsScreen({ calcId, setCalcId }) {
   if (calcId === "caldots") return <><BackBtn onBack={() => setCalcId(null)} /><CalibrationDotsCalc /></>;
   if (calcId === "powgain") return <><BackBtn onBack={() => setCalcId(null)} /><PowerGainCalc /></>;
   if (calcId === "resonance") return <><BackBtn onBack={() => setCalcId(null)} /><ResonanceCalc /></>;
+  if (calcId === "time") return <><BackBtn onBack={() => setCalcId(null)} /><TimeConverter /></>;
   if (calcId === "units") return <><BackBtn onBack={() => setCalcId(null)} /><UnitConverter /></>;
 
   return (
@@ -3333,6 +3479,48 @@ function TestDetail({ test, onBack }) {
   const [tab, setTab] = useState("info");
   const [notes, setNotes] = useState("");
 
+  // Редактируемый состав оборудования
+  const storageKey = `emc_setup_${test.id}`;
+  const [setupItems, setSetupItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [...test.setup];
+    } catch(e) { return [...test.setup]; }
+  });
+  const [editingSetup, setEditingSetup] = useState(false);
+  const [newEquipLine, setNewEquipLine] = useState("");
+  const [setupAdminModal, setSetupAdminModal] = useState(null);
+
+  const saveSetup = (items) => {
+    setSetupItems(items);
+    try { localStorage.setItem(storageKey, JSON.stringify(items)); } catch(e) {}
+  };
+
+  const requestSetupAdmin = (title, action) => setSetupAdminModal({ title, action });
+
+  const addEquipLine = () => {
+    if (!newEquipLine.trim()) return;
+    requestSetupAdmin("Добавление оборудования", () => {
+      saveSetup([...setupItems, newEquipLine.trim()]);
+      setNewEquipLine("");
+      setSetupAdminModal(null);
+    });
+  };
+
+  const removeEquipLine = (idx) => {
+    requestSetupAdmin("Удаление строки оборудования", () => {
+      saveSetup(setupItems.filter((_, i) => i !== idx));
+      setSetupAdminModal(null);
+    });
+  };
+
+  const resetSetup = () => {
+    requestSetupAdmin("Сброс к стандартному составу", () => {
+      saveSetup([...test.setup]);
+      setSetupAdminModal(null);
+    });
+  };
+
   const toggle = (arr, setArr, i) => { const n = [...arr]; n[i] = !n[i]; setArr(n); };
 
   function CheckList({ items, checks, setChecks, title }) {
@@ -3439,16 +3627,42 @@ function TestDetail({ test, onBack }) {
             );
           })()}
 
-          {/* Equipment list */}
+          {/* Equipment list — editable */}
           <div style={styles.card}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 10, textTransform: "uppercase" }}>Состав испытательного оборудования</div>
-            {test.setup.map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < test.setup.length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, textTransform: "uppercase" }}>Состав испытательного оборудования</div>
+              <div style={{ display:"flex", gap:6 }}>
+                <button onClick={() => setEditingSetup(!editingSetup)} style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${editingSetup?C.accent:C.border}`, background:editingSetup?C.accentLight:"transparent", color:editingSetup?C.accent:C.textSec, cursor:"pointer", fontFamily:"inherit" }}>
+                  {editingSetup ? "✓ Готово" : "✏️ Изменить"}
+                </button>
+                {editingSetup && (
+                  <button onClick={resetSetup} style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${C.border}`, background:"transparent", color:C.warn, cursor:"pointer", fontFamily:"inherit" }}>↺ Сброс</button>
+                )}
+              </div>
+            </div>
+            {setupItems.map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < setupItems.length - 1 ? `1px solid ${C.border}` : "none" }}>
                 <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#FDECEA", color: "#C0392B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, minWidth: 24 }}>{i + 1}</div>
-                <span style={{ fontSize: 13, color: C.text }}>{s}</span>
+                <span style={{ fontSize: 13, color: C.text, flex:1 }}>{s}</span>
+                {editingSetup && (
+                  <button onClick={() => removeEquipLine(i)} style={{ fontSize:11, padding:"2px 8px", borderRadius:5, border:`1px solid ${C.fail}`, background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>✕</button>
+                )}
               </div>
             ))}
+            {editingSetup && (
+              <div style={{ marginTop:10, display:"flex", gap:8 }}>
+                <input
+                  style={{ ...styles.input, flex:1, fontSize:13 }}
+                  value={newEquipLine}
+                  onChange={e => setNewEquipLine(e.target.value)}
+                  onKeyDown={e => e.key==="Enter" && addEquipLine()}
+                  placeholder="Добавить оборудование..."
+                />
+                <button onClick={addEquipLine} disabled={!newEquipLine.trim()} style={{ padding:"0 14px", borderRadius:8, border:"none", background:newEquipLine.trim()?C.accent:C.border, color:"#fff", fontWeight:700, cursor:newEquipLine.trim()?"pointer":"not-allowed", fontFamily:"inherit", fontSize:13, flexShrink:0 }}>+ Добавить</button>
+              </div>
+            )}
           </div>
+          {setupAdminModal && <AdminModal title={setupAdminModal.title} onConfirm={setupAdminModal.action} onCancel={()=>setSetupAdminModal(null)} />}
 
           {/* Warning */}
           <div style={{ background: C.warnLight, border: `1px solid #FACEAA`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.warn, lineHeight: 1.5 }}>
@@ -4130,12 +4344,40 @@ function EquipDetailCard({ e, onBack, getEquipSVG }) {
 }
 
 function EquipmentTab() {
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(null);
+ const [search, setSearch] = useState("");
+const [selected, setSelected] = useState(null);
+const [adminModal, setAdminModal] = useState(null);
+const [addForm, setAddForm] = useState(false);
+const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
+const [customEquip, setCustomEquip] = useState(() => {
+  try { return JSON.parse(localStorage.getItem("emc_custom_equip_v1") || "[]"); } catch(e) { return []; }
+});
   const arms = ["Все", "АРМ1", "АРМ2/3", "АРМ4", "АРМ5", "АРМ6", "АРМ7", "АРМ8", "АРМ9"];
   const [armFilter, setArmFilter] = useState("Все");
+const allEquip = [...EQUIPMENT_DATA, ...customEquip];
 
-  const filtered = EQUIPMENT_DATA.filter(e => {
+const requestAdmin = (title, action) => setAdminModal({ title, action });
+
+const deleteCustom = (id) => {
+  requestAdmin("Удаление оборудования", () => {
+    const updated = customEquip.filter(e => e.id !== id);
+    setCustomEquip(updated);
+    try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
+    setAdminModal(null);
+  });
+};
+
+const addEquip = () => {
+  if (!newItem.name) return;
+  const item = { ...newItem, id: `custom_${Date.now()}` };
+  const updated = [...customEquip, item];
+  setCustomEquip(updated);
+  try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
+  setAddForm(false);
+  setNewItem({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
+  setAdminModal(null);
+};
+  const filtered = allEquip.filter(e => {
     const q = search.toLowerCase();
     const matchSearch = !q || e.name.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q);
     const matchArm = armFilter === "Все" || e.arm === armFilter || (armFilter === "АРМ2/3" && (e.arm === "АРМ2" || e.arm === "АРМ3" || e.arm === "АРМ2/3"));
@@ -4652,6 +4894,343 @@ function LogbookScreen() {
   );
 }
 
+// ─── ИИ-ПОМОЩНИК ──────────────────────────────────────────────────────────────
+// Вариант В — умный поиск по локальной базе знаний
+const AI_KB_ITEMS = [
+  ...ERRORS_DATA.map(e => ({ type:"error", cat:e.cat, title:e.title, text:e.solutions.join(" ") })),
+  ...NOISE_GUIDE.map(g => ({ type:"noise", cat:"Помехи", title:g.symptom, text:g.causes.join(" ") + " " + g.checks.join(" ") })),
+  ...FAIL_PATTERNS.map(p => ({ type:"fail", cat:"Отказы", title:p.title, text:p.solutions.join(" ") })),
+  ...TESTS_DATA.map(t => ({ type:"test", cat:"Испытания", title:t.name + " " + t.short, text:(t.desc||"") + " " + (t.setup||[]).join(" ") })),
+  ...EQUIPMENT_DATA.map(e => ({ type:"equip", cat:e.type, title:e.name, text:(e.desc||"") + " " + (e.specs||"") })),
+];
+
+function searchLocalKB(query) {
+  const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  if (!words.length) return [];
+  return AI_KB_ITEMS
+    .map(item => {
+      const hay = (item.title + " " + item.text + " " + item.cat).toLowerCase();
+      const score = words.reduce((s, w) => s + (hay.includes(w) ? 1 : 0), 0);
+      return { ...item, score };
+    })
+    .filter(i => i.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+}
+
+function buildOfflineAnswer(query, results) {
+  if (!results.length) return "По вашему запросу ничего не найдено в базе знаний приложения.\n\nПопробуйте переформулировать вопрос или подключитесь к интернету для ответа через Claude AI.";
+  const top = results[0];
+  let answer = `**${top.title}** (${top.cat})\n\n`;
+  if (top.type === "error") {
+    const err = ERRORS_DATA.find(e => e.title === top.title);
+    if (err) answer += err.solutions.slice(0,4).map((s,i) => `${i+1}. ${s}`).join("\n");
+  } else if (top.type === "noise") {
+    const g = NOISE_GUIDE.find(g => g.symptom === top.title);
+    if (g) {
+      answer += "**Возможные причины:**\n" + g.causes.slice(0,3).map(c => `• ${c}`).join("\n");
+      answer += "\n\n**Что проверить:**\n" + g.checks.slice(0,3).map(c => `• ${c}`).join("\n");
+    }
+  } else if (top.type === "fail") {
+    const fp = FAIL_PATTERNS.find(p => p.title === top.title);
+    if (fp) answer += fp.solutions.slice(0,4).map((s,i) => `${i+1}. ${s}`).join("\n");
+  } else if (top.type === "test") {
+    const t = TESTS_DATA.find(t => t.name === top.title || (t.name + " " + t.short) === top.title);
+    if (t) {
+      answer += (t.desc||"") + "\n";
+      if (t.normDoc) answer += `\n📋 ${t.normDoc}`;
+      if (t.criteria) answer += `\n\n✅ Критерий: ${t.criteria}`;
+    }
+  } else if (top.type === "equip") {
+    const e = EQUIPMENT_DATA.find(e => e.name === top.title);
+    if (e) {
+      answer += e.desc + "\n\n📐 " + e.specs;
+    }
+  }
+  if (results.length > 1) {
+    answer += `\n\n---\n*Также найдено:* ${results.slice(1,4).map(r => r.title).join(", ")}`;
+  }
+  return answer;
+}
+
+const AI_QUICK_QUESTIONS = [
+  "Нестабильный ток инжекции",
+  "Пик превышает норму RE",
+  "Калибровка п.20.5",
+  "Состав АРМ4",
+  "Критерий I и II",
+  "ЭСР не разряжается",
+  "Усилитель в защиту",
+  "Феррит на кабель",
+];
+
+function AiAssistantScreen({ onClose }) {
+  const [messages, setMessages] = useState([
+    { role:"assistant", text:"Привет! Я ИИ-помощник EMC Pro.\n\nМогу отвечать на вопросы по испытаниям, оборудованию, типовым ошибкам и стандартам ГОСТ РВ 20.57.306.\n\n**Режимы работы:**\n• 🤖 **Ollama** — локальная нейронка на вашем ПК, без интернета\n• 📚 **База знаний** — встроенная база EMC Pro, мгновенно оффлайн\n\n🔒 Никакие данные не покидают ваш компьютер. Интернет-запросы не используются.\n\n📷 Можно прикрепить фото стенда, осциллограммы или спектра — для анализа нужна модель llava (ollama pull llava)." }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [aiMode, setAiMode] = useState("ollama"); // ollama | local
+  const [ollamaModel, setOllamaModel] = useState("llama3");
+  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
+  const [showSettings, setShowSettings] = useState(false);
+  const [attachedImage, setAttachedImage] = useState(null); // { base64, name, preview }
+  const fileInputRef = React.useRef(null);
+  const bottomRef = React.useRef(null);
+
+  React.useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior:"smooth" });
+  }, [messages]);
+
+  const appendMsg = (msg) => setMessages(m => [...m, msg]);
+
+  // Обработка выбора файла
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Поддерживаются только изображения (JPG, PNG, WEBP)");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Файл слишком большой. Максимум 10 МБ.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      const base64 = dataUrl.split(",")[1];
+      setAttachedImage({ base64, name: file.name, preview: dataUrl, type: file.type });
+    };
+    reader.readAsDataURL(file);
+    // Сбрасываем input чтобы можно было выбрать тот же файл повторно
+    e.target.value = "";
+  };
+
+  const tryOllama = async (userQuery, kbContext, imageBase64, imageType) => {
+    const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.\n\nКонтекст из базы знаний:\n${kbContext}`;
+
+    let userContent;
+    if (imageBase64) {
+      // Мультимодальный запрос с изображением
+      userContent = [
+        { type:"text", text: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания." },
+        { type:"image_url", image_url:{ url:`data:${imageType};base64,${imageBase64}` } }
+      ];
+    } else {
+      userContent = userQuery;
+    }
+
+    const body = {
+      model: ollamaModel,
+      messages: [
+        { role:"system", content: systemPrompt },
+        { role:"user", content: userContent }
+      ],
+      stream: false
+    };
+
+    // Если есть изображение — добавляем images для Ollama API (старый формат)
+    if (imageBase64) {
+      body.messages[1].images = [imageBase64];
+      // Для llava используем простой текст как content
+      body.messages[1].content = userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.";
+    }
+
+    const resp = await fetch(`${ollamaUrl}/api/chat`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      signal: AbortSignal.timeout(60000), // Больше времени для обработки фото
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) throw new Error(`Ollama: ${resp.status}`);
+    const data = await resp.json();
+    return { text: data.message?.content || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+  };
+
+  const send = async (queryOverride) => {
+    const q = (queryOverride || input).trim();
+    if ((!q && !attachedImage) || loading) return;
+    setInput("");
+
+    // Формируем сообщение пользователя для чата
+    const userMsg = {
+      role:"user",
+      text: q || "📷 Анализ изображения",
+      image: attachedImage?.preview || null
+    };
+    setMessages(m => [...m, userMsg]);
+
+    const imgToSend = attachedImage;
+    setAttachedImage(null);
+    setLoading(true);
+
+    const kbResults = searchLocalKB(q);
+    const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
+
+    if (aiMode === "ollama") {
+      try {
+        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type);
+        appendMsg({ role:"assistant", text: result.text, source: result.source });
+      } catch(e) {
+        const isImageErr = imgToSend && (e.message.includes("400") || e.message.includes("model"));
+        appendMsg({
+          role:"assistant",
+          text: isImageErr
+            ? `❌ Модель "${ollamaModel}" не поддерживает изображения.\n\nДля анализа фото нужна мультимодальная модель:\n1. Откройте cmd\n2. Напишите: ollama pull llava\n3. В настройках ⚙️ выберите модель llava\n\nllava умеет анализировать фото стендов, осциллограмм, спектров.`
+            : `❌ Ollama недоступна по адресу ${ollamaUrl}\n\nКак запустить:\n1. Скачайте ollama.ai и установите\n2. Откройте cmd: ollama pull ${ollamaModel}\n3. Ollama запустится автоматически на порту 11434\n\nПока Ollama не запущена — переключитесь в режим «База знаний» (⚙️).`,
+          source:"⚠️ Ошибка"
+        });
+      }
+    } else {
+      if (imgToSend) {
+        appendMsg({ role:"assistant", text:"📷 Анализ фотографий доступен только в режиме Ollama с моделью llava.\n\nУстановите Ollama и загрузите: ollama pull llava", source:"📚 База знаний EMC Pro" });
+      } else {
+        const offlineAnswer = buildOfflineAnswer(q, kbResults);
+        appendMsg({ role:"assistant", text: offlineAnswer, source:"📚 База знаний EMC Pro" });
+      }
+    }
+
+    setLoading(false);
+  };
+
+  const modeConfig = {
+    ollama: { label:"🤖 Ollama", color:"#8B1DC7", desc:"Локальная нейронка — всё на вашем ПК, без интернета" },
+    local:  { label:"📚 База знаний", color:C.pass, desc:"Встроенная база EMC Pro — мгновенно, оффлайн" },
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+        <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:15, fontWeight:800, color:C.text }}>🤖 ИИ-помощник ЭМС</div>
+        </div>
+        <button onClick={() => setShowSettings(!showSettings)} style={{ fontSize:18, background:"none", border:"none", cursor:"pointer", color:showSettings?C.accent:C.textSec }}>⚙️</button>
+      </div>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div style={{ ...styles.card, marginBottom:10, padding:"12px 14px" }}>
+          <div style={{ fontSize:11, fontWeight:800, color:C.textSec, letterSpacing:1, marginBottom:8 }}>РЕЖИМ РАБОТЫ</div>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            {Object.entries(modeConfig).map(([k,cfg]) => (
+              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>
+                {cfg.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize:12, color:C.textSec, marginBottom:10 }}>{modeConfig[aiMode].desc}</div>
+          <div style={{ background:"#0A3A1A", border:"1px solid #1A9B5A", borderRadius:8, padding:"8px 12px", marginBottom:10 }}>
+            <div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>
+              🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.
+            </div>
+          </div>
+          {aiMode === "ollama" && (
+            <div>
+              <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>URL Ollama сервера</div>
+              <input style={{ ...styles.input, fontSize:12, marginBottom:8 }} value={ollamaUrl} onChange={e=>setOllamaUrl(e.target.value)} placeholder="http://localhost:11434" />
+              <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>Модель</div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+                {["llama3","llama3.2","llava","llava:13b","mistral","gemma2","moondream"].map(m => (
+                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>
+                    {m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}
+                  </button>
+                ))}
+              </div>
+              <div style={{ background:C.accentLight, borderRadius:6, padding:"8px 10px", fontSize:11, color:C.accent, lineHeight:1.7 }}>
+                <b>📷 Модели с поддержкой фото:</b><br/>
+                • <b>llava</b> — ~4 ГБ, анализ фото, стендов, графиков<br/>
+                • <b>moondream</b> — ~2 ГБ, лёгкая, быстрая<br/>
+                • <b>llava:13b</b> — ~8 ГБ, точнее, нужна видеокарта<br/><br/>
+                <b>Установка:</b> cmd → <code>ollama pull llava</code>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Quick buttons */}
+      <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:6, marginBottom:8, flexShrink:0 }}>
+        {AI_QUICK_QUESTIONS.map(q => (
+          <button key={q} onClick={() => send(q)} disabled={loading} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:C.bg, color:C.accent, fontSize:11, fontWeight:600, cursor:loading?"not-allowed":"pointer", whiteSpace:"nowrap", fontFamily:"inherit", flexShrink:0 }}>{q}</button>
+        ))}
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, marginBottom:10 }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"85%" }}>
+            {/* Превью прикреплённого фото */}
+            {m.image && (
+              <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}>
+                <img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:200, objectFit:"contain", display:"block", background:"#000" }} />
+              </div>
+            )}
+            <div style={{
+              background: m.role==="user" ? C.accent : C.card,
+              color: m.role==="user" ? "#fff" : C.text,
+              borderRadius: m.role==="user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+              padding:"10px 14px", fontSize:13, lineHeight:1.65,
+              border: m.role==="assistant" ? `1px solid ${C.border}` : "none",
+              whiteSpace:"pre-wrap",
+            }}>
+              {m.text}
+            </div>
+            {m.source && (
+              <div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>{m.source}</div>
+            )}
+          </div>
+        ))}
+        {loading && (
+          <div style={{ alignSelf:"flex-start", background:C.card, border:`1px solid ${C.border}`, borderRadius:"14px 14px 14px 4px", padding:"10px 14px", fontSize:13, color:C.textSec }}>
+            ⏳ {attachedImage ? "Анализирую изображение..." : "Ищу ответ..."}
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Превью прикреплённого фото над инпутом */}
+      {attachedImage && (
+        <div style={{ display:"flex", alignItems:"center", gap:8, background:C.accentLight, border:`1px solid #B8CFFE`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
+          <img src={attachedImage.preview} alt="preview" style={{ width:48, height:48, objectFit:"cover", borderRadius:6, border:`1px solid ${C.border}` }} />
+          <div style={{ flex:1, fontSize:12, color:C.accent }}>
+            <div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div>
+            <div style={{ color:C.textSec, fontSize:11 }}>Нажмите → чтобы отправить с вопросом</div>
+          </div>
+          <button onClick={() => setAttachedImage(null)} style={{ background:"none", border:"none", color:C.fail, fontSize:18, cursor:"pointer", padding:"0 4px" }}>✕</button>
+        </div>
+      )}
+
+      {/* Input */}
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileSelect} />
+      <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={loading}
+          title="Прикрепить фото (стенд, осциллограмма, спектр)"
+          style={{ padding:"0 14px", borderRadius:8, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:C.card, color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}
+        >📷</button>
+        <input
+          style={{ ...styles.input, flex:1, fontSize:13 }}
+          value={input}
+          onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
+          placeholder={attachedImage ? "Вопрос к фото (или просто →)..." : "Задайте вопрос по ЭМС..."}
+          disabled={loading}
+        />
+        <button
+          onClick={() => send()}
+          disabled={(!input.trim() && !attachedImage) || loading}
+          style={{ padding:"0 18px", borderRadius:8, border:"none", background:(input.trim()||attachedImage)&&!loading?C.accent:C.border, color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:15, flexShrink:0 }}
+        >→</button>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── ROOT APP ─────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: "home", icon: "🏠", label: "Главная" },
@@ -4659,6 +5238,7 @@ const NAV_ITEMS = [
   { id: "tests", icon: "📋", label: "Испытания" },
   { id: "ref", icon: "📖", label: "Справочник" },
   { id: "log", icon: "📓", label: "Журнал" },
+  { id: "ai", icon: "🤖", label: "ИИ" },
 ];
 
 // ─── ERROR BOUNDARY ──────────────────────────────────────────────────────────
@@ -4710,12 +5290,12 @@ function SettingsScreen({ onClose }) {
         <div style={{ fontSize: 13, color: C.textSec, marginBottom: 12, lineHeight: 1.6 }}>
           Обнаружили ошибку или хотите предложить улучшение? Напишите разработчику.
         </div>
-        <a href="mailto:emc.toolkit.dev@gmail.com" style={{
+        <a href="mailto:goshakondratev777@gmail.com" style={{
           display: "block", padding: "12px", borderRadius: 10,
           background: C.accentLight, border: `1px solid #B8CFFE`,
           color: C.accent, fontSize: 14, fontWeight: 700, textAlign: "center",
           textDecoration: "none",
-        }}>✉️ Написать разработчику</a>
+        }}>✉️ goshakondratev777@gmail.com</a>
       </div>
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>ПРАВОВАЯ ИНФОРМАЦИЯ</div>
       <div style={styles.card}>
@@ -4830,6 +5410,62 @@ function GlobalSearch({ onClose, setTab, setCalcId, onErrors, onVerify, onQuiz }
 
 
 // ─── ПОВЕРКА ОБОРУДОВАНИЯ ────────────────────────────────────────────────────
+async function checkAdminCode(code) {
+  const buf = await crypto.subtle.digest(
+    "SHA-256", new TextEncoder().encode(code)
+  );
+  const hex = Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, "0")).join("");
+  const HASH = "35ebad987b2b686a6c0ca08688905ea334d1f2ca18e5babe495a4268762f74a3";
+  return hex === HASH;
+}
+
+function AdminModal({ title, onConfirm, onCancel }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handle = async () => {
+    setLoading(true);
+    const ok = await checkAdminCode(code);
+    setLoading(false);
+    if (ok) { onConfirm(); }
+    else { setError(true); setCode(""); }
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)",
+      display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+      <div style={{ background:C.card, borderRadius:16, padding:24, width:"100%", maxWidth:320 }}>
+        <div style={{ fontSize:28, textAlign:"center", marginBottom:8 }}>🔐</div>
+        <div style={{ fontSize:15, fontWeight:800, color:C.text, textAlign:"center", marginBottom:4 }}>{title}</div>
+        <div style={{ fontSize:12, color:C.textSec, textAlign:"center", marginBottom:16 }}>Введите код администратора</div>
+        <input
+          type="password"
+          value={code}
+          onChange={e => { setCode(e.target.value); setError(false); }}
+          onKeyDown={e => e.key === "Enter" && handle()}
+          placeholder="Код"
+          style={{ ...styles.input, textAlign:"center", letterSpacing:4, fontSize:18, marginBottom:8,
+            borderColor: error ? C.fail : C.border }}
+        />
+        {error && <div style={{ fontSize:12, color:C.fail, textAlign:"center", marginBottom:8 }}>Неверный код</div>}
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={onCancel} style={{ flex:1, padding:"11px", borderRadius:8,
+            border:`1px solid ${C.border}`, background:C.bg, color:C.textSec,
+            fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>Отмена</button>
+          <button onClick={handle} disabled={loading || !code}
+            style={{ flex:1, padding:"11px", borderRadius:8, border:"none",
+              background: code ? C.accent : C.border, color:"#fff",
+              fontSize:14, fontWeight:700, cursor: code ? "pointer" : "not-allowed",
+              fontFamily:"inherit" }}>
+            {loading ? "..." : "Войти"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function VerificationScreen({ onClose }) {
   const [items, setItems] = useState(() => {
     try {
@@ -4844,7 +5480,32 @@ function VerificationScreen({ onClose }) {
   });
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [adminModal, setAdminModal] = useState(null);
+  const [addForm, setAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
+const requestAdmin = (title, action) => {
+  setAdminModal({ title, action });
+};
 
+const deleteItem = (id) => {
+  requestAdmin("Удаление оборудования", () => {
+    const newItems = items.filter(i => i.id !== id);
+    setItems(newItems);
+    try { localStorage.setItem("emc_verification_v1", JSON.stringify(newItems)); } catch(e) {}
+    setAdminModal(null);
+  });
+};
+
+const addItem = () => {
+  if (!newItem.name) return;
+  const item = { ...newItem, id: `custom_${Date.now()}`, status: "unknown" };
+  const newItems = [...items, item];
+  setItems(newItems);
+  try { localStorage.setItem("emc_verification_v1", JSON.stringify(newItems)); } catch(e) {}
+  setAddForm(false);
+  setNewItem({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
+  setAdminModal(null);
+};
   const save = (item) => {
     const newItems = items.map(i => i.id === item.id ? item : i);
     setItems(newItems);
@@ -4911,8 +5572,10 @@ function VerificationScreen({ onClose }) {
 
   return (
     <div>
-      <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:12, display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
-
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+  <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
+  <button onClick={() => setAddForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
+</div>
       {/* Summary */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
         {[
@@ -4932,7 +5595,30 @@ function VerificationScreen({ onClose }) {
         })}
       </div>
 
-      {/* List */}
+     {addForm && (
+  <div style={styles.card}>
+    <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:10 }}>Новое оборудование</div>
+    {[
+      { label:"Наименование", key:"name", placeholder:"Название прибора" },
+      { label:"Тип", key:"type", placeholder:"Измерительный приёмник" },
+      { label:"АРМ", key:"arm", placeholder:"АРМ1" },
+      { label:"Номер свидетельства", key:"certNum", placeholder:"№ 12345/2025" },
+      { label:"Дата поверки", key:"certDate", type:"date" },
+      { label:"Следующая поверка", key:"nextDate", type:"date" },
+    ].map(f => (
+      <div key={f.key} style={{ marginBottom:8 }}>
+        <div style={{ fontSize:11, color:C.textSec, marginBottom:3 }}>{f.label}</div>
+        <input style={{ ...styles.input, fontSize:13 }} type={f.type||"text"}
+          value={newItem[f.key]||""} placeholder={f.placeholder||""}
+          onChange={e => setNewItem(p => ({...p, [f.key]:e.target.value}))} />
+      </div>
+    ))}
+    <div style={{ display:"flex", gap:8, marginTop:4 }}>
+      <button onClick={() => setAddForm(false)} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${C.border}`, background:"transparent", color:C.textSec, cursor:"pointer", fontFamily:"inherit" }}>Отмена</button>
+      <button onClick={() => requestAdmin("Добавление оборудования", addItem)} disabled={!newItem.name} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:newItem.name?C.accent:C.border, color:"#fff", fontWeight:700, cursor:newItem.name?"pointer":"not-allowed", fontFamily:"inherit" }}>Добавить</button>
+    </div>
+  </div>
+)} {/* List */}
       {filtered.map(item => {
         const sc = STATUS_CONFIG[item.status];
         const daysLeft = item.nextDate ? Math.floor((new Date(item.nextDate)-new Date())/86400000) : null;
@@ -4953,11 +5639,24 @@ function VerificationScreen({ onClose }) {
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
                 <div style={{ background:sc.bg, color:sc.color, borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{sc.label}</div>
                 <div style={{ fontSize:16, color:C.textSec }}>›</div>
+<button
+  onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
+  style={{ fontSize:10, padding:"3px 8px", borderRadius:5, border:`1px solid ${C.fail}`,
+    background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit" }}>
+  Удалить
+</button>
               </div>
             </div>
           </div>
         );
       })}
+      {adminModal && (
+  <AdminModal
+    title={adminModal.title}
+    onConfirm={adminModal.action}
+    onCancel={() => setAdminModal(null)}
+  />
+)}
     </div>
   );
 }
@@ -5286,6 +5985,7 @@ function AppInner() {
               {tab === "tests" && <TestsScreen />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
               {tab === "log" && <LogbookScreen />}
+              {tab === "ai" && <AiAssistantScreen onClose={() => setTab("home")} />}
             </>
         }
       </div>
