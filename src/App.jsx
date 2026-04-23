@@ -1305,179 +1305,129 @@ function ErrorsScreen({ onClose }) {
 
 function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
 
-  // SVG иконки для быстрого доступа
-  const QuickIcons = {
-    db: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#3B82F6" strokeWidth="1.5"/><path d="M8 12h8M12 8v8" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 9l6 6M15 9l-6 6" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-    bci: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="#F97316" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
-    cable: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="#8B5CF6" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="12" r="3" stroke="#8B5CF6" strokeWidth="1.5"/></svg>,
-    tests: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-    abbr: <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#3B82F6" strokeWidth="1.5"/><path d="M7 8h10M7 12h10M7 16h6" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-  };
-
   const quick = [
-    { iconKey: "db",    label: "dB-конвертер",        sub: "Преобразование единиц",    tab: "calc", id: "db",    bg: "#EFF6FF" },
-    { iconKey: "bci",   label: "Расчёт инжекции тока", sub: "ГОСТ Р 51317.4.6",         tab: "calc", id: "bci",   bg: "#FFF7ED" },
-    { iconKey: "cable", label: "Потери кабеля",         sub: "Расчёт затухания",         tab: "calc", id: "cable", bg: "#F5F3FF" },
-    { iconKey: "tests", label: "Чек-листы",             sub: "Готовые чек-листы",        tab: "tests",id: null,   bg: "#ECFDF5" },
-    { iconKey: "abbr",  label: "Сокращения",            sub: "Термины и аббревиатуры",   tab: "ref",  id: "abbr",  bg: "#EFF6FF" },
+    { label: "dB-конвертер",        sub: "Преобразование единиц",   tab: "calc", id: "db" },
+    { label: "Инжекция тока",        sub: "ГОСТ Р 51317.4.6",        tab: "calc", id: "bci" },
+    { label: "Потери кабеля",        sub: "Расчёт затухания",        tab: "calc", id: "cable" },
+    { label: "Чек-листы",            sub: "Готовые чек-листы",       tab: "tests", id: null },
+    { label: "Сокращения",           sub: "Термины ЭМС",             tab: "ref",  id: "abbr" },
   ];
 
   const sections = [
-    {
-      label: "Тестирование", sub: "10 вопросов из базы\nТеория и практика ЭМС",
-      color: "#3B82F6", bg: "#EFF6FF",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.5"/><path d="M9.5 8.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5c0 1.5-1.5 2-1.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="17" r="1" fill="white"/></svg>,
-      action: onQuiz
-    },
-    {
-      label: "Типовые ошибки", sub: "Частые проблемы при\nиспытаниях и решения",
-      color: "#F97316", bg: "#FFF7ED",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-      action: onErrors
-    },
-    {
-      label: "Проверка оборудования", sub: "Сроки поверки, свидетельства,\nнапоминания",
-      color: "#10B981", bg: "#ECFDF5",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="white" strokeWidth="1.5"/></svg>,
-      action: onVerify
-    },
-    {
-      label: "ИИ-помощник", sub: "Claude AI на базе знаний\nEMC Pro",
-      color: "#8B5CF6", bg: "#F5F3FF",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="white" strokeWidth="1.5"/><path d="M6 21v-1a6 6 0 0112 0v1" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-      action: () => setTab("ai")
-    },
+    { label: "Тестирование",          sub: "10 вопросов из базы",        action: onQuiz },
+    { label: "Типовые ошибки",        sub: "Частые проблемы и решения",   action: onErrors },
+    { label: "Поверка оборудования",  sub: "Сроки, свидетельства",        action: onVerify },
+    { label: "ИИ-помощник",           sub: "База знаний EMC Pro",         action: () => setTab("ai") },
   ];
 
   return (
-    <div style={{ width: "100%", height: "100%", overflowY: "auto", background: "#F8FAFC" }}>
-      <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 28 }}>
+    <div style={{ width: "100%", height: "100%", overflowY: "auto", background: "#FAFAFA" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 48px 64px" }}>
 
         {/* HERO */}
-        <div style={{
-          background: "linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%)",
-          borderRadius: 20, padding: "32px 40px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          border: "1px solid #DBEAFE", overflow: "hidden", position: "relative", minHeight: 220
-        }}>
-          <div style={{ flex: 1, zIndex: 1 }}>
-            <div style={{ fontSize: 38, fontWeight: 800, color: "#1E293B", lineHeight: 1.2, marginBottom: 12 }}>
-              Инструментарий<br/>инженера <span style={{ color: "#3B82F6" }}>ЭМС</span>
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#475569", marginBottom: 6 }}>Точные расчёты. Быстро. Без ошибок.</div>
-            <div style={{ fontSize: 13, color: "#94A3B8", marginBottom: 24, maxWidth: 380 }}>
-              Профессиональный инструмент для задач в области электромагнитной совместимости
-            </div>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={() => setTab("calc")} style={{
-                padding: "12px 24px", borderRadius: 10, background: "#3B82F6",
-                color: "#fff", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14,
-                display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(59,130,246,0.4)"
-              }}>▶ Начать работу</button>
-              <button onClick={() => setTab("ref")} style={{
-                padding: "12px 24px", borderRadius: 10, background: "#fff",
-                color: "#475569", border: "1px solid #E2E8F0", cursor: "pointer", fontSize: 14,
-                display: "flex", alignItems: "center", gap: 8
-              }}>📖 Справочники</button>
-            </div>
-          </div>
+        <div style={{ marginBottom: 64 }}>
+          <div style={{
+            display: "inline-block", fontSize: 11, fontWeight: 600, letterSpacing: 2,
+            textTransform: "uppercase", color: "#999", marginBottom: 20
+          }}>ГОСТ РВ 20.57.306 · Инструментарий инженера ЭМС</div>
 
-          {/* ЭКГ + ЩИТ */}
-          <div style={{ position: "relative", width: 420, height: 200, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {/* ЭКГ линия */}
-            <svg style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)" }} width="280" height="120" viewBox="0 0 280 120" fill="none">
-              <path d="M0 60 L30 60 L45 60 L55 20 L65 100 L75 40 L85 60 L110 60 L125 60 L135 25 L145 95 L155 45 L165 60 L190 60 L205 60 L215 22 L225 98 L235 42 L245 60 L280 60" stroke="#BFDBFE" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M0 70 L30 70 L45 70 L55 35 L65 105 L75 52 L85 70 L110 70 L125 70 L135 38 L145 102 L155 55 L165 70 L190 70 L205 70 L215 36 L225 104 L235 53 L245 70 L280 70" stroke="#DBEAFE" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            {/* Щит */}
-            <svg style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }} width="170" height="190" viewBox="0 0 170 190" fill="none">
-              <path d="M85 6 L158 36 L158 96 C158 136 85 174 85 174 C85 174 12 136 12 96 L12 36 Z" fill="#EFF6FF" stroke="#BFDBFE" strokeWidth="2"/>
-              <path d="M85 18 L146 44 L146 96 C146 130 85 162 85 162 C85 162 24 130 24 96 L24 44 Z" fill="#DBEAFE" stroke="#93C5FD" strokeWidth="1.5"/>
-              <path d="M58 92 L76 112 L116 72" stroke="#3B82F6" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <h1 style={{
+            fontSize: 52, fontWeight: 800, color: "#0A0A0A", lineHeight: 1.1,
+            letterSpacing: -1.5, marginBottom: 20, margin: "0 0 20px"
+          }}>
+            Точные расчёты.<br/>
+            <span style={{ color: "#1E5BE8" }}>Без ошибок.</span>
+          </h1>
+
+          <p style={{
+            fontSize: 18, color: "#666", fontWeight: 400, lineHeight: 1.6,
+            maxWidth: 520, margin: "0 0 36px"
+          }}>
+            Профессиональный инструмент для инженеров ЭМС.
+            Все расчёты локально — без интернета.
+          </p>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <button onClick={() => setTab("calc")} style={{
+              padding: "14px 32px", borderRadius: 10, background: "#0A0A0A",
+              color: "#fff", border: "none", cursor: "pointer",
+              fontWeight: 600, fontSize: 15, fontFamily: "inherit",
+              letterSpacing: -0.2
+            }}>Начать работу →</button>
+            <button onClick={() => setTab("ref")} style={{
+              padding: "14px 24px", borderRadius: 10, background: "transparent",
+              color: "#666", border: "1px solid #E0E0E0", cursor: "pointer",
+              fontWeight: 500, fontSize: 15, fontFamily: "inherit"
+            }}>Справочники</button>
           </div>
         </div>
 
         {/* БЫСТРЫЙ ДОСТУП */}
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#1E293B", marginBottom: 16 }}>Быстрый доступ</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
+        <div style={{ marginBottom: 56 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
+            color: "#999", marginBottom: 16
+          }}>Быстрый доступ</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
             {quick.map((q, i) => (
-              <button key={i} onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
+              <button key={i}
+                onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
                 style={{
-                  background: "#fff", padding: "20px 16px", borderRadius: 16,
-                  cursor: "pointer", display: "flex", flexDirection: "column", gap: 12,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0",
-                  textAlign: "left", position: "relative"
-                }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: q.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {QuickIcons[q.iconKey]}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1E293B", marginBottom: 4 }}>{q.label}</div>
-                  <div style={{ fontSize: 11, color: "#94A3B8" }}>{q.sub}</div>
-                </div>
-                <div style={{ position: "absolute", bottom: 16, right: 16, color: "#CBD5E1", fontSize: 18 }}>›</div>
+                  background: "#fff", padding: "20px", borderRadius: 12,
+                  border: "1px solid #E8E8E8", cursor: "pointer", textAlign: "left",
+                  fontFamily: "inherit", transition: "border-color 0.15s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "#1E5BE8"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "#E8E8E8"}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0A", marginBottom: 4 }}>{q.label}</div>
+                <div style={{ fontSize: 11, color: "#999" }}>{q.sub}</div>
               </button>
             ))}
           </div>
         </div>
+
+        {/* РАЗДЕЛИТЕЛЬ */}
+        <div style={{ height: 1, background: "#EBEBEB", marginBottom: 56 }} />
 
         {/* ОСНОВНЫЕ РАЗДЕЛЫ */}
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#1E293B", marginBottom: 16 }}>Основные разделы</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+        <div style={{ marginBottom: 56 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
+            color: "#999", marginBottom: 16
+          }}>Основные разделы</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {sections.map((s, i) => (
               <button key={i} onClick={s.action} style={{
-                background: "#fff", padding: "24px", borderRadius: 16,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.06)", cursor: "pointer",
-                border: "1px solid #E2E8F0", textAlign: "left"
-              }}>
-                <div style={{ width: 52, height: 52, borderRadius: 14, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-                  {s.icon}
-                </div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", marginBottom: 8 }}>{s.label}</div>
-                <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6, marginBottom: 16, whiteSpace: "pre-line" }}>{s.sub}</div>
-                <div style={{ color: s.color, fontSize: 13, fontWeight: 600 }}>Перейти →</div>
+                background: "#fff", padding: "24px", borderRadius: 12,
+                border: "1px solid #E8E8E8", cursor: "pointer", textAlign: "left",
+                fontFamily: "inherit", transition: "border-color 0.15s"
+              }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "#0A0A0A"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "#E8E8E8"}
+              >
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0A", marginBottom: 6 }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: "#999", marginBottom: 20 }}>{s.sub}</div>
+                <div style={{ fontSize: 12, color: "#1E5BE8", fontWeight: 600 }}>Перейти →</div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* О ПРИЛОЖЕНИИ */}
+        {/* ФУТЕР СТАТИСТИКА */}
         <div style={{
-          background: "#fff", borderRadius: 16, padding: "20px 24px",
-          border: "1px solid #E2E8F0", display: "flex", alignItems: "center", gap: 16
+          display: "flex", gap: 48, paddingTop: 32,
+          borderTop: "1px solid #EBEBEB"
         }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>ℹ️</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, color: "#64748B" }}>
-              Профессиональный инструмент для инженеров в области электромагнитной совместимости (ЭМС). Работает без интернета.
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            {["ГОСТ РВ 20.57.306", "ГОСТ Р 51317", "CISPR 16", "IEC 61000"].map(s => (
-              <span key={s} style={{ background: "#EFF6FF", color: "#3B82F6", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{s}</span>
-            ))}
-          </div>
-        </div>
-
-
-
-        {/* СТАТИСТИКА */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
           {[
-            { label: "Испытаний в базе", value: "24", icon: "📋", color: "#3B82F6" },
-            { label: "Калькуляторов", value: "8", icon: "🧮", color: "#10B981" },
-            { label: "Сокращений ЭМС", value: "200+", icon: "📖", color: "#8B5CF6" },
-            { label: "Работает офлайн", value: "100%", icon: "🔒", color: "#F97316" },
+            { value: "24", label: "испытания" },
+            { value: "8", label: "калькулятора" },
+            { value: "200+", label: "сокращений" },
+            { value: "100%", label: "офлайн" },
           ].map((s, i) => (
-            <div key={i} style={{ background: "#fff", borderRadius: 16, padding: "20px 24px", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ fontSize: 28 }}>{s.icon}</div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>{s.label}</div>
-              </div>
+            <div key={i}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "#0A0A0A", letterSpacing: -0.5 }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -6267,16 +6217,15 @@ function AppInner() {
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#F0F4FF", fontFamily: "'Roboto','Arial',sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", background: "#FAFAFA", fontFamily: "'Roboto','Arial',sans-serif" }}>
 
       {/* БОКОВАЯ НАВИГАЦИЯ */}
       <div style={{
-        width: 220, background: "#fff", borderRight: `1px solid ${C.border}`,
-        display: "flex", flexDirection: "column", flexShrink: 0,
-        boxShadow: "2px 0 8px rgba(0,0,0,0.04)"
+        width: 220, background: "#FAFAFA", borderRight: "1px solid #EBEBEB",
+        display: "flex", flexDirection: "column", flexShrink: 0
       }}>
         {/* Лого */}
-        <div style={{ padding: "20px 20px 16px", borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #EBEBEB" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(145deg, #0D1F4E, #1E5BE8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="20" height="20" viewBox="0 0 52 52">
@@ -6287,7 +6236,7 @@ function AppInner() {
               </svg>
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>Инструментарий<br/>инженера ЭМС</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#0A0A0A", lineHeight: 1.3, letterSpacing: -0.2 }}>Инструментарий<br/>инженера ЭМС</div>
             </div>
           </div>
         </div>
@@ -6326,13 +6275,13 @@ function AppInner() {
         </div>
 
         {/* Статус + версия */}
-        <div style={{ padding: "16px", borderTop: `1px solid ${C.border}` }}>
+        <div style={{ padding: "16px", borderTop: "1px solid #EBEBEB" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A" }}></div>
             <span style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>Офлайн режим</span>
           </div>
-          <div style={{ fontSize: 11, color: C.textSec }}>Все функции доступны</div>
-          <div style={{ fontSize: 11, color: C.textSec, marginTop: 4 }}>v2.0.0</div>
+          <div style={{ fontSize: 11, color: "#aaa" }}>Все функции доступны</div>
+          <div style={{ fontSize: 11, color: "#bbb", marginTop: 2 }}>v2.0.0</div>
         </div>
       </div>
 
@@ -6341,8 +6290,8 @@ function AppInner() {
 
         {/* ВЕРХНЯЯ ПАНЕЛЬ */}
         <div style={{
-          background: "#fff", borderBottom: `1px solid ${C.border}`,
-          padding: "0 24px", height: 56, display: "flex", alignItems: "center",
+          background: "#FAFAFA", borderBottom: "1px solid #EBEBEB",
+          padding: "0 32px", height: 52, display: "flex", alignItems: "center",
           justifyContent: "space-between", flexShrink: 0
         }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
