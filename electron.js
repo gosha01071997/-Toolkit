@@ -2,33 +2,31 @@ const { app, BrowserWindow, shell } = require('electron')
 const path = require('path')
 
 function createWindow() {
+  const { width, height } = require('electron').screen.getPrimaryDisplay().workAreaSize
+
   const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: width,
+    height: height,
+    x: 0,
+    y: 0,
     minWidth: 900,
     minHeight: 600,
     title: 'EMC Pro — Инструментарий инженера ЭМС',
-    icon: path.join(__dirname, 'public', 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
     backgroundColor: '#F0F4FF',
-    show: false, // Скрыть до готовности
+    show: false,
   })
 
-  // Открыть на весь экран сразу
-  win.maximize()
-
-  // Загрузить приложение
   win.loadFile(path.join(__dirname, 'dist', 'index.html'))
 
-  // Показать когда готово (без белого мигания)
   win.once('ready-to-show', () => {
+    win.maximize()
     win.show()
   })
 
-  // Внешние ссылки открывать в браузере
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
