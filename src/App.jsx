@@ -164,7 +164,7 @@ function getCableLoss(type, freqMHz, lengthM) {
 
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
-  app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
+  app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
   header: { background: C.dark, color: "#fff", padding: "16px 28px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", flexShrink: 0 },
   headerTitle: { fontSize: 18, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
