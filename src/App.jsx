@@ -1303,100 +1303,146 @@ function ErrorsScreen({ onClose }) {
   );
 }
 
-function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
+function HomeScreen({ setTab, setCalcId, onQuiz }) {
   const quick = [
     { icon: "📡", label: "dB-конвертер", tab: "calc", id: "db" },
-    { icon: "⚡", label: "Расчёт инжекции тока", tab: "calc", id: "bci" },
-    { icon: "🔌", label: "Потери кабеля", tab: "calc", id: "cable" },
+    { icon: "⚡", label: "Инжекция тока", tab: "calc", id: "bci" },
+    { icon: "📉", label: "Потери кабеля", tab: "calc", id: "cable" },
     { icon: "📋", label: "Чек-листы", tab: "tests", id: null },
-    { icon: "📖", label: "Сокращения", tab: "ref", id: "abbr" },
+    { icon: "📘", label: "Сокращения", tab: "ref", id: "abbr" }
   ];
+
+  const sections = [
+    { title: "Тестирование", desc: "10 вопросов • практика ЭМС", color: "#3B82F6", action: onQuiz },
+    { title: "Типовые ошибки", desc: "Частые проблемы и решения", color: "#9CA3AF" },
+    { title: "Оборудование", desc: "Сроки поверки и контроль", color: "#9CA3AF" },
+    { title: "ИИ-помощник", desc: "Claude + база знаний", color: "#9CA3AF" }
+  ];
+
   return (
-    <div>
-      <div style={{ ...styles.card, background: `linear-gradient(135deg, ${C.dark} 0%, #1E3A6E 100%)`, border: "none" }}>
-        <div style={{ fontSize: 11, color: "#8A9BB8", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>ГОСТ РВ 20.57.306</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>Создано инженером для инженеров</div>
-        <div style={{ fontSize: 13, color: "#8A9BB8", marginTop: 6 }}>Калькуляторы · Испытания · Справочник · Журнал</div>
-      </div>
+    <div style={{
+      width: "100%",
+      padding: "32px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 32
+    }}>
 
-      <div style={styles.sectionTitle}>Быстрый доступ</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-        {quick.map((q, i) => (
-          <button key={i} onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
-            style={{ ...styles.card, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", border: `1.5px solid ${C.border}`, margin: 0, textAlign: "left" }}>
-            <span style={{ fontSize: 22 }}>{q.icon}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{q.label}</span>
+      {/* HERO */}
+      <div style={{
+        background: "linear-gradient(135deg, #1E3A6E, #3B82F6)",
+        borderRadius: 20,
+        padding: "32px",
+        color: "#fff"
+      }}>
+        <div style={{ fontSize: 32, fontWeight: 800 }}>
+          Инструментарий инженера ЭМС
+        </div>
+
+        <div style={{ marginTop: 10, color: "#C7D2FE" }}>
+          Точные расчёты. Быстро. Без ошибок.
+        </div>
+
+        <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+          <button
+            onClick={() => setTab("calc")}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 10,
+              background: "#fff",
+              color: "#1E3A6E",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: 600
+            }}
+          >
+            Начать работу
           </button>
-        ))}
-      </div>
 
-      {/* QUIZ BUTTON */}
-      <button onClick={onQuiz} style={{
-        width: "100%", marginBottom: 10, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #1A3A6E 0%, #1E5BE8 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(30,91,232,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🧠</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ТЕСТИРОВАНИЕ</div>
-          <div style={{ fontSize: 12, color: "#8AB4F8", marginTop: 3 }}>10 вопросов из базы 200 · Теория и практика ЭМС</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#8AB4F8" }}>›</span>
-      </button>
-
-      <button onClick={onErrors} style={{
-        width: "100%", marginBottom: 10, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #7A1A1A 0%, #C0392B 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(192,57,43,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🔥</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ТИПОВЫЕ ОШИБКИ</div>
-          <div style={{ fontSize: 12, color: "#FFB3B3", marginTop: 3 }}>Частые проблемы при испытаниях · Решения</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#FFB3B3" }}>›</span>
-      </button>
-
-      <button onClick={onVerify} style={{
-        width: "100%", marginBottom: 10, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #0A3A1A 0%, #1A9B5A 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(26,155,90,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📅</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ПОВЕРКА ОБОРУДОВАНИЯ</div>
-          <div style={{ fontSize: 12, color: "#A8F0CC", marginTop: 3 }}>Сроки поверки · Свидетельства · Напоминания</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#A8F0CC" }}>›</span>
-      </button>
-
-      <button onClick={() => setTab("ai")} style={{
-        width: "100%", marginBottom: 16, padding: "16px 20px", borderRadius: 14,
-        background: `linear-gradient(135deg, #2A0A3A 0%, #7B1DC7 100%)`,
-        border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
-        boxShadow: "0 4px 16px rgba(123,29,199,0.25)"
-      }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🤖</div>
-        <div style={{ textAlign: "left", flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 0.2 }}>ИИ-ПОМОЩНИК</div>
-          <div style={{ fontSize: 12, color: "#D4A8F0", marginTop: 3 }}>Ollama (оффлайн) · Claude AI · База знаний EMC Pro</div>
-        </div>
-        <span style={{ fontSize: 20, color: "#D4A8F0" }}>›</span>
-      </button>
-
-      <div style={styles.sectionTitle}>О приложении</div>
-      <div style={styles.card}>
-        <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6, margin: 0 }}>
-          Профессиональный инструмент для инженеров в области электромагнитной совместимости (ЭМС).
-          Все расчёты выполняются локально на устройстве. Справочники доступны без подключения к интернету.
-        </p>
-        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap" }}>
-          {["ГОСТ РВ 20.57.306", "ГОСТ РВ 6601-001-2008", "КТ-160G", "ГОСТ Р ЭМС"].map(s => <span key={s} style={styles.chip}>{s}</span>)}
+          <button
+            onClick={() => setTab("ref")}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 10,
+              background: "transparent",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.4)",
+              cursor: "pointer"
+            }}
+          >
+            Справочники
+          </button>
         </div>
       </div>
+
+      {/* БЫСТРЫЙ ДОСТУП */}
+      <div>
+        <div style={{ fontWeight: 700, marginBottom: 12 }}>
+          Быстрый доступ
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 16
+        }}>
+          {quick.map((q, i) => (
+            <div
+              key={i}
+              onClick={() => {
+                setTab(q.tab);
+                if (q.id) setCalcId(q.id);
+              }}
+              style={{
+                background: "#fff",
+                padding: "16px",
+                borderRadius: 16,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+              }}
+            >
+              <div style={{ fontSize: 22 }}>{q.icon}</div>
+              <div>{q.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ОСНОВНЫЕ РАЗДЕЛЫ */}
+      <div>
+        <div style={{ fontWeight: 700, marginBottom: 12 }}>
+          Основные разделы
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: 16
+        }}>
+          {sections.map((s, i) => (
+            <div
+              key={i}
+              onClick={s.action}
+              style={{
+                background: "#fff",
+                padding: "20px",
+                borderRadius: 16,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                cursor: "pointer"
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>{s.title}</div>
+              <div style={{ marginTop: 6, color: "#666", fontSize: 14 }}>
+                {s.desc}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }
