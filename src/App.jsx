@@ -1309,53 +1309,68 @@ function ErrorsScreen({ onClose }) {
   );
 }
 
+function EMCAvatar({ size = 220, showPlatform = true }) {
+  const eyeSize = Math.max(7, Math.round(size * 0.045));
+  return (
+    <div style={{ width: size, height: size + (showPlatform ? 32 : 0), position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{`
+        @keyframes emcBreath { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        @keyframes emcGlow { 0% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } 50% { filter: drop-shadow(0 0 36px rgba(124,58,237,.5)); } 100% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } }
+        @keyframes emcOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes emcWave { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -120; } }
+        @keyframes emcBlink { 0%, 45%, 48%, 100% { transform: scaleY(1); } 46%, 47% { transform: scaleY(0.1); } }
+      `}</style>
+      {showPlatform && <div style={{ position: "absolute", bottom: 0, width: size * 0.72, height: 26, borderRadius: "50%", background: "radial-gradient(ellipse at center, rgba(37,99,235,0.42), rgba(124,58,237,0.18), transparent 72%)", filter: "blur(6px)" }} />}
+      <div style={{ position: "absolute", width: size * 1.03, height: size * 1.03, borderRadius: "50%", border: "1px solid rgba(125,211,252,0.45)", animation: "emcOrbit 16s linear infinite" }} />
+      <div style={{ position: "absolute", width: size * 1.2, height: size * 0.46, borderRadius: "50%", border: "1px solid rgba(167,139,250,0.35)", transform: "rotate(-15deg)", animation: "emcOrbit 11s linear infinite reverse" }} />
+
+      <div style={{ width: size * 0.84, height: size * 0.84, borderRadius: "50%", position: "relative", background: "radial-gradient(circle at 30% 24%, rgba(255,255,255,0.78), rgba(6,182,212,0.3) 25%, rgba(37,99,235,0.75) 58%, rgba(124,58,237,0.86) 100%)", animation: "emcBreath 4s ease-in-out infinite, emcGlow 3.4s ease-in-out infinite", boxShadow: "inset 0 2px 12px rgba(255,255,255,0.3), inset 0 -12px 24px rgba(2,6,23,0.4)" }}>
+        <svg viewBox="0 0 220 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <path d="M35 120 Q75 78 110 120 T185 120" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="4" strokeLinecap="round" strokeDasharray="8 8" style={{ animation: "emcWave 5s linear infinite" }} />
+          <path d="M35 136 Q75 94 110 136 T185 136" fill="none" stroke="rgba(167,139,250,0.75)" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 10" style={{ animation: "emcWave 6s linear infinite reverse" }} />
+        </svg>
+
+        <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%, -50%)", display: "flex", gap: size * 0.12 }}>
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite" }} />
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite 0.1s" }} />
+        </div>
+        <div style={{ position: "absolute", top: "56%", left: "50%", transform: "translateX(-50%)", width: size * 0.16, height: size * 0.06, borderBottom: "2px solid rgba(226,232,240,0.9)", borderRadius: "0 0 24px 24px" }} />
+      </div>
+    </div>
+  );
+}
+
 function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
   const quick = [
     { icon: "⇄", iconBg: "rgba(34,197,94,0.2)", iconColor: "#22C55E", label: "dB-конвертер", sub: "Преобразование единиц", tab: "calc", id: "db" },
     { icon: "∿", iconBg: "rgba(59,130,246,0.22)", iconColor: "#60A5FA", label: "Инжекция тока", sub: "ГОСТ Р 51317.4.6", tab: "calc", id: "bci" },
-    { icon: "◔", iconBg: "rgba(245,158,11,0.2)", iconColor: "#F59E0B", label: "Потери кабеля", sub: "Расчёт затухания", tab: "calc", id: "cable" },
-    { icon: "▦", iconBg: "rgba(139,92,246,0.24)", iconColor: "#A78BFA", label: "Чек-листы", sub: "Готовые сценарии испытаний", tab: "tests", id: null },
+    { icon: "🧪", iconBg: "rgba(245,158,11,0.2)", iconColor: "#F59E0B", label: "Тестирование", sub: "10 вопросов из базы", action: onQuiz },
+    { icon: "✅", iconBg: "rgba(139,92,246,0.24)", iconColor: "#A78BFA", label: "Поверка", sub: "Сроки и свидетельства", action: onVerify },
   ];
 
-  const aiScenarios = [
-    "Пик превышает норму",
-    "Шумы в кабеле",
-    "Проблема с инжекцией",
-    "Усилитель уходит в защиту",
+  const latestTests = [
+    { status: "PASS", date: "2026-04-22", object: "ECU-17", type: "Conducted Immunity", issue: "80–230 MHz" },
+    { status: "FAIL", date: "2026-04-20", object: "Блок питания БП-4", type: "BCI / инжекция тока", issue: "Пик 142 MHz" },
+    { status: "WARN", date: "2026-04-18", object: "Модуль телеметрии", type: "Radiated Emissions", issue: "Шум 310 MHz" },
   ];
+
+  const commonErrors = [
+    { icon: "∿", title: "Костюмник не фиксирует ток инжекции", reason: "Слабая связь клещей и жгута либо ошибка подключения." },
+    { icon: "▲", title: "Пик по частоте превышает норму", reason: "Гармоника генератора или резонанс кабеля." },
+    { icon: "≈", title: "Шумы после подключения оборудования", reason: "Паразитные наводки и земляная петля." },
+  ];
+
+  const aiScenarios = ["Пик превышает норму", "Шумы в кабеле", "Проблема с инжекцией", "Усилитель уходит в защиту"];
 
   return (
-    <div style={{ width: "100%", minHeight: "100%", background: "transparent" }}>
-      <style>{`
-        @keyframes heroFloat {
-          0% { transform: translateY(0px) scale(1); }
-          50% { transform: translateY(-10px) scale(1.04); }
-          100% { transform: translateY(0px) scale(1); }
-        }
-        @keyframes heroRing {
-          0% { transform: rotate(0deg) scale(1); opacity: .65; }
-          50% { transform: rotate(180deg) scale(1.05); opacity: .95; }
-          100% { transform: rotate(360deg) scale(1); opacity: .65; }
-        }
-        @keyframes aiPulse {
-          0% { transform: scale(1); box-shadow: 0 0 24px rgba(91,140,255,.35); }
-          50% { transform: scale(1.08); box-shadow: 0 0 42px rgba(138,91,255,.5); }
-          100% { transform: scale(1); box-shadow: 0 0 24px rgba(91,140,255,.35); }
-        }
-        @keyframes aiBreath {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-4px); }
-          100% { transform: translateY(0px); }
-        }
-      `}</style>
-
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 46px" }}>
+    <div style={{ width: "100%", minHeight: "100%", background: "radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 22px 46px" }}>
         <div style={{
           position: "relative",
           borderRadius: 30,
           background: "linear-gradient(132deg, rgba(16,24,39,0.94) 0%, rgba(11,18,32,0.9) 52%, rgba(19,31,57,0.95) 100%)",
           border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 0 64px rgba(80,120,255,0.28), inset 0 1px 0 rgba(255,255,255,0.08)",
+          boxShadow: "0 0 66px rgba(80,120,255,0.26), inset 0 1px 0 rgba(255,255,255,0.08)",
           padding: "52px 48px",
           marginBottom: 18,
           overflow: "hidden",
@@ -1372,50 +1387,26 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
               Расчёты, испытания, журнал, типовые ошибки и AI-помощник для быстрой работы инженера.
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(37,99,235,0.55)", background: "linear-gradient(130deg, #2563EB, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer" }}>Открыть расчёты</button>
-              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.24)", background: "rgba(15,23,42,0.5)", color: "#C7D2FE", fontWeight: 600, cursor: "pointer" }}>Перейти к AI-помощнику</button>
-              <button onClick={onErrors} style={{ padding: "13px 20px", borderRadius: 14, border: "1px solid rgba(245,158,11,0.34)", background: "rgba(245,158,11,0.12)", color: "#FCD34D", fontWeight: 600, cursor: "pointer" }}>Типовые ошибки →</button>
+              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(37,99,235,0.55)", background: "linear-gradient(130deg, #2563EB, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer", boxShadow: "0 0 28px rgba(37,99,235,0.32)" }}>Открыть расчёты</button>
+              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.24)", background: "rgba(15,23,42,0.5)", color: "#C7D2FE", fontWeight: 600, cursor: "pointer", boxShadow: "0 0 22px rgba(124,58,237,0.22)" }}>Перейти к AI-помощнику</button>
             </div>
           </div>
-          <div style={{ position: "relative", minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 250, height: 250, borderRadius: "50%", background: "conic-gradient(from 30deg, rgba(91,140,255,0.2), rgba(138,91,255,0.9), rgba(6,182,212,0.72), rgba(91,140,255,0.2))", filter: "blur(2px)", animation: "heroFloat 6s ease-in-out infinite" }} />
-            <div style={{ position: "absolute", width: 228, height: 228, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.78), rgba(91,140,255,0.45) 25%, rgba(138,91,255,0.8) 64%, rgba(5,8,20,0.95) 100%)", boxShadow: "0 0 65px rgba(124,58,237,0.35)", animation: "heroFloat 4.4s ease-in-out infinite" }} />
-            <div style={{ position: "absolute", width: 314, height: 98, borderRadius: "50%", border: "1px solid rgba(125,211,252,0.46)", transform: "rotate(-22deg)", animation: "heroRing 12s linear infinite" }} />
-            <div style={{ position: "absolute", width: 274, height: 78, borderRadius: "50%", border: "1px solid rgba(167,139,250,0.42)", transform: "rotate(22deg)", animation: "heroRing 8s linear infinite reverse" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <EMCAvatar size={270} />
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div style={{ ...styles.card, marginBottom: 0, boxShadow: "0 0 26px rgba(80,120,255,0.14)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div style={{ ...styles.card, marginBottom: 0 }}>
             <div style={{ ...styles.sectionTitle, marginBottom: 14, marginTop: 0, color: "#CBD5E1" }}>Ключевые быстрые действия</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {quick.map((q, i) => (
                 <button
                   key={i}
-                  onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
-                  style={{
-                    borderRadius: 18,
-                    border: "1px solid rgba(255,255,255,0.05)",
-                    background: "rgba(20, 30, 60, 0.6)",
-                    backdropFilter: "blur(20px)",
-                    color: "#E2E8F0",
-                    textAlign: "left",
-                    padding: "14px",
-                    cursor: "pointer",
-                    transition: "transform .18s ease, border-color .2s ease, box-shadow .2s ease",
-                    fontFamily: "inherit",
-                    boxShadow: "0 0 20px rgba(80,120,255,0.08)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.borderColor = "rgba(91,140,255,0.66)";
-                    e.currentTarget.style.boxShadow = "0 0 30px rgba(80,120,255,0.22)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
-                    e.currentTarget.style.boxShadow = "0 0 20px rgba(80,120,255,0.08)";
-                  }}
+                  onClick={() => q.action ? q.action() : (setTab(q.tab), q.id && setCalcId(q.id))}
+                  style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", textAlign: "left", padding: "14px", cursor: "pointer", transition: "transform .18s ease, border-color .2s ease, box-shadow .2s ease", fontFamily: "inherit", boxShadow: "0 0 20px rgba(80,120,255,0.08)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.borderColor = "rgba(91,140,255,0.66)"; e.currentTarget.style.boxShadow = "0 0 34px rgba(80,120,255,0.22)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.boxShadow = "0 0 20px rgba(80,120,255,0.08)"; }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
                     <div style={{ width: 30, height: 30, borderRadius: 10, background: q.iconBg, color: q.iconColor, display: "grid", placeItems: "center", boxShadow: `0 0 18px ${q.iconColor}55` }}>{q.icon}</div>
@@ -1427,50 +1418,61 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
             </div>
           </div>
 
-          <div
-            style={{ ...styles.card, marginBottom: 0, position: "relative", overflow: "hidden", boxShadow: "0 0 42px rgba(80,120,255,0.22)", transition: "box-shadow .24s ease, border-color .24s ease" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 54px rgba(124,91,255,0.28)";
-              e.currentTarget.style.borderColor = "rgba(138,91,255,0.45)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 42px rgba(80,120,255,0.22)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
-            }}
-          >
+          <div style={{ ...styles.card, marginBottom: 0, position: "relative", overflow: "hidden", boxShadow: "0 0 54px rgba(80,120,255,0.22)" }}>
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 10%, rgba(124,58,237,0.24), transparent 36%), radial-gradient(circle at 15% 88%, rgba(37,99,235,0.2), transparent 45%)", pointerEvents: "none" }} />
             <div style={{ position: "relative" }}>
-              <div style={{ ...styles.sectionTitle, marginBottom: 14, marginTop: 0, color: "#CBD5E1" }}>AI-помощник</div>
-              <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
-                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.78), rgba(6,182,212,0.35) 30%, rgba(37,99,235,0.75) 58%, rgba(124,58,237,0.85) 100%)", animation: "aiPulse 2.8s ease-in-out infinite, aiBreath 4s ease-in-out infinite" }} />
-                <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>AI-анализ отказов и инженерных сценариев. Подскажите симптом — получите направление проверки.</div>
+              <div style={{ ...styles.sectionTitle, marginBottom: 10, marginTop: 0, color: "#CBD5E1" }}>AI-помощник</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#10B981", boxShadow: "0 0 14px rgba(16,185,129,0.7)" }} />
+                <span style={{ fontSize: 12, color: "#A7F3D0", fontWeight: 700 }}>Готов помочь</span>
               </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <input
-                  onFocus={() => setTab("ai")}
-                  placeholder="Опиши проблему..."
-                  style={{
-                    width: "100%",
-                    borderRadius: 14,
-                    border: "1px solid rgba(91,140,255,0.35)",
-                    background: "rgba(20, 30, 60, 0.6)",
-                    backdropFilter: "blur(20px)",
-                    color: "#E2E8F0",
-                    padding: "11px 13px",
-                    fontSize: 13,
-                    outline: "none",
-                    fontFamily: "inherit",
-                  }}
-                />
+              <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                <EMCAvatar size={120} showPlatform={false} />
+                <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>AI-анализ отказов и инженерных сценариев. Опишите симптом и получите следующий шаг проверки.</div>
               </div>
-
-              <div style={{ display: "grid", gap: 8 }}>
+              <input onFocus={() => setTab("ai")} placeholder="Опишите проблему..." style={{ width: "100%", borderRadius: 14, border: "1px solid rgba(91,140,255,0.35)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", padding: "11px 13px", fontSize: 13, outline: "none", fontFamily: "inherit", marginBottom: 10 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {aiScenarios.map((scenario) => (
-                  <button key={scenario} onClick={() => setTab("ai")} style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)", padding: "10px 12px", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", fontSize: 13, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 18px rgba(80,120,255,0.1)" }}>• {scenario}</button>
+                  <button key={scenario} onClick={() => setTab("ai")} style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: "10px 12px", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", fontSize: 12, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 20px rgba(80,120,255,0.12)" }}>• {scenario}</button>
                 ))}
               </div>
             </div>
+          </div>
+
+        <div style={{ ...styles.card, marginBottom: 16 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Последние испытания</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ color: "#64748B", textAlign: "left" }}>
+                <th style={{ padding: "8px 10px" }}>Статус</th><th style={{ padding: "8px 10px" }}>Дата</th><th style={{ padding: "8px 10px" }}>Объект</th><th style={{ padding: "8px 10px" }}>Тип</th><th style={{ padding: "8px 10px" }}>Частота/проблема</th><th style={{ padding: "8px 10px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {latestTests.map((t, idx) => (
+                <tr key={idx} style={{ borderTop: "1px solid rgba(148,163,184,0.14)" }}>
+                  <td style={{ padding: "10px" }}><span style={styles.tag(t.status === "PASS" ? "pass" : t.status === "FAIL" ? "fail" : "warn")}>{t.status}</span></td>
+                  <td style={{ padding: "10px", color: "#CBD5E1" }}>{t.date}</td>
+                  <td style={{ padding: "10px", color: "#E2E8F0" }}>{t.object}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.type}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.issue}</td>
+                  <td style={{ padding: "10px" }}><button onClick={() => setTab("log")} style={{ borderRadius: 10, border: "1px solid rgba(37,99,235,0.5)", background: "rgba(37,99,235,0.14)", color: "#BFDBFE", fontSize: 12, padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Открыть</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ ...styles.card, marginBottom: 0 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Типовые ошибки</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+            {commonErrors.map((error, i) => (
+              <button key={i} onClick={onErrors} style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", padding: "14px", textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: "#E2E8F0", boxShadow: "0 0 24px rgba(80,120,255,0.1)" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 12, marginBottom: 10, display: "grid", placeItems: "center", background: "linear-gradient(135deg, rgba(37,99,235,0.9), rgba(124,58,237,0.8))", boxShadow: "0 0 18px rgba(37,99,235,0.34)" }}>{error.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 7, lineHeight: 1.4 }}>{error.title}</div>
+                <div style={{ color: "#94A3B8", fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>{error.reason}</div>
+                <span style={{ color: "#60A5FA", fontSize: 12, fontWeight: 600 }}>Подробнее →</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -5334,14 +5336,12 @@ function buildOfflineAnswer(query, results) {
 }
 
 const AI_QUICK_QUESTIONS = [
-  "Нестабильный ток инжекции",
-  "Пик превышает норму RE",
-  "Калибровка п.20.5",
-  "Состав АРМ4",
-  "Критерий I и II",
-  "ЭСР не разряжается",
-  "Усилитель в защиту",
-  "Феррит на кабель",
+  { icon:"📈", title:"Пик превышает норму", desc:"Проверка превышений и резонансов", query:"Пик превышает норму" },
+  { icon:"📶", title:"Шумы в кабеле", desc:"Поиск причин наводок в жгуте", query:"Шумы в кабеле" },
+  { icon:"🧲", title:"Проблема с инжекцией", desc:"Нестабильный ток и позиция клещей", query:"Проблема с инжекцией" },
+  { icon:"🛡️", title:"Усилитель уходит в защиту", desc:"Диагностика тракта и нагрузки", query:"Усилитель уходит в защиту" },
+  { icon:"🧷", title:"Феррит на кабель", desc:"Где и как ставить ферриты", query:"Феррит на кабель" },
+  { icon:"📋", title:"Калибровка п.20.5", desc:"Шаги калибровки по методике", query:"Калибровка п.20.5" },
 ];
 
 function AiAssistantScreen({ onClose }) {
@@ -5481,32 +5481,34 @@ function AiAssistantScreen({ onClose }) {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
-      {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-        <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:15, fontWeight:800, color:C.text }}>🤖 ИИ-помощник ЭМС</div>
+      <div style={{ ...styles.card, marginBottom:10, padding:"18px", boxShadow:"0 0 52px rgba(80,120,255,0.2)", border:"1px solid rgba(120,160,255,0.2)" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1.2fr 0.8fr", gap:14, alignItems:"center" }}>
+          <div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>‹ Назад</button>
+              <div style={{ fontSize:20, fontWeight:800, color:C.text }}>EMC Wave Assistant</div>
+            </div>
+            <div style={{ fontSize:14, color:C.textSec, marginBottom:8 }}>Опишите проблему — помощник подскажет, что проверить</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+              <span style={{ width:9, height:9, borderRadius:"50%", background:C.pass, boxShadow:"0 0 14px rgba(16,185,129,0.7)" }} />
+              <span style={{ color:"#A7F3D0", fontWeight:700, fontSize:12 }}>Готов помочь</span>
+            </div>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ Настройки</button>
+          </div>
+          <div style={{ display:"flex", justifyContent:"center" }}><EMCAvatar size={170} /></div>
         </div>
-        <button onClick={() => setShowSettings(!showSettings)} style={{ fontSize:18, background:"none", border:"none", cursor:"pointer", color:showSettings?C.accent:C.textSec }}>⚙️</button>
       </div>
 
-      {/* Settings panel */}
       {showSettings && (
-        <div style={{ ...styles.card, marginBottom:10, padding:"12px 14px" }}>
+        <div style={{ ...styles.card, marginBottom:10, padding:"14px" }}>
           <div style={{ fontSize:11, fontWeight:800, color:C.textSec, letterSpacing:1, marginBottom:8 }}>РЕЖИМ РАБОТЫ</div>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
             {Object.entries(modeConfig).map(([k,cfg]) => (
-              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>
-                {cfg.label}
-              </button>
+              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>{cfg.label}</button>
             ))}
           </div>
           <div style={{ fontSize:12, color:C.textSec, marginBottom:10 }}>{modeConfig[aiMode].desc}</div>
-          <div style={{ background:"#0A3A1A", border:"1px solid #1A9B5A", borderRadius:8, padding:"8px 12px", marginBottom:10 }}>
-            <div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>
-              🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.
-            </div>
-          </div>
+          <div style={{ background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.35)", borderRadius:8, padding:"8px 12px", marginBottom:10 }}><div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.</div></div>
           {aiMode === "ollama" && (
             <div>
               <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>URL Ollama сервера</div>
@@ -5514,99 +5516,76 @@ function AiAssistantScreen({ onClose }) {
               <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>Модель</div>
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
                 {["llama3","llama3.2","llava","llava:13b","mistral","gemma2","moondream"].map(m => (
-                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>
-                    {m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}
-                  </button>
+                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>{m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}</button>
                 ))}
-              </div>
-              <div style={{ background:C.accentLight, borderRadius:6, padding:"8px 10px", fontSize:11, color:C.accent, lineHeight:1.7 }}>
-                <b>📷 Модели с поддержкой фото:</b><br/>
-                • <b>llava</b> — ~4 ГБ, анализ фото, стендов, графиков<br/>
-                • <b>moondream</b> — ~2 ГБ, лёгкая, быстрая<br/>
-                • <b>llava:13b</b> — ~8 ГБ, точнее, нужна видеокарта<br/><br/>
-                <b>Установка:</b> cmd → <code>ollama pull llava</code>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Quick buttons */}
-      <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:6, marginBottom:8, flexShrink:0 }}>
-        {AI_QUICK_QUESTIONS.map(q => (
-          <button key={q} onClick={() => send(q)} disabled={loading} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:C.bg, color:C.accent, fontSize:11, fontWeight:600, cursor:loading?"not-allowed":"pointer", whiteSpace:"nowrap", fontFamily:"inherit", flexShrink:0 }}>{q}</button>
-        ))}
+      <div style={{ ...styles.card, marginBottom:10 }}>
+        <div style={{ ...styles.sectionTitle, marginTop:0, marginBottom:10 }}>Быстрые сценарии</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:8 }}>
+          {AI_QUICK_QUESTIONS.map((q) => (
+            <button key={q.title} onClick={() => send(q.query)} disabled={loading} style={{ borderRadius:14, border:"1px solid rgba(255,255,255,0.06)", background:"rgba(20,30,60,0.6)", backdropFilter:"blur(20px)", textAlign:"left", padding:"10px", cursor:loading?"not-allowed":"pointer", fontFamily:"inherit", color:C.text, boxShadow:"0 0 22px rgba(80,120,255,0.1)", transition:"transform .18s ease" }} onMouseEnter={(e)=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={(e)=>e.currentTarget.style.transform="translateY(0)"}>
+              <div style={{ fontSize:16, marginBottom:4 }}>{q.icon}</div>
+              <div style={{ fontSize:12, fontWeight:700, marginBottom:4 }}>{q.title}</div>
+              <div style={{ fontSize:11, color:C.textSec }}>{q.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Messages */}
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, marginBottom:10 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"85%" }}>
-            {/* Превью прикреплённого фото */}
-            {m.image && (
-              <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}>
-                <img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:200, objectFit:"contain", display:"block", background:"#000" }} />
-              </div>
-            )}
-            <div style={{
-              background: m.role==="user" ? C.accent : C.card,
-              color: m.role==="user" ? "#fff" : C.text,
-              borderRadius: m.role==="user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-              padding:"10px 14px", fontSize:13, lineHeight:1.65,
-              border: m.role==="assistant" ? `1px solid ${C.border}` : "none",
-              whiteSpace:"pre-wrap",
-            }}>
-              {m.text}
+        {messages.length === 1 && !loading && (
+          <div style={{ ...styles.card, textAlign:"center", padding:"20px" }}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}><EMCAvatar size={120} /></div>
+            <div style={{ color:C.textSec, fontSize:13, lineHeight:1.7 }}>
+              • Проверь кабель и заземление<br/>• Сравни частоту с резонансом<br/>• Проверь усилитель
             </div>
-            {m.source && (
-              <div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>{m.source}</div>
-            )}
-          </div>
-        ))}
-        {loading && (
-          <div style={{ alignSelf:"flex-start", background:C.card, border:`1px solid ${C.border}`, borderRadius:"14px 14px 14px 4px", padding:"10px 14px", fontSize:13, color:C.textSec }}>
-            ⏳ {attachedImage ? "Анализирую изображение..." : "Ищу ответ..."}
           </div>
         )}
+
+        {messages.map((m, i) => (
+          <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"88%" }}>
+            {m.image && <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}><img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:220, objectFit:"contain", display:"block", background:"#000" }} /></div>}
+            <div style={{ background: m.role==="user" ? "linear-gradient(130deg, #2563EB, #7C3AED)" : "rgba(20,30,60,0.65)", color: "#F8FAFC", borderRadius: m.role==="user" ? "16px 16px 5px 16px" : "16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow: m.role==="user" ? "0 0 24px rgba(37,99,235,0.25)" : "0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>
+              {m.role === "assistant" ? (
+                <div>
+                  <div style={{ fontSize:11, color:"#93C5FD", marginBottom:6, fontWeight:700 }}>Проблема / Что проверить / Причина / Рекомендации / Следующий шаг</div>
+                  {m.text}
+                </div>
+              ) : m.text}
+            </div>
+            {m.source && <div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>{m.source}</div>}
+          </div>
+        ))}
+
+        {loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec }}>⏳ {attachedImage ? "Анализирую изображение..." : "Ищу ответ..."}</div>}
         <div ref={bottomRef} />
       </div>
 
-      {/* Превью прикреплённого фото над инпутом */}
       {attachedImage && (
-        <div style={{ display:"flex", alignItems:"center", gap:8, background:C.accentLight, border:`1px solid #B8CFFE`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(37,99,235,0.12)", border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
           <img src={attachedImage.preview} alt="preview" style={{ width:48, height:48, objectFit:"cover", borderRadius:6, border:`1px solid ${C.border}` }} />
-          <div style={{ flex:1, fontSize:12, color:C.accent }}>
-            <div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div>
-            <div style={{ color:C.textSec, fontSize:11 }}>Нажмите → чтобы отправить с вопросом</div>
-          </div>
+          <div style={{ flex:1, fontSize:12, color:"#BFDBFE" }}><div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div><div style={{ color:C.textSec, fontSize:11 }}>Нажмите отправить для анализа</div></div>
           <button onClick={() => setAttachedImage(null)} style={{ background:"none", border:"none", color:C.fail, fontSize:18, cursor:"pointer", padding:"0 4px" }}>✕</button>
         </div>
       )}
 
-      {/* Input */}
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileSelect} />
-      <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={loading}
-          title="Прикрепить фото (стенд, осциллограмма, спектр)"
-          style={{ padding:"0 14px", borderRadius:8, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:C.card, color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}
-        >📷</button>
-        <input
-          style={{ ...styles.input, flex:1, fontSize:13 }}
+      <div style={{ display:"flex", gap:8, flexShrink:0, alignItems:"stretch" }}>
+        <button onClick={() => fileInputRef.current?.click()} disabled={loading} title="Прикрепить фото" style={{ padding:"0 14px", borderRadius:12, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:"rgba(20,30,60,0.6)", color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}>📷</button>
+        <textarea
+          style={{ flex:1, minHeight:64, maxHeight:120, resize:"vertical", borderRadius:14, border:`1px solid ${C.border}`, background:"rgba(20,30,60,0.6)", color:C.text, padding:"12px 14px", fontSize:14, outline:"none", fontFamily:"inherit" }}
           value={input}
           onChange={e=>setInput(e.target.value)}
           onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
-          placeholder={attachedImage ? "Вопрос к фото (или просто →)..." : "Задайте вопрос по ЭМС..."}
+          placeholder={attachedImage ? "Вопрос к фото (или просто отправьте)..." : "Опишите проблему..."}
           disabled={loading}
         />
-        <button
-          onClick={() => send()}
-          disabled={(!input.trim() && !attachedImage) || loading}
-          style={{ padding:"0 18px", borderRadius:8, border:"none", background:(input.trim()||attachedImage)&&!loading?C.accent:C.border, color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:15, flexShrink:0 }}
-        >→</button>
-
-
+        <button onClick={() => send()} disabled={(!input.trim() && !attachedImage) || loading} style={{ padding:"0 20px", borderRadius:12, border:"1px solid rgba(37,99,235,0.5)", background:(input.trim()||attachedImage)&&!loading?"linear-gradient(130deg, #2563EB, #7C3AED)":"rgba(148,163,184,0.3)", color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:16, flexShrink:0, boxShadow:"0 0 24px rgba(37,99,235,0.28)" }}>→</button>
       </div>
     </div>
   );
