@@ -1438,6 +1438,88 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
 }
 
 // ─── инжекция тока CALCULATOR ────────────────────────────────────────────────────────
+
+// ─── dB CONVERTER ────────────────────────────────────────────────────────────
+function DbConverter() {
+  const [val, setVal] = useState("");
+  const [from, setFrom] = useState("dBuV");
+  const units = ["dBuV","dBm","dBuA","dBuV/m","V","W","A","V/m"];
+
+  const convert = (v, f) => {
+    const n = parseFloat(v);
+    if (isNaN(n)) return {};
+    const toV = {
+      dBuV: x => Math.pow(10,(x-120)/20),
+      V:    x => x,
+      dBm:  x => Math.sqrt(Math.pow(10,x/10)/1000*50),
+      W:    x => Math.sqrt(x*50),
+      dBuA: x => Math.pow(10,(x-120)/20),
+      A:    x => x,
+      "dBuV/m": x => Math.pow(10,(x-120)/20),
+      "V/m": x => x,
+    };
+    const fromV = {
+      dBuV: x => 20*Math.log10(x)+120,
+      V:    x => x,
+      dBm:  x => 10*Math.log10(x*x/50*1000),
+      W:    x => x*x/50,
+      dBuA: x => 20*Math.log10(x)+120,
+      A:    x => x,
+      "dBuV/m": x => 20*Math.log10(x)+120,
+      "V/m": x => x,
+    };
+    const vInV = toV[f] ? toV[f](n) : n;
+    const res = {};
+    units.forEach(u => {
+      try { const r = fromV[u](vInV); res[u] = isFinite(r) ? r : null; } catch(e) { res[u] = null; }
+    });
+    return res;
+  };
+
+  const results = convert(val, from);
+
+  const fmt = (v, u) => {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    if (["dBuV","dBm","dBuA","dBuV/m"].includes(u)) return v.toFixed(2) + " " + u;
+    if (Math.abs(v) < 1e-9) return (v*1e12).toFixed(2) + " п" + u.replace(/[A-Z]/g,'').toLowerCase();
+    if (Math.abs(v) < 1e-6) return (v*1e9).toFixed(2) + " н" + u.replace(/[A-Z]/g,'').toLowerCase();
+    if (Math.abs(v) < 1e-3) return (v*1e6).toFixed(2) + " мк" + u.replace(/[A-Z]/g,'').toLowerCase();
+    if (Math.abs(v) < 1)    return (v*1e3).toFixed(4) + " м" + u.replace(/[A-Z]/g,'').toLowerCase();
+    return v.toExponential(3) + " " + u;
+  };
+
+  return (
+    <div style={styles.content}>
+      <div style={{ fontSize:18, fontWeight:700, marginBottom:20, color:C.text }}>dB-конвертер</div>
+      <div style={{ ...styles.card, marginBottom:16 }}>
+        <div style={{ display:"flex", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+          <div style={{ flex:1, minWidth:160 }}>
+            <div style={{ fontSize:12, color:C.textSec, marginBottom:6 }}>Значение</div>
+            <input style={styles.input} value={val} onChange={e=>setVal(e.target.value)} placeholder="Введите число..." type="number"/>
+          </div>
+          <div style={{ flex:1, minWidth:140 }}>
+            <div style={{ fontSize:12, color:C.textSec, marginBottom:6 }}>Единица</div>
+            <select style={styles.input} value={from} onChange={e=>setFrom(e.target.value)}>
+              {units.map(u=><option key={u}>{u}</option>)}
+            </select>
+          </div>
+        </div>
+        {val && (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:10 }}>
+            {units.filter(u=>u!==from).map(u=>(
+              <div key={u} style={{ background:C.bg, borderRadius:8, padding:"12px 14px" }}>
+                <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>{u}</div>
+                <div style={{ fontSize:15, fontWeight:700, color:C.text }}>{fmt(results[u], u)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!val && <div style={{ color:C.textSec, fontSize:14 }}>Введите значение для конвертации</div>}
+      </div>
+    </div>
+  );
+}
+
 function BciCalc() {
   const [target, setTarget] = useState("");
   const [tUnit, setTUnit] = useState("dBuA");
