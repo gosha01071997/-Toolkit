@@ -1438,7 +1438,6 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
               </div>
             </div>
           </div>
-        </div>
 
         <div style={{ ...styles.card, marginBottom: 16 }}>
           <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Последние испытания</div>
