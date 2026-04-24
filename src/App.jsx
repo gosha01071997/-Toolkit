@@ -1311,141 +1311,35 @@ function ErrorsScreen({ onClose }) {
 }
 
 function EMCAvatar({ size = 220, showPlatform = true }) {
-  const eye = Math.max(8, Math.round(size * 0.05));
-
+  const eyeSize = Math.max(7, Math.round(size * 0.045));
   return (
-    <div style={{ width: size, height: size + (showPlatform ? 30 : 0), position: "relative" }}>
-      
+    <div style={{ width: size, height: size + (showPlatform ? 32 : 0), position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{`
-        @keyframes emcBreath {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.035); }
-          100% { transform: scale(1); }
-        }
-
-        @keyframes emcGlow {
-          0% { filter: drop-shadow(0 0 18px rgba(37,99,235,0.35)); }
-          50% { filter: drop-shadow(0 0 42px rgba(124,58,237,0.6)); }
-          100% { filter: drop-shadow(0 0 18px rgba(37,99,235,0.35)); }
-        }
-
-        @keyframes emcOrbit {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        @keyframes emcWave {
-          from { stroke-dashoffset: 0; }
-          to { stroke-dashoffset: -140; }
-        }
-
-        @keyframes emcBlink {
-          0%, 46%, 50%, 100% { transform: scaleY(1); }
-          48% { transform: scaleY(0.15); }
-        }
+        @keyframes emcBreath { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        @keyframes emcGlow { 0% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } 50% { filter: drop-shadow(0 0 36px rgba(124,58,237,.5)); } 100% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } }
+        @keyframes emcOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes emcWave { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -120; } }
+        @keyframes emcBlink { 0%, 45%, 48%, 100% { transform: scaleY(1); } 46%, 47% { transform: scaleY(0.1); } }
       `}</style>
+      {showPlatform && <div style={{ position: "absolute", bottom: 0, width: size * 0.72, height: 26, borderRadius: "50%", background: "radial-gradient(ellipse at center, rgba(37,99,235,0.42), rgba(124,58,237,0.18), transparent 72%)", filter: "blur(6px)" }} />}
+      <div style={{ position: "absolute", width: size * 1.03, height: size * 1.03, borderRadius: "50%", border: "1px solid rgba(125,211,252,0.45)", animation: "emcOrbit 16s linear infinite" }} />
+      <div style={{ position: "absolute", width: size * 1.2, height: size * 0.46, borderRadius: "50%", border: "1px solid rgba(167,139,250,0.35)", transform: "rotate(-15deg)", animation: "emcOrbit 11s linear infinite reverse" }} />
 
-      {showPlatform && (
-        <div style={{
-          position: "absolute",
-          bottom: 0,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: size * 0.7,
-          height: 22,
-          borderRadius: "50%",
-          background: "radial-gradient(ellipse at center, rgba(37,99,235,0.35), transparent 70%)"
-        }} />
-      )}
-
-      <div style={{
-        position: "absolute",
-        inset: 0,
-        borderRadius: "50%",
-        border: "1px solid rgba(125,211,252,0.25)",
-        animation: "emcOrbit 18s linear infinite"
-      }} />
-
-      <div style={{
-        position: "absolute",
-        width: size * 1.2,
-        height: size * 0.5,
-        top: size * 0.25,
-        left: "50%",
-        transform: "translateX(-50%) rotate(-18deg)",
-        borderRadius: "50%",
-        border: "1px solid rgba(167,139,250,0.25)",
-        animation: "emcOrbit 24s linear infinite reverse"
-      }} />
-
-      <div style={{
-        width: size * 0.85,
-        height: size * 0.85,
-        borderRadius: "50%",
-        position: "absolute",
-        top: 0,
-        left: "50%",
-        transform: "translateX(-50%)",
-        animation: "emcBreath 4s ease-in-out infinite, emcGlow 5s ease-in-out infinite",
-        background: `
-          radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), transparent 35%),
-          radial-gradient(circle at 60% 70%, rgba(37,99,235,0.4), transparent 60%),
-          linear-gradient(135deg, #1e3a8a, #2563EB, #7C3AED)
-        `,
-        boxShadow: "inset 0 0 40px rgba(255,255,255,0.08)"
-      }}>
-
-        <svg viewBox="0 0 220 220" style={{ position: "absolute", inset: 0 }}>
-          <path
-            d="M30 120 Q60 90 90 120 T150 120 T210 120"
-            fill="none"
-            stroke="rgba(125,211,252,0.9)"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray="10 10"
-            style={{ animation: "emcWave 2.2s linear infinite" }}
-          />
+      <div style={{ width: size * 0.84, height: size * 0.84, borderRadius: "50%", position: "relative", background: "radial-gradient(circle at 30% 24%, rgba(255,255,255,0.78), rgba(6,182,212,0.3) 25%, rgba(37,99,235,0.75) 58%, rgba(124,58,237,0.86) 100%)", animation: "emcBreath 4s ease-in-out infinite, emcGlow 3.4s ease-in-out infinite", boxShadow: "inset 0 2px 12px rgba(255,255,255,0.3), inset 0 -12px 24px rgba(2,6,23,0.4)" }}>
+        <svg viewBox="0 0 220 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <path d="M35 120 Q75 78 110 120 T185 120" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="4" strokeLinecap="round" strokeDasharray="8 8" style={{ animation: "emcWave 5s linear infinite" }} />
+          <path d="M35 136 Q75 94 110 136 T185 136" fill="none" stroke="rgba(167,139,250,0.75)" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 10" style={{ animation: "emcWave 6s linear infinite reverse" }} />
         </svg>
 
-        <div style={{
-          position: "absolute",
-          top: "42%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          display: "flex",
-          gap: size * 0.12
-        }}>
-          <div style={{
-            width: eye,
-            height: eye,
-            borderRadius: "50%",
-            background: "#E0F2FE",
-            animation: "emcBlink 4s infinite"
-          }} />
-          <div style={{
-            width: eye,
-            height: eye,
-            borderRadius: "50%",
-            background: "#E0F2FE",
-            animation: "emcBlink 4s infinite 0.2s"
-          }} />
+        <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%, -50%)", display: "flex", gap: size * 0.12 }}>
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite" }} />
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite 0.1s" }} />
         </div>
-
-        <div style={{
-          position: "absolute",
-          top: "60%",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: size * 0.2,
-          height: size * 0.08,
-          borderBottom: "2px solid rgba(226,232,240,0.9)",
-          borderRadius: "0 0 20px 20px"
-        }} />
+        <div style={{ position: "absolute", top: "56%", left: "50%", transform: "translateX(-50%)", width: size * 0.16, height: size * 0.06, borderBottom: "2px solid rgba(226,232,240,0.9)", borderRadius: "0 0 24px 24px" }} />
       </div>
     </div>
   );
 }
-
 
 function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
   const quick = [
