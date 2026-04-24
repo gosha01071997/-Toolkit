@@ -2,20 +2,24 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
-  bg: "#F4F6F9",
-  card: "#FFFFFF",
-  border: "#DDE2EA",
-  text: "#1A2233",
-  textSec: "#5A6577",
-  accent: "#1E5BE8",
-  accentLight: "#EAF0FD",
-  pass: "#1A9B5A",
-  passLight: "#E6F7EE",
-  fail: "#D93025",
-  failLight: "#FDECEA",
-  warn: "#E07B00",
-  warnLight: "#FFF4E5",
-  dark: "#0D1627",
+  bg: "#050814",
+  panel: "#0B1220",
+  card: "#101827",
+  cardHover: "#14213A",
+  border: "rgba(148, 163, 184, 0.18)",
+  text: "#F8FAFC",
+  textSec: "#94A3B8",
+  accent: "#2563EB",
+  accent2: "#7C3AED",
+  cyan: "#06B6D4",
+  accentLight: "rgba(37,99,235,0.18)",
+  pass: "#10B981",
+  passLight: "rgba(16,185,129,0.18)",
+  fail: "#EF4444",
+  failLight: "rgba(239,68,68,0.2)",
+  warn: "#F59E0B",
+  warnLight: "rgba(245,158,11,0.2)",
+  dark: "#0B1220",
 };
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -170,15 +174,15 @@ const styles = {
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
   nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", flexShrink: 0 },
   navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "20px 28px 24px" },
-  card: { background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
+  content: { flex: 1, overflowY: "auto", padding: "18px 22px 24px", background: "radial-gradient(circle at 80% -10%, rgba(124,58,237,0.18), transparent 35%), radial-gradient(circle at -10% 10%, rgba(37,99,235,0.2), transparent 45%), #050814" },
+  card: { background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.05)", padding: "16px", marginBottom: 12, boxShadow: "0 0 40px rgba(80,120,255,0.15)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
   input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
   select: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
   row: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 },
-  resultBox: { background: C.accentLight, border: `1px solid #B8CFFE`, borderRadius: 8, padding: "12px 14px", marginTop: 10 },
-  resultRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid #D6E4FF` },
+  resultBox: { background: "rgba(37,99,235,0.14)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "12px 14px", marginTop: 10 },
+  resultRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid rgba(148,163,184,0.2)` },
   resultLabel: { fontSize: 13, color: C.textSec },
   resultValue: { fontSize: 15, fontWeight: 700, color: C.accent, fontVariantNumeric: "tabular-nums" },
   btn: (variant = "primary") => ({
@@ -188,9 +192,11 @@ const styles = {
     width: variant === "full" ? "100%" : undefined,
   }),
   tag: (type) => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-    background: type === "pass" ? C.passLight : type === "fail" ? C.failLight : C.accentLight,
-    color: type === "pass" ? C.pass : type === "fail" ? C.fail : C.accent,
+    display: "inline-block", padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+    background: type === "pass" ? "rgba(16,185,129,0.18)" : type === "fail" ? "rgba(239,68,68,0.2)" : type === "warn" ? "rgba(245,158,11,0.2)" : C.accentLight,
+    color: type === "pass" ? C.pass : type === "fail" ? C.fail : type === "warn" ? C.warn : C.accent,
+    boxShadow: type === "pass" ? "0 0 18px rgba(16,185,129,0.35)" : type === "fail" ? "0 0 18px rgba(239,68,68,0.35)" : type === "warn" ? "0 0 18px rgba(245,158,11,0.35)" : "0 0 18px rgba(37,99,235,0.26)",
+    border: "1px solid rgba(255,255,255,0.06)",
   }),
   chip: { display: "inline-block", background: C.accentLight, color: C.accent, borderRadius: 6, padding: "3px 9px", fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4 },
   warn: { background: C.warnLight, border: `1px solid #FACEAA`, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.warn, marginTop: 8 },
@@ -1304,134 +1310,169 @@ function ErrorsScreen({ onClose }) {
 }
 
 function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
-
   const quick = [
-    { label: "dB-конвертер",        sub: "Преобразование единиц",   tab: "calc", id: "db" },
-    { label: "Инжекция тока",        sub: "ГОСТ Р 51317.4.6",        tab: "calc", id: "bci" },
-    { label: "Потери кабеля",        sub: "Расчёт затухания",        tab: "calc", id: "cable" },
-    { label: "Чек-листы",            sub: "Готовые чек-листы",       tab: "tests", id: null },
-    { label: "Сокращения",           sub: "Термины ЭМС",             tab: "ref",  id: "abbr" },
+    { icon: "⇄", iconBg: "rgba(34,197,94,0.2)", iconColor: "#22C55E", label: "dB-конвертер", sub: "Преобразование единиц", tab: "calc", id: "db" },
+    { icon: "∿", iconBg: "rgba(59,130,246,0.22)", iconColor: "#60A5FA", label: "Инжекция тока", sub: "ГОСТ Р 51317.4.6", tab: "calc", id: "bci" },
+    { icon: "◔", iconBg: "rgba(245,158,11,0.2)", iconColor: "#F59E0B", label: "Потери кабеля", sub: "Расчёт затухания", tab: "calc", id: "cable" },
+    { icon: "▦", iconBg: "rgba(139,92,246,0.24)", iconColor: "#A78BFA", label: "Чек-листы", sub: "Готовые сценарии испытаний", tab: "tests", id: null },
   ];
 
-  const sections = [
-    { label: "Тестирование",          sub: "10 вопросов из базы",        action: onQuiz },
-    { label: "Типовые ошибки",        sub: "Частые проблемы и решения",   action: onErrors },
-    { label: "Поверка оборудования",  sub: "Сроки, свидетельства",        action: onVerify },
-    { label: "ИИ-помощник",           sub: "База знаний EMC Pro",         action: () => setTab("ai") },
+  const aiScenarios = [
+    "Пик превышает норму",
+    "Шумы в кабеле",
+    "Проблема с инжекцией",
+    "Усилитель уходит в защиту",
   ];
 
   return (
-    <div style={{ width: "100%", height: "100%", overflowY: "auto", background: "#FAFAFA" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 48px 64px" }}>
+    <div style={{ width: "100%", minHeight: "100%", background: "transparent" }}>
+      <style>{`
+        @keyframes heroFloat {
+          0% { transform: translateY(0px) scale(1); }
+          50% { transform: translateY(-10px) scale(1.04); }
+          100% { transform: translateY(0px) scale(1); }
+        }
+        @keyframes heroRing {
+          0% { transform: rotate(0deg) scale(1); opacity: .65; }
+          50% { transform: rotate(180deg) scale(1.05); opacity: .95; }
+          100% { transform: rotate(360deg) scale(1); opacity: .65; }
+        }
+        @keyframes aiPulse {
+          0% { transform: scale(1); box-shadow: 0 0 24px rgba(91,140,255,.35); }
+          50% { transform: scale(1.08); box-shadow: 0 0 42px rgba(138,91,255,.5); }
+          100% { transform: scale(1); box-shadow: 0 0 24px rgba(91,140,255,.35); }
+        }
+        @keyframes aiBreath {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-4px); }
+          100% { transform: translateY(0px); }
+        }
+      `}</style>
 
-        {/* HERO */}
-        <div style={{ marginBottom: 64 }}>
-          <div style={{
-            display: "inline-block", fontSize: 11, fontWeight: 600, letterSpacing: 2,
-            textTransform: "uppercase", color: "#999", marginBottom: 20
-          }}>ГОСТ РВ 20.57.306 · Инструментарий инженера ЭМС</div>
-
-          <h1 style={{
-            fontSize: 52, fontWeight: 800, color: "#0A0A0A", lineHeight: 1.1,
-            letterSpacing: -1.5, marginBottom: 20, margin: "0 0 20px"
-          }}>
-            Точные расчёты.<br/>
-            <span style={{ color: "#1E5BE8" }}>Без ошибок.</span>
-          </h1>
-
-          <p style={{
-            fontSize: 18, color: "#666", fontWeight: 400, lineHeight: 1.6,
-            maxWidth: 520, margin: "0 0 36px"
-          }}>
-            Профессиональный инструмент для инженеров ЭМС.
-            Все расчёты локально — без интернета.
-          </p>
-
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button onClick={() => setTab("calc")} style={{
-              padding: "14px 32px", borderRadius: 10, background: "#0A0A0A",
-              color: "#fff", border: "none", cursor: "pointer",
-              fontWeight: 600, fontSize: 15, fontFamily: "inherit",
-              letterSpacing: -0.2
-            }}>Начать работу →</button>
-            <button onClick={() => setTab("ref")} style={{
-              padding: "14px 24px", borderRadius: 10, background: "transparent",
-              color: "#666", border: "1px solid #E0E0E0", cursor: "pointer",
-              fontWeight: 500, fontSize: 15, fontFamily: "inherit"
-            }}>Справочники</button>
-          </div>
-        </div>
-
-        {/* БЫСТРЫЙ ДОСТУП */}
-        <div style={{ marginBottom: 56 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
-            color: "#999", marginBottom: 16
-          }}>Быстрый доступ</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-            {quick.map((q, i) => (
-              <button key={i}
-                onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
-                style={{
-                  background: "#fff", padding: "20px", borderRadius: 12,
-                  border: "1px solid #E8E8E8", cursor: "pointer", textAlign: "left",
-                  fontFamily: "inherit", transition: "border-color 0.15s"
-                }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "#1E5BE8"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "#E8E8E8"}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0A", marginBottom: 4 }}>{q.label}</div>
-                <div style={{ fontSize: 11, color: "#999" }}>{q.sub}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* РАЗДЕЛИТЕЛЬ */}
-        <div style={{ height: 1, background: "#EBEBEB", marginBottom: 56 }} />
-
-        {/* ОСНОВНЫЕ РАЗДЕЛЫ */}
-        <div style={{ marginBottom: 56 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
-            color: "#999", marginBottom: 16
-          }}>Основные разделы</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-            {sections.map((s, i) => (
-              <button key={i} onClick={s.action} style={{
-                background: "#fff", padding: "24px", borderRadius: 12,
-                border: "1px solid #E8E8E8", cursor: "pointer", textAlign: "left",
-                fontFamily: "inherit", transition: "border-color 0.15s"
-              }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "#0A0A0A"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "#E8E8E8"}
-              >
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0A", marginBottom: 6 }}>{s.label}</div>
-                <div style={{ fontSize: 12, color: "#999", marginBottom: 20 }}>{s.sub}</div>
-                <div style={{ fontSize: 12, color: "#1E5BE8", fontWeight: 600 }}>Перейти →</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ФУТЕР СТАТИСТИКА */}
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 46px" }}>
         <div style={{
-          display: "flex", gap: 48, paddingTop: 32,
-          borderTop: "1px solid #EBEBEB"
+          position: "relative",
+          borderRadius: 30,
+          background: "linear-gradient(132deg, rgba(16,24,39,0.94) 0%, rgba(11,18,32,0.9) 52%, rgba(19,31,57,0.95) 100%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 0 64px rgba(80,120,255,0.28), inset 0 1px 0 rgba(255,255,255,0.08)",
+          padding: "52px 48px",
+          marginBottom: 18,
+          overflow: "hidden",
+          display: "grid",
+          gridTemplateColumns: "1.1fr 0.9fr",
+          gap: 20,
         }}>
-          {[
-            { value: "24", label: "испытания" },
-            { value: "8", label: "калькулятора" },
-            { value: "200+", label: "сокращений" },
-            { value: "100%", label: "офлайн" },
-          ].map((s, i) => (
-            <div key={i}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "#0A0A0A", letterSpacing: -0.5 }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>{s.label}</div>
+          <div style={{ position: "absolute", inset: -80, background: "radial-gradient(circle at 78% 28%, rgba(124,58,237,0.3), transparent 42%), radial-gradient(circle at 30% 95%, rgba(37,99,235,0.28), transparent 45%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: 11, letterSpacing: 1.8, textTransform: "uppercase", color: "#94A3B8", marginBottom: 16 }}>EMC Toolkit · Cyber Engineering UI</div>
+            <h1 style={{ margin: "0 0 14px", fontSize: 66, lineHeight: 0.98, letterSpacing: -1.8, fontWeight: 800, background: "linear-gradient(90deg, #5B8CFF, #8A5BFF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Упрощай. Проверяй. Решай.</h1>
+            <div style={{ marginBottom: 12, color: "#C4D7FF", fontSize: 22, fontWeight: 600 }}>Все инструменты ЭМС — в одном месте</div>
+            <p style={{ margin: "0 0 24px", color: "#94A3B8", maxWidth: 560, lineHeight: 1.65, fontSize: 15 }}>
+              Расчёты, испытания, журнал, типовые ошибки и AI-помощник для быстрой работы инженера.
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(37,99,235,0.55)", background: "linear-gradient(130deg, #2563EB, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer" }}>Открыть расчёты</button>
+              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.24)", background: "rgba(15,23,42,0.5)", color: "#C7D2FE", fontWeight: 600, cursor: "pointer" }}>Перейти к AI-помощнику</button>
+              <button onClick={onErrors} style={{ padding: "13px 20px", borderRadius: 14, border: "1px solid rgba(245,158,11,0.34)", background: "rgba(245,158,11,0.12)", color: "#FCD34D", fontWeight: 600, cursor: "pointer" }}>Типовые ошибки →</button>
             </div>
-          ))}
+          </div>
+          <div style={{ position: "relative", minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 250, height: 250, borderRadius: "50%", background: "conic-gradient(from 30deg, rgba(91,140,255,0.2), rgba(138,91,255,0.9), rgba(6,182,212,0.72), rgba(91,140,255,0.2))", filter: "blur(2px)", animation: "heroFloat 6s ease-in-out infinite" }} />
+            <div style={{ position: "absolute", width: 228, height: 228, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.78), rgba(91,140,255,0.45) 25%, rgba(138,91,255,0.8) 64%, rgba(5,8,20,0.95) 100%)", boxShadow: "0 0 65px rgba(124,58,237,0.35)", animation: "heroFloat 4.4s ease-in-out infinite" }} />
+            <div style={{ position: "absolute", width: 314, height: 98, borderRadius: "50%", border: "1px solid rgba(125,211,252,0.46)", transform: "rotate(-22deg)", animation: "heroRing 12s linear infinite" }} />
+            <div style={{ position: "absolute", width: 274, height: 78, borderRadius: "50%", border: "1px solid rgba(167,139,250,0.42)", transform: "rotate(22deg)", animation: "heroRing 8s linear infinite reverse" }} />
+          </div>
         </div>
 
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ ...styles.card, marginBottom: 0, boxShadow: "0 0 26px rgba(80,120,255,0.14)" }}>
+            <div style={{ ...styles.sectionTitle, marginBottom: 14, marginTop: 0, color: "#CBD5E1" }}>Ключевые быстрые действия</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {quick.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
+                  style={{
+                    borderRadius: 18,
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    background: "rgba(20, 30, 60, 0.6)",
+                    backdropFilter: "blur(20px)",
+                    color: "#E2E8F0",
+                    textAlign: "left",
+                    padding: "14px",
+                    cursor: "pointer",
+                    transition: "transform .18s ease, border-color .2s ease, box-shadow .2s ease",
+                    fontFamily: "inherit",
+                    boxShadow: "0 0 20px rgba(80,120,255,0.08)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.borderColor = "rgba(91,140,255,0.66)";
+                    e.currentTarget.style.boxShadow = "0 0 30px rgba(80,120,255,0.22)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
+                    e.currentTarget.style.boxShadow = "0 0 20px rgba(80,120,255,0.08)";
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 10, background: q.iconBg, color: q.iconColor, display: "grid", placeItems: "center", boxShadow: `0 0 18px ${q.iconColor}55` }}>{q.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{q.label}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#94A3B8" }}>{q.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            style={{ ...styles.card, marginBottom: 0, position: "relative", overflow: "hidden", boxShadow: "0 0 42px rgba(80,120,255,0.22)", transition: "box-shadow .24s ease, border-color .24s ease" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = "0 0 54px rgba(124,91,255,0.28)";
+              e.currentTarget.style.borderColor = "rgba(138,91,255,0.45)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = "0 0 42px rgba(80,120,255,0.22)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
+            }}
+          >
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 10%, rgba(124,58,237,0.24), transparent 36%), radial-gradient(circle at 15% 88%, rgba(37,99,235,0.2), transparent 45%)", pointerEvents: "none" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ ...styles.sectionTitle, marginBottom: 14, marginTop: 0, color: "#CBD5E1" }}>AI-помощник</div>
+              <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.78), rgba(6,182,212,0.35) 30%, rgba(37,99,235,0.75) 58%, rgba(124,58,237,0.85) 100%)", animation: "aiPulse 2.8s ease-in-out infinite, aiBreath 4s ease-in-out infinite" }} />
+                <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>AI-анализ отказов и инженерных сценариев. Подскажите симптом — получите направление проверки.</div>
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <input
+                  onFocus={() => setTab("ai")}
+                  placeholder="Опиши проблему..."
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: "1px solid rgba(91,140,255,0.35)",
+                    background: "rgba(20, 30, 60, 0.6)",
+                    backdropFilter: "blur(20px)",
+                    color: "#E2E8F0",
+                    padding: "11px 13px",
+                    fontSize: 13,
+                    outline: "none",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                {aiScenarios.map((scenario) => (
+                  <button key={scenario} onClick={() => setTab("ai")} style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)", padding: "10px 12px", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", fontSize: 13, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 18px rgba(80,120,255,0.1)" }}>• {scenario}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -6299,15 +6340,15 @@ function AppInner() {
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#FAFAFA", fontFamily: "'Roboto','Arial',sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", background: "#050814", color: C.text, fontFamily: "'Roboto','Arial',sans-serif" }}>
 
       {/* БОКОВАЯ НАВИГАЦИЯ */}
       <div style={{
-        width: 220, background: "#FAFAFA", borderRight: "1px solid #EBEBEB",
+        width: 214, background: "linear-gradient(180deg, #0B1220 0%, #0A1120 100%)", borderRight: "1px solid rgba(148,163,184,0.16)",
         display: "flex", flexDirection: "column", flexShrink: 0
       }}>
         {/* Лого */}
-        <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #EBEBEB" }}>
+        <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(148,163,184,0.14)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(145deg, #0D1F4E, #1E5BE8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="20" height="20" viewBox="0 0 52 52">
@@ -6318,13 +6359,13 @@ function AppInner() {
               </svg>
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0A0A0A", lineHeight: 1.3, letterSpacing: -0.2 }}>Инструментарий<br/>инженера ЭМС</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", lineHeight: 1.3, letterSpacing: -0.2 }}>Инструментарий<br/>инженера ЭМС</div>
             </div>
           </div>
         </div>
 
         {/* Навигация */}
-        <div style={{ flex: 1, padding: "12px 12px", overflowY: "auto" }}>
+        <div style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
           {sideNavItems.map(n => {
             const isActive = !quizOpen && !settingsOpen && !errorsOpen && !searchOpen && (
               n.id === "verify" ? verifyOpen :
@@ -6341,15 +6382,15 @@ function AppInner() {
             };
             return (
               <button key={n.id} onClick={handleClick} style={{
-                width: "100%", padding: "10px 14px", borderRadius: 10, border: "none",
-                background: isActive ? C.accentLight : "transparent",
-                color: isActive ? C.accent : C.textSec,
+                width: "100%", padding: "10px 14px", borderRadius: 10,
+                background: isActive ? "linear-gradient(135deg, rgba(37,99,235,0.42), rgba(124,58,237,0.32))" : "transparent",
+                color: isActive ? "#DBEAFE" : C.textSec,
                 cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
-                fontSize: 14, fontWeight: isActive ? 700 : 400,
-                marginBottom: 2, textAlign: "left",
-                borderLeft: isActive ? `3px solid ${C.accent}` : "3px solid transparent",
+                fontSize: 13, fontWeight: isActive ? 700 : 500,
+                marginBottom: 4, textAlign: "left",
+                border: isActive ? "1px solid rgba(96,165,250,0.7)" : "1px solid transparent",
               }}>
-                <span style={{ fontSize: 18 }}>{n.icon}</span>
+                <span style={{ width: 20, height: 20, display: "grid", placeItems: "center" }}><svg viewBox="0 0 24 24" fill="none" stroke={isActive ? "#DBEAFE" : "#94A3B8"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d={n.svgPath} /></svg></span>
                 <span>{n.label}</span>
               </button>
             );
@@ -6357,13 +6398,13 @@ function AppInner() {
         </div>
 
         {/* Статус + версия */}
-        <div style={{ padding: "16px", borderTop: "1px solid #EBEBEB" }}>
+        <div style={{ padding: "14px", borderTop: "1px solid rgba(148,163,184,0.14)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A" }}></div>
             <span style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>Офлайн режим</span>
           </div>
-          <div style={{ fontSize: 11, color: "#aaa" }}>Все функции доступны</div>
-          <div style={{ fontSize: 11, color: "#bbb", marginTop: 2 }}>v2.0.0</div>
+          <div style={{ fontSize: 11, color: "#94A3B8" }}>Все функции доступны</div>
+          <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>v2.0.0</div>
         </div>
       </div>
 
@@ -6372,8 +6413,8 @@ function AppInner() {
 
         {/* ВЕРХНЯЯ ПАНЕЛЬ */}
         <div style={{
-          background: "#FAFAFA", borderBottom: "1px solid #EBEBEB",
-          padding: "0 32px", height: 52, display: "flex", alignItems: "center",
+          background: "rgba(11,18,32,0.86)", borderBottom: "1px solid rgba(148,163,184,0.16)",
+          padding: "0 24px", height: 56, display: "flex", alignItems: "center",
           justifyContent: "space-between", flexShrink: 0
         }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
@@ -6381,8 +6422,8 @@ function AppInner() {
               sideNavItems.find(n => n.id === tab)?.label || "Главная"}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => setSearchOpen(true)} style={{ background: "none", border: "none", color: C.textSec, fontSize: 18, cursor: "pointer", padding: "6px 10px", borderRadius: 8 }}>🔍 Справка</button>
-            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "none", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "6px 14px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6 }}>⚙️ Настройки</button>
+            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 12px", borderRadius: 10, fontFamily: "inherit" }}>🔍 Справка</button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 14px", borderRadius: 10, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>⚙️ Настройки</button>
           </div>
         </div>
 
