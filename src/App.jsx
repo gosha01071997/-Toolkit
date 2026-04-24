@@ -9,6 +9,9 @@ const C = {
   border: "rgba(148, 163, 184, 0.18)",
   text: "#F8FAFC",
   textSec: "#94A3B8",
+
+  textOnLight: "#0F172A",
+
   accent: "#2563EB",
   accent2: "#7C3AED",
   cyan: "#06B6D4",
@@ -178,8 +181,8 @@ const styles = {
   card: { background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.05)", padding: "16px", marginBottom: 12, boxShadow: "0 0 40px rgba(80,120,255,0.15)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
-  input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
-  select: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  select: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
   row: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 },
   resultBox: { background: "rgba(37,99,235,0.14)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "12px 14px", marginTop: 10 },
   resultRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid rgba(148,163,184,0.2)` },
@@ -188,7 +191,7 @@ const styles = {
   btn: (variant = "primary") => ({
     padding: "11px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, letterSpacing: 0.3,
     background: variant === "primary" ? C.accent : variant === "pass" ? C.pass : variant === "fail" ? C.fail : "#EDF0F5",
-    color: variant === "primary" || variant === "pass" || variant === "fail" ? "#fff" : C.text,
+    color: variant === "primary" || variant === "pass" || variant === "fail" ? "#fff" : C.textOnLight,
     width: variant === "full" ? "100%" : undefined,
   }),
   tag: (type) => ({
@@ -200,7 +203,7 @@ const styles = {
   }),
   chip: { display: "inline-block", background: C.accentLight, color: C.accent, borderRadius: 6, padding: "3px 9px", fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4 },
   warn: { background: C.warnLight, border: `1px solid #FACEAA`, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.warn, marginTop: 8 },
-  searchInput: { width: "100%", padding: "10px 12px 10px 36px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  searchInput: { width: "100%", padding: "10px 12px 10px 36px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
   searchWrap: { position: "relative", marginBottom: 12 },
   mbSm: { marginBottom: 8 },
   mb: { marginBottom: 12 },
@@ -1438,6 +1441,7 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
               </div>
             </div>
           </div>
+        </div>
 
         <div style={{ ...styles.card, marginBottom: 16 }}>
           <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Последние испытания</div>
@@ -1475,6 +1479,66 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
             ))}
           </div>
         </div>
+
+
+          <div style={{ ...styles.card, marginBottom: 0, position: "relative", overflow: "hidden", boxShadow: "0 0 54px rgba(80,120,255,0.22)" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 10%, rgba(124,58,237,0.24), transparent 36%), radial-gradient(circle at 15% 88%, rgba(37,99,235,0.2), transparent 45%)", pointerEvents: "none" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ ...styles.sectionTitle, marginBottom: 10, marginTop: 0, color: "#CBD5E1" }}>AI-помощник</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#10B981", boxShadow: "0 0 14px rgba(16,185,129,0.7)" }} />
+                <span style={{ fontSize: 12, color: "#A7F3D0", fontWeight: 700 }}>Готов помочь</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                <EMCAvatar size={120} showPlatform={false} />
+                <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>AI-анализ отказов и инженерных сценариев. Опишите симптом и получите следующий шаг проверки.</div>
+              </div>
+              <input onFocus={() => setTab("ai")} placeholder="Опишите проблему..." style={{ width: "100%", borderRadius: 14, border: "1px solid rgba(91,140,255,0.35)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", padding: "11px 13px", fontSize: 13, outline: "none", fontFamily: "inherit", marginBottom: 10 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {aiScenarios.map((scenario) => (
+                  <button key={scenario} onClick={() => setTab("ai")} style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: "10px 12px", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", fontSize: 12, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 20px rgba(80,120,255,0.12)" }}>• {scenario}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+        <div style={{ ...styles.card, marginBottom: 16 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Последние испытания</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ color: "#64748B", textAlign: "left" }}>
+                <th style={{ padding: "8px 10px" }}>Статус</th><th style={{ padding: "8px 10px" }}>Дата</th><th style={{ padding: "8px 10px" }}>Объект</th><th style={{ padding: "8px 10px" }}>Тип</th><th style={{ padding: "8px 10px" }}>Частота/проблема</th><th style={{ padding: "8px 10px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {latestTests.map((t, idx) => (
+                <tr key={idx} style={{ borderTop: "1px solid rgba(148,163,184,0.14)" }}>
+                  <td style={{ padding: "10px" }}><span style={styles.tag(t.status === "PASS" ? "pass" : t.status === "FAIL" ? "fail" : "warn")}>{t.status}</span></td>
+                  <td style={{ padding: "10px", color: "#CBD5E1" }}>{t.date}</td>
+                  <td style={{ padding: "10px", color: "#E2E8F0" }}>{t.object}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.type}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.issue}</td>
+                  <td style={{ padding: "10px" }}><button onClick={() => setTab("log")} style={{ borderRadius: 10, border: "1px solid rgba(37,99,235,0.5)", background: "rgba(37,99,235,0.14)", color: "#BFDBFE", fontSize: 12, padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Открыть</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ ...styles.card, marginBottom: 0 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Типовые ошибки</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+            {commonErrors.map((error, i) => (
+              <button key={i} onClick={onErrors} style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", padding: "14px", textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: "#E2E8F0", boxShadow: "0 0 24px rgba(80,120,255,0.1)" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 12, marginBottom: 10, display: "grid", placeItems: "center", background: "linear-gradient(135deg, rgba(37,99,235,0.9), rgba(124,58,237,0.8))", boxShadow: "0 0 18px rgba(37,99,235,0.34)" }}>{error.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 7, lineHeight: 1.4 }}>{error.title}</div>
+                <div style={{ color: "#94A3B8", fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>{error.reason}</div>
+                <span style={{ color: "#60A5FA", fontSize: 12, fontWeight: 600 }}>Подробнее →</span>
+              </button>
+            ))}
+          </div>
+        </div>
+ 
       </div>
     </div>
   );
