@@ -1341,7 +1341,6 @@ function EMCAvatar({ size = 220, showPlatform = true }) {
   );
 }
 
-
 function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
   const quick = [
     { icon: "⇄", iconBg: "rgba(34,197,94,0.2)", iconColor: "#22C55E", label: "dB-конвертер", sub: "Преобразование единиц", tab: "calc", id: "db" },
