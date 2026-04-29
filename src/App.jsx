@@ -5303,6 +5303,13 @@ function searchLocalKB(query) {
     .slice(0, 5);
 }
 
+
+function isEmcRelatedQuery(query, kbResults = []) {
+  const q = (query || "").toLowerCase();
+  const emcWords = ["эмс", "emc", "rf", "радио", "помех", "испыт", "стандарт", "gost", "гост", "iec", "cispr", "инжек", "калибров", "усилител", "кабель", "esd", "eft", "surge", "частот", "экранир", "заземл"];
+  return kbResults.length > 0 || emcWords.some(w => q.includes(w));
+}
+
 function buildOfflineAnswer(query, results) {
   if (!results.length) return "По вашему запросу ничего не найдено в базе знаний приложения.\n\nПопробуйте переформулировать вопрос или подключитесь к интернету для ответа через Claude AI.";
   const top = results[0];
@@ -5393,8 +5400,10 @@ function AiAssistantScreen({ onClose }) {
     e.target.value = "";
   };
 
-  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken) => {
+  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken, emcRelated = true) => {
     const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.
+
+Если вопрос не связан с ЭМС/инженерией: ответь естественно, с лёгким сухим юмором и спокойной иронией (без кринжа), в тоне опытного инженера. Коротко и умно. При уместности мягко верни разговор к ЭМС. Избегай канцелярита и роботизированных формулировок.
 
 Контекст из базы знаний:
 ${kbContext}`;
@@ -5484,6 +5493,20 @@ ${kbContext}`;
     if ((!q && !attachedImage) || loading) return;
     setInput("");
 
+    if (q === "как сварить кофе для Михаила?") {
+      appendMsg({
+        role:"user",
+        text: q,
+        image: null
+      });
+      appendMsg({
+        role:"assistant",
+        text:"Для Михаила кофе лучше варить внимательно. Хорошие люди в инженерке встречаются редко. Рад, что довелось поработать вместе.",
+        source:"📚 База знаний EMC Pro"
+      });
+      return;
+    }
+
     // Формируем сообщение пользователя для чата
     const userMsg = {
       role:"user",
@@ -5501,13 +5524,14 @@ ${kbContext}`;
 
     const kbResults = searchLocalKB(q);
     const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
+    const emcRelated = isEmcRelatedQuery(q, kbResults);
 
     if (aiMode === "ollama") {
       try {
         const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
         let i = 0;
         const timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
-        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial));
+        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial), emcRelated);
         clearInterval(timer);
         setStreamingText("");
         appendMsg({ role:"assistant", text: result.text, source: result.source });
@@ -5530,8 +5554,15 @@ ${kbContext}`;
       if (imgToSend) {
         appendMsg({ role:"assistant", text:"📷 Анализ фотографий доступен только в режиме Ollama с моделью llava.\n\nУстановите Ollama и загрузите: ollama pull llava", source:"📚 База знаний EMC Pro" });
       } else {
-        const offlineAnswer = buildOfflineAnswer(q, kbResults);
-        appendMsg({ role:"assistant", text: offlineAnswer, source:"📚 База знаний EMC Pro" });
+        if (!emcRelated) {
+          const witty = `Вопрос не по ЭМС, но звучит достойно.
+
+Если коротко: сначала живём, потом калибруемся. Если где-то рядом всплывут помехи, частоты или упрямый усилитель — продолжим уже по инженерной части.`;
+          appendMsg({ role:"assistant", text: witty, source:"📚 База знаний EMC Pro" });
+        } else {
+          const offlineAnswer = buildOfflineAnswer(q, kbResults);
+          appendMsg({ role:"assistant", text: offlineAnswer, source:"📚 База знаний EMC Pro" });
+        }
       }
     }
 
