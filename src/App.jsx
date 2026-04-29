@@ -5353,6 +5353,9 @@ function AiAssistantScreen({ onClose }) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const abortRef = React.useRef(null);
   const [aiMode, setAiMode] = useState("ollama"); // ollama | local
   const [ollamaModel, setOllamaModel] = useState("llama3");
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
@@ -5390,45 +5393,90 @@ function AiAssistantScreen({ onClose }) {
     e.target.value = "";
   };
 
-  const tryOllama = async (userQuery, kbContext, imageBase64, imageType) => {
-    const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.\n\nКонтекст из базы знаний:\n${kbContext}`;
+  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken) => {
+    const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.
 
-    let userContent;
+Контекст из базы знаний:
+${kbContext}`;
+
+    // Для изображений сохраняем chat API как fallback
     if (imageBase64) {
-      // Мультимодальный запрос с изображением
-      userContent = [
-        { type:"text", text: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания." },
-        { type:"image_url", image_url:{ url:`data:${imageType};base64,${imageBase64}` } }
-      ];
-    } else {
-      userContent = userQuery;
+      const body = {
+        model: ollamaModel,
+        messages: [
+          { role:"system", content: systemPrompt },
+          { role:"user", content: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.", images:[imageBase64] }
+        ],
+        stream: false
+      };
+      const resp = await fetch(`${ollamaUrl}/api/chat`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        signal: abortRef.current?.signal,
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
+      const data = await resp.json();
+      const text = data.message?.content || "Пустой ответ от Ollama";
+      onToken?.(text, true);
+      return { text, source:"🤖 Ollama (" + ollamaModel + ")" };
     }
 
     const body = {
       model: ollamaModel,
-      messages: [
-        { role:"system", content: systemPrompt },
-        { role:"user", content: userContent }
-      ],
-      stream: false
+      prompt: `${systemPrompt}
+
+Вопрос: ${userQuery}`,
+      stream: true
     };
 
-    // Если есть изображение — добавляем images для Ollama API (старый формат)
-    if (imageBase64) {
-      body.messages[1].images = [imageBase64];
-      // Для llava используем простой текст как content
-      body.messages[1].content = userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.";
-    }
-
-    const resp = await fetch(`${ollamaUrl}/api/chat`, {
+    const resp = await fetch(`${ollamaUrl}/api/generate`, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      signal: AbortSignal.timeout(60000), // Больше времени для обработки фото
+      signal: abortRef.current?.signal,
       body: JSON.stringify(body)
     });
-    if (!resp.ok) throw new Error(`Ollama: ${resp.status}`);
-    const data = await resp.json();
-    return { text: data.message?.content || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+    if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
+
+    const reader = resp.body?.getReader();
+    if (!reader) throw new Error("STREAM_UNAVAILABLE");
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let full = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const json = JSON.parse(line);
+        const token = json.response || "";
+        if (token) {
+          full += token;
+          onToken?.(full, false);
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      const json = JSON.parse(buffer);
+      const token = json.response || "";
+      if (token) {
+        full += token;
+        onToken?.(full, false);
+      }
+    }
+
+    return { text: full || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+  };
+
+  const stopGeneration = () => {
+    abortRef.current?.abort();
+    setLoading(false);
+    setThinkingStep("");
   };
 
   const send = async (queryOverride) => {
@@ -5446,16 +5494,28 @@ function AiAssistantScreen({ onClose }) {
 
     const imgToSend = attachedImage;
     setAttachedImage(null);
+    abortRef.current = new AbortController();
     setLoading(true);
+    setThinkingStep("Анализирую EMC-сценарий...");
+    setStreamingText("");
 
     const kbResults = searchLocalKB(q);
     const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
 
     if (aiMode === "ollama") {
       try {
-        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type);
+        const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
+        let i = 0;
+        const timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
+        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial));
+        clearInterval(timer);
+        setStreamingText("");
         appendMsg({ role:"assistant", text: result.text, source: result.source });
       } catch(e) {
+        setStreamingText("");
+        if (e.name === "AbortError") {
+          appendMsg({ role:"assistant", text:"Генерация остановлена пользователем.", source:"🤖 Ollama (остановлено)" });
+        } else {
         const isImageErr = imgToSend && (e.message.includes("400") || e.message.includes("model"));
         appendMsg({
           role:"assistant",
@@ -5464,6 +5524,7 @@ function AiAssistantScreen({ onClose }) {
             : `❌ Ollama недоступна по адресу ${ollamaUrl}\n\nКак запустить:\n1. Скачайте ollama.ai и установите\n2. Откройте cmd: ollama pull ${ollamaModel}\n3. Ollama запустится автоматически на порту 11434\n\nПока Ollama не запущена — переключитесь в режим «База знаний» (⚙️).`,
           source:"⚠️ Ошибка"
         });
+        }
       }
     } else {
       if (imgToSend) {
@@ -5475,6 +5536,8 @@ function AiAssistantScreen({ onClose }) {
     }
 
     setLoading(false);
+    setThinkingStep("");
+    abortRef.current = null;
   };
 
   const modeConfig = {
@@ -5565,7 +5628,13 @@ function AiAssistantScreen({ onClose }) {
           </div>
         ))}
 
-        {loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec }}>⏳ {attachedImage ? "Анализирую изображение..." : "Ищу ответ..."}</div>}
+                {loading && streamingText && <div style={{ alignSelf:"flex-start", maxWidth:"88%" }}><div style={{ background:"rgba(20,30,60,0.65)", color:"#F8FAFC", borderRadius:"16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow:"0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>{streamingText}</div><div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>🤖 Ollama ({ollamaModel})</div></div>}
+
+{loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec, minWidth:280 }}>
+          <div style={{ marginBottom:6 }}>{thinkingStep || "Анализирую EMC-сценарий..."}</div>
+          <div style={{ height:24, borderRadius:12, background:"linear-gradient(90deg, rgba(37,99,235,0.25), rgba(124,58,237,0.35), rgba(6,182,212,0.25))", backgroundSize:"200% 100%", animation:"emcOrbit 2s linear infinite" }} />
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8 }}><span style={{ width:8, height:8, borderRadius:"50%", background:"#60A5FA", boxShadow:"0 0 12px rgba(96,165,250,.9)" }} /><span style={{ fontSize:11 }}>AI печатает...</span></div>
+        </div>}
         <div ref={bottomRef} />
       </div>
 
@@ -5588,6 +5657,7 @@ function AiAssistantScreen({ onClose }) {
           placeholder={attachedImage ? "Вопрос к фото (или просто отправьте)..." : "Опишите проблему..."}
           disabled={loading}
         />
+        {loading && <button onClick={stopGeneration} style={{ padding:"0 14px", borderRadius:12, border:"1px solid rgba(239,68,68,0.45)", background:"rgba(239,68,68,0.2)", color:"#FECACA", fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:12, flexShrink:0 }}>Стоп</button>}
         <button onClick={() => send()} disabled={(!input.trim() && !attachedImage) || loading} style={{ padding:"0 20px", borderRadius:12, border:"1px solid rgba(37,99,235,0.5)", background:(input.trim()||attachedImage)&&!loading?"linear-gradient(130deg, #2563EB, #7C3AED)":"rgba(148,163,184,0.3)", color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:16, flexShrink:0, boxShadow:"0 0 24px rgba(37,99,235,0.28)" }}>→</button>
       </div>
     </div>
@@ -5790,6 +5860,9 @@ function AdminModal({ title, onConfirm, onCancel }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const abortRef = React.useRef(null);
 
   const handle = async () => {
     setLoading(true);
