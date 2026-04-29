@@ -2,20 +2,25 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
-  bg: "#F4F6F9",
-  card: "#FFFFFF",
-  border: "#DDE2EA",
-  text: "#1A2233",
-  textSec: "#5A6577",
-  accent: "#1E5BE8",
-  accentLight: "#EAF0FD",
-  pass: "#1A9B5A",
-  passLight: "#E6F7EE",
-  fail: "#D93025",
-  failLight: "#FDECEA",
-  warn: "#E07B00",
-  warnLight: "#FFF4E5",
-  dark: "#0D1627",
+  bg: "#050814",
+  panel: "#0B1220",
+  card: "#101827",
+  cardHover: "#14213A",
+  border: "rgba(148, 163, 184, 0.18)",
+  text: "#F8FAFC",
+  textSec: "#94A3B8",
+  textOnLight: "#0F172A",
+  accent: "#2563EB",
+  accent2: "#7C3AED",
+  cyan: "#06B6D4",
+  accentLight: "rgba(37,99,235,0.18)",
+  pass: "#10B981",
+  passLight: "rgba(16,185,129,0.18)",
+  fail: "#EF4444",
+  failLight: "rgba(239,68,68,0.2)",
+  warn: "#F59E0B",
+  warnLight: "rgba(245,158,11,0.2)",
+  dark: "#0B1220",
 };
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -170,31 +175,33 @@ const styles = {
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
   nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", flexShrink: 0 },
   navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "20px 28px 24px" },
-  card: { background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
+  content: { flex: 1, overflowY: "auto", padding: "18px 22px 24px", background: "radial-gradient(circle at 80% -10%, rgba(124,58,237,0.18), transparent 35%), radial-gradient(circle at -10% 10%, rgba(37,99,235,0.2), transparent 45%), #050814" },
+  card: { background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.05)", padding: "16px", marginBottom: 12, boxShadow: "0 0 40px rgba(80,120,255,0.15)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
-  input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
-  select: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  select: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
   row: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 },
-  resultBox: { background: C.accentLight, border: `1px solid #B8CFFE`, borderRadius: 8, padding: "12px 14px", marginTop: 10 },
-  resultRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid #D6E4FF` },
+  resultBox: { background: "rgba(37,99,235,0.14)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "12px 14px", marginTop: 10 },
+  resultRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid rgba(148,163,184,0.2)` },
   resultLabel: { fontSize: 13, color: C.textSec },
   resultValue: { fontSize: 15, fontWeight: 700, color: C.accent, fontVariantNumeric: "tabular-nums" },
   btn: (variant = "primary") => ({
     padding: "11px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, letterSpacing: 0.3,
     background: variant === "primary" ? C.accent : variant === "pass" ? C.pass : variant === "fail" ? C.fail : "#EDF0F5",
-    color: variant === "primary" || variant === "pass" || variant === "fail" ? "#fff" : C.text,
+    color: variant === "primary" || variant === "pass" || variant === "fail" ? "#fff" : C.textOnLight,
     width: variant === "full" ? "100%" : undefined,
   }),
   tag: (type) => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-    background: type === "pass" ? C.passLight : type === "fail" ? C.failLight : C.accentLight,
-    color: type === "pass" ? C.pass : type === "fail" ? C.fail : C.accent,
+    display: "inline-block", padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+    background: type === "pass" ? "rgba(16,185,129,0.18)" : type === "fail" ? "rgba(239,68,68,0.2)" : type === "warn" ? "rgba(245,158,11,0.2)" : C.accentLight,
+    color: type === "pass" ? C.pass : type === "fail" ? C.fail : type === "warn" ? C.warn : C.accent,
+    boxShadow: type === "pass" ? "0 0 18px rgba(16,185,129,0.35)" : type === "fail" ? "0 0 18px rgba(239,68,68,0.35)" : type === "warn" ? "0 0 18px rgba(245,158,11,0.35)" : "0 0 18px rgba(37,99,235,0.26)",
+    border: "1px solid rgba(255,255,255,0.06)",
   }),
   chip: { display: "inline-block", background: C.accentLight, color: C.accent, borderRadius: 6, padding: "3px 9px", fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4 },
   warn: { background: C.warnLight, border: `1px solid #FACEAA`, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.warn, marginTop: 8 },
-  searchInput: { width: "100%", padding: "10px 12px 10px 36px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  searchInput: { width: "100%", padding: "10px 12px 10px 36px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
   searchWrap: { position: "relative", marginBottom: 12 },
   mbSm: { marginBottom: 8 },
   mb: { marginBottom: 12 },
@@ -1303,135 +1310,174 @@ function ErrorsScreen({ onClose }) {
   );
 }
 
+function EMCAvatar({ size = 220, showPlatform = true }) {
+  const eyeSize = Math.max(7, Math.round(size * 0.045));
+  return (
+    <div style={{ width: size, height: size + (showPlatform ? 32 : 0), position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{`
+        @keyframes emcBreath { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        @keyframes emcGlow { 0% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } 50% { filter: drop-shadow(0 0 36px rgba(124,58,237,.5)); } 100% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } }
+        @keyframes emcOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes emcWave { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -120; } }
+        @keyframes emcBlink { 0%, 45%, 48%, 100% { transform: scaleY(1); } 46%, 47% { transform: scaleY(0.1); } }
+      `}</style>
+      {showPlatform && <div style={{ position: "absolute", bottom: 0, width: size * 0.72, height: 26, borderRadius: "50%", background: "radial-gradient(ellipse at center, rgba(37,99,235,0.42), rgba(124,58,237,0.18), transparent 72%)", filter: "blur(6px)" }} />}
+      <div style={{ position: "absolute", width: size * 1.03, height: size * 1.03, borderRadius: "50%", border: "1px solid rgba(125,211,252,0.45)", animation: "emcOrbit 16s linear infinite" }} />
+      <div style={{ position: "absolute", width: size * 1.2, height: size * 0.46, borderRadius: "50%", border: "1px solid rgba(167,139,250,0.35)", transform: "rotate(-15deg)", animation: "emcOrbit 11s linear infinite reverse" }} />
+
+      <div style={{ width: size * 0.84, height: size * 0.84, borderRadius: "50%", position: "relative", background: "radial-gradient(circle at 30% 24%, rgba(255,255,255,0.78), rgba(6,182,212,0.3) 25%, rgba(37,99,235,0.75) 58%, rgba(124,58,237,0.86) 100%)", animation: "emcBreath 4s ease-in-out infinite, emcGlow 3.4s ease-in-out infinite", boxShadow: "inset 0 2px 12px rgba(255,255,255,0.3), inset 0 -12px 24px rgba(2,6,23,0.4)" }}>
+        <svg viewBox="0 0 220 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <path d="M35 120 Q75 78 110 120 T185 120" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="4" strokeLinecap="round" strokeDasharray="8 8" style={{ animation: "emcWave 5s linear infinite" }} />
+          <path d="M35 136 Q75 94 110 136 T185 136" fill="none" stroke="rgba(167,139,250,0.75)" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 10" style={{ animation: "emcWave 6s linear infinite reverse" }} />
+        </svg>
+
+        <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%, -50%)", display: "flex", gap: size * 0.12 }}>
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite" }} />
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite 0.1s" }} />
+        </div>
+        <div style={{ position: "absolute", top: "56%", left: "50%", transform: "translateX(-50%)", width: size * 0.16, height: size * 0.06, borderBottom: "2px solid rgba(226,232,240,0.9)", borderRadius: "0 0 24px 24px" }} />
+      </div>
+    </div>
+  );
+}
+
+
 function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
-
   const quick = [
-    { label: "dB-конвертер",        sub: "Преобразование единиц",   tab: "calc", id: "db" },
-    { label: "Инжекция тока",        sub: "ГОСТ Р 51317.4.6",        tab: "calc", id: "bci" },
-    { label: "Потери кабеля",        sub: "Расчёт затухания",        tab: "calc", id: "cable" },
-    { label: "Чек-листы",            sub: "Готовые чек-листы",       tab: "tests", id: null },
-    { label: "Сокращения",           sub: "Термины ЭМС",             tab: "ref",  id: "abbr" },
+    { icon: "⇄", iconBg: "rgba(34,197,94,0.2)", iconColor: "#22C55E", label: "dB-конвертер", sub: "Преобразование единиц", tab: "calc", id: "db" },
+    { icon: "∿", iconBg: "rgba(59,130,246,0.22)", iconColor: "#60A5FA", label: "Инжекция тока", sub: "ГОСТ Р 51317.4.6", tab: "calc", id: "bci" },
+    { icon: "🧪", iconBg: "rgba(245,158,11,0.2)", iconColor: "#F59E0B", label: "Тестирование", sub: "10 вопросов из базы", action: onQuiz },
+    { icon: "✅", iconBg: "rgba(139,92,246,0.24)", iconColor: "#A78BFA", label: "Поверка", sub: "Сроки и свидетельства", action: onVerify },
   ];
 
-  const sections = [
-    { label: "Тестирование",          sub: "10 вопросов из базы",        action: onQuiz },
-    { label: "Типовые ошибки",        sub: "Частые проблемы и решения",   action: onErrors },
-    { label: "Поверка оборудования",  sub: "Сроки, свидетельства",        action: onVerify },
-    { label: "ИИ-помощник",           sub: "База знаний EMC Pro",         action: () => setTab("ai") },
+  const latestTests = [
+    { status: "PASS", date: "2026-04-22", object: "ECU-17", type: "Conducted Immunity", issue: "80–230 MHz" },
+    { status: "FAIL", date: "2026-04-20", object: "Блок питания БП-4", type: "BCI / инжекция тока", issue: "Пик 142 MHz" },
+    { status: "WARN", date: "2026-04-18", object: "Модуль телеметрии", type: "Radiated Emissions", issue: "Шум 310 MHz" },
   ];
+
+  const commonErrors = [
+    { icon: "∿", title: "Костюмник не фиксирует ток инжекции", reason: "Слабая связь клещей и жгута либо ошибка подключения." },
+    { icon: "▲", title: "Пик по частоте превышает норму", reason: "Гармоника генератора или резонанс кабеля." },
+    { icon: "≈", title: "Шумы после подключения оборудования", reason: "Паразитные наводки и земляная петля." },
+  ];
+
+  const aiScenarios = ["Пик превышает норму", "Шумы в кабеле", "Проблема с инжекцией", "Усилитель уходит в защиту"];
 
   return (
-    <div style={{ width: "100%", height: "100%", overflowY: "auto", background: "#FAFAFA" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 48px 64px" }}>
-
-        {/* HERO */}
-        <div style={{ marginBottom: 64 }}>
-          <div style={{
-            display: "inline-block", fontSize: 11, fontWeight: 600, letterSpacing: 2,
-            textTransform: "uppercase", color: "#999", marginBottom: 20
-          }}>ГОСТ РВ 20.57.306 · Инструментарий инженера ЭМС</div>
-
-          <h1 style={{
-            fontSize: 52, fontWeight: 800, color: "#0A0A0A", lineHeight: 1.1,
-            letterSpacing: -1.5, marginBottom: 20, margin: "0 0 20px"
-          }}>
-            Точные расчёты.<br/>
-            <span style={{ color: "#1E5BE8" }}>Без ошибок.</span>
-          </h1>
-
-          <p style={{
-            fontSize: 18, color: "#666", fontWeight: 400, lineHeight: 1.6,
-            maxWidth: 520, margin: "0 0 36px"
-          }}>
-            Профессиональный инструмент для инженеров ЭМС.
-            Все расчёты локально — без интернета.
-          </p>
-
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button onClick={() => setTab("calc")} style={{
-              padding: "14px 32px", borderRadius: 10, background: "#0A0A0A",
-              color: "#fff", border: "none", cursor: "pointer",
-              fontWeight: 600, fontSize: 15, fontFamily: "inherit",
-              letterSpacing: -0.2
-            }}>Начать работу →</button>
-            <button onClick={() => setTab("ref")} style={{
-              padding: "14px 24px", borderRadius: 10, background: "transparent",
-              color: "#666", border: "1px solid #E0E0E0", cursor: "pointer",
-              fontWeight: 500, fontSize: 15, fontFamily: "inherit"
-            }}>Справочники</button>
-          </div>
-        </div>
-
-        {/* БЫСТРЫЙ ДОСТУП */}
-        <div style={{ marginBottom: 56 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
-            color: "#999", marginBottom: 16
-          }}>Быстрый доступ</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-            {quick.map((q, i) => (
-              <button key={i}
-                onClick={() => { setTab(q.tab); if (q.id) setCalcId(q.id); }}
-                style={{
-                  background: "#fff", padding: "20px", borderRadius: 12,
-                  border: "1px solid #E8E8E8", cursor: "pointer", textAlign: "left",
-                  fontFamily: "inherit", transition: "border-color 0.15s"
-                }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "#1E5BE8"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "#E8E8E8"}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0A", marginBottom: 4 }}>{q.label}</div>
-                <div style={{ fontSize: 11, color: "#999" }}>{q.sub}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* РАЗДЕЛИТЕЛЬ */}
-        <div style={{ height: 1, background: "#EBEBEB", marginBottom: 56 }} />
-
-        {/* ОСНОВНЫЕ РАЗДЕЛЫ */}
-        <div style={{ marginBottom: 56 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
-            color: "#999", marginBottom: 16
-          }}>Основные разделы</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-            {sections.map((s, i) => (
-              <button key={i} onClick={s.action} style={{
-                background: "#fff", padding: "24px", borderRadius: 12,
-                border: "1px solid #E8E8E8", cursor: "pointer", textAlign: "left",
-                fontFamily: "inherit", transition: "border-color 0.15s"
-              }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "#0A0A0A"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "#E8E8E8"}
-              >
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0A", marginBottom: 6 }}>{s.label}</div>
-                <div style={{ fontSize: 12, color: "#999", marginBottom: 20 }}>{s.sub}</div>
-                <div style={{ fontSize: 12, color: "#1E5BE8", fontWeight: 600 }}>Перейти →</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ФУТЕР СТАТИСТИКА */}
+    <div style={{ width: "100%", minHeight: "100%", background: "radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 22px 46px" }}>
         <div style={{
-          display: "flex", gap: 48, paddingTop: 32,
-          borderTop: "1px solid #EBEBEB"
+          position: "relative",
+          borderRadius: 30,
+          background: "linear-gradient(132deg, rgba(16,24,39,0.94) 0%, rgba(11,18,32,0.9) 52%, rgba(19,31,57,0.95) 100%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 0 66px rgba(80,120,255,0.26), inset 0 1px 0 rgba(255,255,255,0.08)",
+          padding: "52px 48px",
+          marginBottom: 18,
+          overflow: "hidden",
+          display: "grid",
+          gridTemplateColumns: "1.1fr 0.9fr",
+          gap: 20,
         }}>
-          {[
-            { value: "24", label: "испытания" },
-            { value: "8", label: "калькулятора" },
-            { value: "200+", label: "сокращений" },
-            { value: "100%", label: "офлайн" },
-          ].map((s, i) => (
-            <div key={i}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "#0A0A0A", letterSpacing: -0.5 }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>{s.label}</div>
+          <div style={{ position: "absolute", inset: -80, background: "radial-gradient(circle at 78% 28%, rgba(124,58,237,0.3), transparent 42%), radial-gradient(circle at 30% 95%, rgba(37,99,235,0.28), transparent 45%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: 11, letterSpacing: 1.8, textTransform: "uppercase", color: "#94A3B8", marginBottom: 16 }}>EMC Toolkit · Cyber Engineering UI</div>
+            <h1 style={{ margin: "0 0 14px", fontSize: 66, lineHeight: 0.98, letterSpacing: -1.8, fontWeight: 800, background: "linear-gradient(90deg, #5B8CFF, #8A5BFF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Упрощай. Проверяй. Решай.</h1>
+            <div style={{ marginBottom: 12, color: "#C4D7FF", fontSize: 22, fontWeight: 600 }}>Все инструменты ЭМС — в одном месте</div>
+            <p style={{ margin: "0 0 24px", color: "#94A3B8", maxWidth: 560, lineHeight: 1.65, fontSize: 15 }}>
+              Расчёты, испытания, журнал, типовые ошибки и AI-помощник для быстрой работы инженера.
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(37,99,235,0.55)", background: "linear-gradient(130deg, #2563EB, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer", boxShadow: "0 0 28px rgba(37,99,235,0.32)" }}>Открыть расчёты</button>
+              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.24)", background: "rgba(15,23,42,0.5)", color: "#C7D2FE", fontWeight: 600, cursor: "pointer", boxShadow: "0 0 22px rgba(124,58,237,0.22)" }}>Перейти к AI-помощнику</button>
             </div>
-          ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <EMCAvatar size={270} />
+          </div>
         </div>
 
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div style={{ ...styles.card, marginBottom: 0 }}>
+            <div style={{ ...styles.sectionTitle, marginBottom: 14, marginTop: 0, color: "#CBD5E1" }}>Ключевые быстрые действия</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {quick.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => q.action ? q.action() : (setTab(q.tab), q.id && setCalcId(q.id))}
+                  style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", textAlign: "left", padding: "14px", cursor: "pointer", transition: "transform .18s ease, border-color .2s ease, box-shadow .2s ease", fontFamily: "inherit", boxShadow: "0 0 20px rgba(80,120,255,0.08)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.borderColor = "rgba(91,140,255,0.66)"; e.currentTarget.style.boxShadow = "0 0 34px rgba(80,120,255,0.22)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.boxShadow = "0 0 20px rgba(80,120,255,0.08)"; }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 10, background: q.iconBg, color: q.iconColor, display: "grid", placeItems: "center", boxShadow: `0 0 18px ${q.iconColor}55` }}>{q.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{q.label}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#94A3B8" }}>{q.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ ...styles.card, marginBottom: 0, position: "relative", overflow: "hidden", boxShadow: "0 0 54px rgba(80,120,255,0.22)" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 10%, rgba(124,58,237,0.24), transparent 36%), radial-gradient(circle at 15% 88%, rgba(37,99,235,0.2), transparent 45%)", pointerEvents: "none" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ ...styles.sectionTitle, marginBottom: 10, marginTop: 0, color: "#CBD5E1" }}>AI-помощник</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#10B981", boxShadow: "0 0 14px rgba(16,185,129,0.7)" }} />
+                <span style={{ fontSize: 12, color: "#A7F3D0", fontWeight: 700 }}>Готов помочь</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                <EMCAvatar size={120} showPlatform={false} />
+                <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>AI-анализ отказов и инженерных сценариев. Опишите симптом и получите следующий шаг проверки.</div>
+              </div>
+              <input onFocus={() => setTab("ai")} placeholder="Опишите проблему..." style={{ width: "100%", borderRadius: 14, border: "1px solid rgba(91,140,255,0.35)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", padding: "11px 13px", fontSize: 13, outline: "none", fontFamily: "inherit", marginBottom: 10 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {aiScenarios.map((scenario) => (
+                  <button key={scenario} onClick={() => setTab("ai")} style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: "10px 12px", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", fontSize: 12, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 20px rgba(80,120,255,0.12)" }}>• {scenario}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ ...styles.card, marginBottom: 16 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Последние испытания</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ color: "#64748B", textAlign: "left" }}>
+                <th style={{ padding: "8px 10px" }}>Статус</th><th style={{ padding: "8px 10px" }}>Дата</th><th style={{ padding: "8px 10px" }}>Объект</th><th style={{ padding: "8px 10px" }}>Тип</th><th style={{ padding: "8px 10px" }}>Частота/проблема</th><th style={{ padding: "8px 10px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {latestTests.map((t, idx) => (
+                <tr key={idx} style={{ borderTop: "1px solid rgba(148,163,184,0.14)" }}>
+                  <td style={{ padding: "10px" }}><span style={styles.tag(t.status === "PASS" ? "pass" : t.status === "FAIL" ? "fail" : "warn")}>{t.status}</span></td>
+                  <td style={{ padding: "10px", color: "#CBD5E1" }}>{t.date}</td>
+                  <td style={{ padding: "10px", color: "#E2E8F0" }}>{t.object}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.type}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.issue}</td>
+                  <td style={{ padding: "10px" }}><button onClick={() => setTab("log")} style={{ borderRadius: 10, border: "1px solid rgba(37,99,235,0.5)", background: "rgba(37,99,235,0.14)", color: "#BFDBFE", fontSize: 12, padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Открыть</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ ...styles.card, marginBottom: 0 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Типовые ошибки</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+            {commonErrors.map((error, i) => (
+              <button key={i} onClick={onErrors} style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", padding: "14px", textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: "#E2E8F0", boxShadow: "0 0 24px rgba(80,120,255,0.1)" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 12, marginBottom: 10, display: "grid", placeItems: "center", background: "linear-gradient(135deg, rgba(37,99,235,0.9), rgba(124,58,237,0.8))", boxShadow: "0 0 18px rgba(37,99,235,0.34)" }}>{error.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 7, lineHeight: 1.4 }}>{error.title}</div>
+                <div style={{ color: "#94A3B8", fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>{error.reason}</div>
+                <span style={{ color: "#60A5FA", fontSize: 12, fontWeight: 600 }}>Подробнее →</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -5293,14 +5339,12 @@ function buildOfflineAnswer(query, results) {
 }
 
 const AI_QUICK_QUESTIONS = [
-  "Нестабильный ток инжекции",
-  "Пик превышает норму RE",
-  "Калибровка п.20.5",
-  "Состав АРМ4",
-  "Критерий I и II",
-  "ЭСР не разряжается",
-  "Усилитель в защиту",
-  "Феррит на кабель",
+  { icon:"📈", title:"Пик превышает норму", desc:"Проверка превышений и резонансов", query:"Пик превышает норму" },
+  { icon:"📶", title:"Шумы в кабеле", desc:"Поиск причин наводок в жгуте", query:"Шумы в кабеле" },
+  { icon:"🧲", title:"Проблема с инжекцией", desc:"Нестабильный ток и позиция клещей", query:"Проблема с инжекцией" },
+  { icon:"🛡️", title:"Усилитель уходит в защиту", desc:"Диагностика тракта и нагрузки", query:"Усилитель уходит в защиту" },
+  { icon:"🧷", title:"Феррит на кабель", desc:"Где и как ставить ферриты", query:"Феррит на кабель" },
+  { icon:"📋", title:"Калибровка п.20.5", desc:"Шаги калибровки по методике", query:"Калибровка п.20.5" },
 ];
 
 function AiAssistantScreen({ onClose }) {
@@ -5309,6 +5353,9 @@ function AiAssistantScreen({ onClose }) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const abortRef = React.useRef(null);
   const [aiMode, setAiMode] = useState("ollama"); // ollama | local
   const [ollamaModel, setOllamaModel] = useState("llama3");
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
@@ -5346,45 +5393,90 @@ function AiAssistantScreen({ onClose }) {
     e.target.value = "";
   };
 
-  const tryOllama = async (userQuery, kbContext, imageBase64, imageType) => {
-    const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.\n\nКонтекст из базы знаний:\n${kbContext}`;
+  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken) => {
+    const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.
 
-    let userContent;
+Контекст из базы знаний:
+${kbContext}`;
+
+    // Для изображений сохраняем chat API как fallback
     if (imageBase64) {
-      // Мультимодальный запрос с изображением
-      userContent = [
-        { type:"text", text: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания." },
-        { type:"image_url", image_url:{ url:`data:${imageType};base64,${imageBase64}` } }
-      ];
-    } else {
-      userContent = userQuery;
+      const body = {
+        model: ollamaModel,
+        messages: [
+          { role:"system", content: systemPrompt },
+          { role:"user", content: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.", images:[imageBase64] }
+        ],
+        stream: false
+      };
+      const resp = await fetch(`${ollamaUrl}/api/chat`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        signal: abortRef.current?.signal,
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
+      const data = await resp.json();
+      const text = data.message?.content || "Пустой ответ от Ollama";
+      onToken?.(text, true);
+      return { text, source:"🤖 Ollama (" + ollamaModel + ")" };
     }
 
     const body = {
       model: ollamaModel,
-      messages: [
-        { role:"system", content: systemPrompt },
-        { role:"user", content: userContent }
-      ],
-      stream: false
+      prompt: `${systemPrompt}
+
+Вопрос: ${userQuery}`,
+      stream: true
     };
 
-    // Если есть изображение — добавляем images для Ollama API (старый формат)
-    if (imageBase64) {
-      body.messages[1].images = [imageBase64];
-      // Для llava используем простой текст как content
-      body.messages[1].content = userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.";
-    }
-
-    const resp = await fetch(`${ollamaUrl}/api/chat`, {
+    const resp = await fetch(`${ollamaUrl}/api/generate`, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      signal: AbortSignal.timeout(60000), // Больше времени для обработки фото
+      signal: abortRef.current?.signal,
       body: JSON.stringify(body)
     });
-    if (!resp.ok) throw new Error(`Ollama: ${resp.status}`);
-    const data = await resp.json();
-    return { text: data.message?.content || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+    if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
+
+    const reader = resp.body?.getReader();
+    if (!reader) throw new Error("STREAM_UNAVAILABLE");
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let full = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const json = JSON.parse(line);
+        const token = json.response || "";
+        if (token) {
+          full += token;
+          onToken?.(full, false);
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      const json = JSON.parse(buffer);
+      const token = json.response || "";
+      if (token) {
+        full += token;
+        onToken?.(full, false);
+      }
+    }
+
+    return { text: full || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+  };
+
+  const stopGeneration = () => {
+    abortRef.current?.abort();
+    setLoading(false);
+    setThinkingStep("");
   };
 
   const send = async (queryOverride) => {
@@ -5402,16 +5494,28 @@ function AiAssistantScreen({ onClose }) {
 
     const imgToSend = attachedImage;
     setAttachedImage(null);
+    abortRef.current = new AbortController();
     setLoading(true);
+    setThinkingStep("Анализирую EMC-сценарий...");
+    setStreamingText("");
 
     const kbResults = searchLocalKB(q);
     const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
 
     if (aiMode === "ollama") {
       try {
-        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type);
+        const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
+        let i = 0;
+        const timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
+        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial));
+        clearInterval(timer);
+        setStreamingText("");
         appendMsg({ role:"assistant", text: result.text, source: result.source });
       } catch(e) {
+        setStreamingText("");
+        if (e.name === "AbortError") {
+          appendMsg({ role:"assistant", text:"Генерация остановлена пользователем.", source:"🤖 Ollama (остановлено)" });
+        } else {
         const isImageErr = imgToSend && (e.message.includes("400") || e.message.includes("model"));
         appendMsg({
           role:"assistant",
@@ -5420,6 +5524,7 @@ function AiAssistantScreen({ onClose }) {
             : `❌ Ollama недоступна по адресу ${ollamaUrl}\n\nКак запустить:\n1. Скачайте ollama.ai и установите\n2. Откройте cmd: ollama pull ${ollamaModel}\n3. Ollama запустится автоматически на порту 11434\n\nПока Ollama не запущена — переключитесь в режим «База знаний» (⚙️).`,
           source:"⚠️ Ошибка"
         });
+        }
       }
     } else {
       if (imgToSend) {
@@ -5431,6 +5536,8 @@ function AiAssistantScreen({ onClose }) {
     }
 
     setLoading(false);
+    setThinkingStep("");
+    abortRef.current = null;
   };
 
   const modeConfig = {
@@ -5440,32 +5547,34 @@ function AiAssistantScreen({ onClose }) {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
-      {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-        <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:15, fontWeight:800, color:C.text }}>🤖 ИИ-помощник ЭМС</div>
+      <div style={{ ...styles.card, marginBottom:10, padding:"18px", boxShadow:"0 0 52px rgba(80,120,255,0.2)", border:"1px solid rgba(120,160,255,0.2)" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1.2fr 0.8fr", gap:14, alignItems:"center" }}>
+          <div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>‹ Назад</button>
+              <div style={{ fontSize:20, fontWeight:800, color:C.text }}>EMC Wave Assistant</div>
+            </div>
+            <div style={{ fontSize:14, color:C.textSec, marginBottom:8 }}>Опишите проблему — помощник подскажет, что проверить</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+              <span style={{ width:9, height:9, borderRadius:"50%", background:C.pass, boxShadow:"0 0 14px rgba(16,185,129,0.7)" }} />
+              <span style={{ color:"#A7F3D0", fontWeight:700, fontSize:12 }}>Готов помочь</span>
+            </div>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ Настройки</button>
+          </div>
+          <div style={{ display:"flex", justifyContent:"center" }}><EMCAvatar size={170} /></div>
         </div>
-        <button onClick={() => setShowSettings(!showSettings)} style={{ fontSize:18, background:"none", border:"none", cursor:"pointer", color:showSettings?C.accent:C.textSec }}>⚙️</button>
       </div>
 
-      {/* Settings panel */}
       {showSettings && (
-        <div style={{ ...styles.card, marginBottom:10, padding:"12px 14px" }}>
+        <div style={{ ...styles.card, marginBottom:10, padding:"14px" }}>
           <div style={{ fontSize:11, fontWeight:800, color:C.textSec, letterSpacing:1, marginBottom:8 }}>РЕЖИМ РАБОТЫ</div>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
             {Object.entries(modeConfig).map(([k,cfg]) => (
-              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>
-                {cfg.label}
-              </button>
+              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>{cfg.label}</button>
             ))}
           </div>
           <div style={{ fontSize:12, color:C.textSec, marginBottom:10 }}>{modeConfig[aiMode].desc}</div>
-          <div style={{ background:"#0A3A1A", border:"1px solid #1A9B5A", borderRadius:8, padding:"8px 12px", marginBottom:10 }}>
-            <div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>
-              🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.
-            </div>
-          </div>
+          <div style={{ background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.35)", borderRadius:8, padding:"8px 12px", marginBottom:10 }}><div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.</div></div>
           {aiMode === "ollama" && (
             <div>
               <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>URL Ollama сервера</div>
@@ -5473,99 +5582,86 @@ function AiAssistantScreen({ onClose }) {
               <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>Модель</div>
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
                 {["llama3","llama3.2","llava","llava:13b","mistral","gemma2","moondream"].map(m => (
-                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>
-                    {m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}
-                  </button>
+                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>{m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}</button>
                 ))}
-              </div>
-              <div style={{ background:C.accentLight, borderRadius:6, padding:"8px 10px", fontSize:11, color:C.accent, lineHeight:1.7 }}>
-                <b>📷 Модели с поддержкой фото:</b><br/>
-                • <b>llava</b> — ~4 ГБ, анализ фото, стендов, графиков<br/>
-                • <b>moondream</b> — ~2 ГБ, лёгкая, быстрая<br/>
-                • <b>llava:13b</b> — ~8 ГБ, точнее, нужна видеокарта<br/><br/>
-                <b>Установка:</b> cmd → <code>ollama pull llava</code>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Quick buttons */}
-      <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:6, marginBottom:8, flexShrink:0 }}>
-        {AI_QUICK_QUESTIONS.map(q => (
-          <button key={q} onClick={() => send(q)} disabled={loading} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:C.bg, color:C.accent, fontSize:11, fontWeight:600, cursor:loading?"not-allowed":"pointer", whiteSpace:"nowrap", fontFamily:"inherit", flexShrink:0 }}>{q}</button>
-        ))}
+      <div style={{ ...styles.card, marginBottom:10 }}>
+        <div style={{ ...styles.sectionTitle, marginTop:0, marginBottom:10 }}>Быстрые сценарии</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:8 }}>
+          {AI_QUICK_QUESTIONS.map((q) => (
+            <button key={q.title} onClick={() => send(q.query)} disabled={loading} style={{ borderRadius:14, border:"1px solid rgba(255,255,255,0.06)", background:"rgba(20,30,60,0.6)", backdropFilter:"blur(20px)", textAlign:"left", padding:"10px", cursor:loading?"not-allowed":"pointer", fontFamily:"inherit", color:C.text, boxShadow:"0 0 22px rgba(80,120,255,0.1)", transition:"transform .18s ease" }} onMouseEnter={(e)=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={(e)=>e.currentTarget.style.transform="translateY(0)"}>
+              <div style={{ fontSize:16, marginBottom:4 }}>{q.icon}</div>
+              <div style={{ fontSize:12, fontWeight:700, marginBottom:4 }}>{q.title}</div>
+              <div style={{ fontSize:11, color:C.textSec }}>{q.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Messages */}
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, marginBottom:10 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"85%" }}>
-            {/* Превью прикреплённого фото */}
-            {m.image && (
-              <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}>
-                <img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:200, objectFit:"contain", display:"block", background:"#000" }} />
-              </div>
-            )}
-            <div style={{
-              background: m.role==="user" ? C.accent : C.card,
-              color: m.role==="user" ? "#fff" : C.text,
-              borderRadius: m.role==="user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-              padding:"10px 14px", fontSize:13, lineHeight:1.65,
-              border: m.role==="assistant" ? `1px solid ${C.border}` : "none",
-              whiteSpace:"pre-wrap",
-            }}>
-              {m.text}
+        {messages.length === 1 && !loading && (
+          <div style={{ ...styles.card, textAlign:"center", padding:"20px" }}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}><EMCAvatar size={120} /></div>
+            <div style={{ color:C.textSec, fontSize:13, lineHeight:1.7 }}>
+              • Проверь кабель и заземление<br/>• Сравни частоту с резонансом<br/>• Проверь усилитель
             </div>
-            {m.source && (
-              <div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>{m.source}</div>
-            )}
-          </div>
-        ))}
-        {loading && (
-          <div style={{ alignSelf:"flex-start", background:C.card, border:`1px solid ${C.border}`, borderRadius:"14px 14px 14px 4px", padding:"10px 14px", fontSize:13, color:C.textSec }}>
-            ⏳ {attachedImage ? "Анализирую изображение..." : "Ищу ответ..."}
           </div>
         )}
+
+        {messages.map((m, i) => (
+          <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"88%" }}>
+            {m.image && <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}><img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:220, objectFit:"contain", display:"block", background:"#000" }} /></div>}
+            <div style={{ background: m.role==="user" ? "linear-gradient(130deg, #2563EB, #7C3AED)" : "rgba(20,30,60,0.65)", color: "#F8FAFC", borderRadius: m.role==="user" ? "16px 16px 5px 16px" : "16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow: m.role==="user" ? "0 0 24px rgba(37,99,235,0.25)" : "0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>
+              {m.role === "assistant" ? (
+                <div>
+                  <div style={{ fontSize:11, color:"#93C5FD", marginBottom:6, fontWeight:700 }}>Проблема / Что проверить / Причина / Рекомендации / Следующий шаг</div>
+                  {m.text}
+                </div>
+              ) : m.text}
+            </div>
+            {m.source && <div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>{m.source}</div>}
+          </div>
+        ))}
+
+                {loading && streamingText && <div style={{ alignSelf:"flex-start", maxWidth:"88%" }}><div style={{ background:"rgba(20,30,60,0.65)", color:"#F8FAFC", borderRadius:"16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow:"0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>{streamingText}</div><div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>🤖 Ollama ({ollamaModel})</div></div>}
+
+{loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec, minWidth:280 }}>
+          <div style={{ marginBottom:6 }}>{thinkingStep || "Анализирую EMC-сценарий..."}</div>
+          <div style={{ position:"relative", height:4, borderRadius:999, background:"rgba(148,163,184,0.18)", overflow:"hidden" }}>
+            <div style={{ position:"absolute", inset:0, borderRadius:999, background:"linear-gradient(90deg, rgba(37,99,235,0.15), rgba(124,58,237,0.2), rgba(6,182,212,0.15))", backgroundSize:"220% 100%", animation:"emcOrbit 2.4s linear infinite" }} />
+            <div style={{ position:"absolute", top:0, left:"-18%", width:"28%", height:"100%", borderRadius:999, background:"rgba(191,219,254,0.45)", filter:"blur(0.5px)", animation:"emcOrbit 1.8s linear infinite" }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#60A5FA", boxShadow:"0 0 5px rgba(96,165,250,.45)" }} /><span style={{ fontSize:11 }}>AI печатает...</span></div>
+        </div>}
         <div ref={bottomRef} />
       </div>
 
-      {/* Превью прикреплённого фото над инпутом */}
       {attachedImage && (
-        <div style={{ display:"flex", alignItems:"center", gap:8, background:C.accentLight, border:`1px solid #B8CFFE`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(37,99,235,0.12)", border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
           <img src={attachedImage.preview} alt="preview" style={{ width:48, height:48, objectFit:"cover", borderRadius:6, border:`1px solid ${C.border}` }} />
-          <div style={{ flex:1, fontSize:12, color:C.accent }}>
-            <div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div>
-            <div style={{ color:C.textSec, fontSize:11 }}>Нажмите → чтобы отправить с вопросом</div>
-          </div>
+          <div style={{ flex:1, fontSize:12, color:"#BFDBFE" }}><div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div><div style={{ color:C.textSec, fontSize:11 }}>Нажмите отправить для анализа</div></div>
           <button onClick={() => setAttachedImage(null)} style={{ background:"none", border:"none", color:C.fail, fontSize:18, cursor:"pointer", padding:"0 4px" }}>✕</button>
         </div>
       )}
 
-      {/* Input */}
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileSelect} />
-      <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={loading}
-          title="Прикрепить фото (стенд, осциллограмма, спектр)"
-          style={{ padding:"0 14px", borderRadius:8, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:C.card, color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}
-        >📷</button>
-        <input
-          style={{ ...styles.input, flex:1, fontSize:13 }}
+      <div style={{ display:"flex", gap:8, flexShrink:0, alignItems:"stretch" }}>
+        <button onClick={() => fileInputRef.current?.click()} disabled={loading} title="Прикрепить фото" style={{ padding:"0 14px", borderRadius:12, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:"rgba(20,30,60,0.6)", color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}>📷</button>
+        <textarea
+          style={{ flex:1, minHeight:64, maxHeight:120, resize:"vertical", borderRadius:14, border:`1px solid ${C.border}`, background:"rgba(20,30,60,0.6)", color:C.text, padding:"12px 14px", fontSize:14, outline:"none", fontFamily:"inherit" }}
           value={input}
           onChange={e=>setInput(e.target.value)}
           onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
-          placeholder={attachedImage ? "Вопрос к фото (или просто →)..." : "Задайте вопрос по ЭМС..."}
+          placeholder={attachedImage ? "Вопрос к фото (или просто отправьте)..." : "Опишите проблему..."}
           disabled={loading}
         />
-        <button
-          onClick={() => send()}
-          disabled={(!input.trim() && !attachedImage) || loading}
-          style={{ padding:"0 18px", borderRadius:8, border:"none", background:(input.trim()||attachedImage)&&!loading?C.accent:C.border, color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:15, flexShrink:0 }}
-        >→</button>
-
-
+        {loading && <button onClick={stopGeneration} style={{ padding:"0 14px", borderRadius:12, border:"1px solid rgba(239,68,68,0.45)", background:"rgba(239,68,68,0.2)", color:"#FECACA", fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:12, flexShrink:0 }}>Стоп</button>}
+        <button onClick={() => send()} disabled={(!input.trim() && !attachedImage) || loading} style={{ padding:"0 20px", borderRadius:12, border:"1px solid rgba(37,99,235,0.5)", background:(input.trim()||attachedImage)&&!loading?"linear-gradient(130deg, #2563EB, #7C3AED)":"rgba(148,163,184,0.3)", color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:16, flexShrink:0, boxShadow:"0 0 24px rgba(37,99,235,0.28)" }}>→</button>
       </div>
     </div>
   );
@@ -5767,6 +5863,9 @@ function AdminModal({ title, onConfirm, onCancel }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const abortRef = React.useRef(null);
 
   const handle = async () => {
     setLoading(true);
@@ -6299,15 +6398,15 @@ function AppInner() {
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#FAFAFA", fontFamily: "'Roboto','Arial',sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", background: "#050814", color: C.text, fontFamily: "'Roboto','Arial',sans-serif" }}>
 
       {/* БОКОВАЯ НАВИГАЦИЯ */}
       <div style={{
-        width: 220, background: "#FAFAFA", borderRight: "1px solid #EBEBEB",
+        width: 214, background: "linear-gradient(180deg, #0B1220 0%, #0A1120 100%)", borderRight: "1px solid rgba(148,163,184,0.16)",
         display: "flex", flexDirection: "column", flexShrink: 0
       }}>
         {/* Лого */}
-        <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #EBEBEB" }}>
+        <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(148,163,184,0.14)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(145deg, #0D1F4E, #1E5BE8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="20" height="20" viewBox="0 0 52 52">
@@ -6318,13 +6417,13 @@ function AppInner() {
               </svg>
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0A0A0A", lineHeight: 1.3, letterSpacing: -0.2 }}>Инструментарий<br/>инженера ЭМС</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", lineHeight: 1.3, letterSpacing: -0.2 }}>Инструментарий<br/>инженера ЭМС</div>
             </div>
           </div>
         </div>
 
         {/* Навигация */}
-        <div style={{ flex: 1, padding: "12px 12px", overflowY: "auto" }}>
+        <div style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
           {sideNavItems.map(n => {
             const isActive = !quizOpen && !settingsOpen && !errorsOpen && !searchOpen && (
               n.id === "verify" ? verifyOpen :
@@ -6341,15 +6440,15 @@ function AppInner() {
             };
             return (
               <button key={n.id} onClick={handleClick} style={{
-                width: "100%", padding: "10px 14px", borderRadius: 10, border: "none",
-                background: isActive ? C.accentLight : "transparent",
-                color: isActive ? C.accent : C.textSec,
+                width: "100%", padding: "10px 14px", borderRadius: 10,
+                background: isActive ? "linear-gradient(135deg, rgba(37,99,235,0.42), rgba(124,58,237,0.32))" : "transparent",
+                color: isActive ? "#DBEAFE" : C.textSec,
                 cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
-                fontSize: 14, fontWeight: isActive ? 700 : 400,
-                marginBottom: 2, textAlign: "left",
-                borderLeft: isActive ? `3px solid ${C.accent}` : "3px solid transparent",
+                fontSize: 13, fontWeight: isActive ? 700 : 500,
+                marginBottom: 4, textAlign: "left",
+                border: isActive ? "1px solid rgba(96,165,250,0.7)" : "1px solid transparent",
               }}>
-                <span style={{ fontSize: 18 }}>{n.icon}</span>
+                <span style={{ width: 20, height: 20, display: "grid", placeItems: "center" }}><svg viewBox="0 0 24 24" fill="none" stroke={isActive ? "#DBEAFE" : "#94A3B8"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d={n.svgPath} /></svg></span>
                 <span>{n.label}</span>
               </button>
             );
@@ -6357,13 +6456,13 @@ function AppInner() {
         </div>
 
         {/* Статус + версия */}
-        <div style={{ padding: "16px", borderTop: "1px solid #EBEBEB" }}>
+        <div style={{ padding: "14px", borderTop: "1px solid rgba(148,163,184,0.14)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A" }}></div>
             <span style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>Офлайн режим</span>
           </div>
-          <div style={{ fontSize: 11, color: "#aaa" }}>Все функции доступны</div>
-          <div style={{ fontSize: 11, color: "#bbb", marginTop: 2 }}>v2.0.0</div>
+          <div style={{ fontSize: 11, color: "#94A3B8" }}>Все функции доступны</div>
+          <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>v2.0.0</div>
         </div>
       </div>
 
@@ -6372,8 +6471,8 @@ function AppInner() {
 
         {/* ВЕРХНЯЯ ПАНЕЛЬ */}
         <div style={{
-          background: "#FAFAFA", borderBottom: "1px solid #EBEBEB",
-          padding: "0 32px", height: 52, display: "flex", alignItems: "center",
+          background: "rgba(11,18,32,0.86)", borderBottom: "1px solid rgba(148,163,184,0.16)",
+          padding: "0 24px", height: 56, display: "flex", alignItems: "center",
           justifyContent: "space-between", flexShrink: 0
         }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
@@ -6381,8 +6480,8 @@ function AppInner() {
               sideNavItems.find(n => n.id === tab)?.label || "Главная"}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => setSearchOpen(true)} style={{ background: "none", border: "none", color: C.textSec, fontSize: 18, cursor: "pointer", padding: "6px 10px", borderRadius: 8 }}>🔍 Справка</button>
-            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "none", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "6px 14px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6 }}>⚙️ Настройки</button>
+            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 12px", borderRadius: 10, fontFamily: "inherit" }}>🔍 Справка</button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 14px", borderRadius: 10, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>⚙️ Настройки</button>
           </div>
         </div>
 
