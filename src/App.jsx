@@ -5304,6 +5304,12 @@ function searchLocalKB(query) {
 }
 
 
+
+function mentionsMikhail(query = "") {
+  const q = query.toLowerCase();
+  return q.includes("михаил") || q.includes("mikhail");
+}
+
 function isEmcRelatedQuery(query, kbResults = []) {
   const q = (query || "").toLowerCase();
   const emcWords = ["эмс", "emc", "rf", "радио", "помех", "испыт", "стандарт", "gost", "гост", "iec", "cispr", "инжек", "калибров", "усилител", "кабель", "esd", "eft", "surge", "частот", "экранир", "заземл"];
@@ -5400,13 +5406,15 @@ function AiAssistantScreen({ onClose }) {
     e.target.value = "";
   };
 
-  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken, emcRelated = true) => {
+  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken, emcRelated = true, mikhailMode = false) => {
     const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.
 
 Если вопрос не связан с ЭМС/инженерией: ответь естественно, с лёгким сухим юмором и спокойной иронией (без кринжа), в тоне опытного инженера. Коротко и умно. При уместности мягко верни разговор к ЭМС. Избегай канцелярита и роботизированных формулировок.
 
 Контекст из базы знаний:
-${kbContext}`;
+${kbContext}
+
+${mikhailMode ? "Если в вопросе упоминается Михаил — отвечай заметно теплее, с уважением к его опыту и спокойной инженерной уверенностью; можно добавить лёгкую дружескую иронию без перегиба." : ""}`;
 
     // Для изображений сохраняем chat API как fallback
     if (imageBase64) {
@@ -5525,13 +5533,14 @@ ${kbContext}`;
     const kbResults = searchLocalKB(q);
     const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
     const emcRelated = isEmcRelatedQuery(q, kbResults);
+    const mikhailMode = mentionsMikhail(q);
 
     if (aiMode === "ollama") {
       try {
         const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
         let i = 0;
         const timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
-        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial), emcRelated);
+        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial), emcRelated, mikhailMode);
         clearInterval(timer);
         setStreamingText("");
         appendMsg({ role:"assistant", text: result.text, source: result.source });
@@ -5555,13 +5564,23 @@ ${kbContext}`;
         appendMsg({ role:"assistant", text:"📷 Анализ фотографий доступен только в режиме Ollama с моделью llava.\n\nУстановите Ollama и загрузите: ollama pull llava", source:"📚 База знаний EMC Pro" });
       } else {
         if (!emcRelated) {
-          const witty = `Вопрос не по ЭМС, но звучит достойно.
+          const wittyBase = `Вопрос не по ЭМС, но звучит достойно.
 
 Если коротко: сначала живём, потом калибруемся. Если где-то рядом всплывут помехи, частоты или упрямый усилитель — продолжим уже по инженерной части.`;
+          const witty = mikhailMode
+            ? `С Михаилом даже такие вопросы обычно решаются спокойно и точно — видно, что человек знает своё дело.
+
+${wittyBase}`
+            : wittyBase;
           appendMsg({ role:"assistant", text: witty, source:"📚 База знаний EMC Pro" });
         } else {
           const offlineAnswer = buildOfflineAnswer(q, kbResults);
-          appendMsg({ role:"assistant", text: offlineAnswer, source:"📚 База знаний EMC Pro" });
+          const withMikhailTone = mikhailMode
+            ? `С Михаилом за результат обычно переживать не приходится — с таким инженером работать одно удовольствие.
+
+${offlineAnswer}`
+            : offlineAnswer;
+          appendMsg({ role:"assistant", text: withMikhailTone, source:"📚 База знаний EMC Pro" });
         }
       }
     }
