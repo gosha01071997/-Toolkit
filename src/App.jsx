@@ -5632,8 +5632,11 @@ ${kbContext}`;
 
 {loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec, minWidth:280 }}>
           <div style={{ marginBottom:6 }}>{thinkingStep || "Анализирую EMC-сценарий..."}</div>
-          <div style={{ height:24, borderRadius:12, background:"linear-gradient(90deg, rgba(37,99,235,0.25), rgba(124,58,237,0.35), rgba(6,182,212,0.25))", backgroundSize:"200% 100%", animation:"emcOrbit 2s linear infinite" }} />
-          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8 }}><span style={{ width:8, height:8, borderRadius:"50%", background:"#60A5FA", boxShadow:"0 0 12px rgba(96,165,250,.9)" }} /><span style={{ fontSize:11 }}>AI печатает...</span></div>
+          <div style={{ position:"relative", height:4, borderRadius:999, background:"rgba(148,163,184,0.18)", overflow:"hidden" }}>
+            <div style={{ position:"absolute", inset:0, borderRadius:999, background:"linear-gradient(90deg, rgba(37,99,235,0.15), rgba(124,58,237,0.2), rgba(6,182,212,0.15))", backgroundSize:"220% 100%", animation:"emcOrbit 2.4s linear infinite" }} />
+            <div style={{ position:"absolute", top:0, left:"-18%", width:"28%", height:"100%", borderRadius:999, background:"rgba(191,219,254,0.45)", filter:"blur(0.5px)", animation:"emcOrbit 1.8s linear infinite" }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#60A5FA", boxShadow:"0 0 5px rgba(96,165,250,.45)" }} /><span style={{ fontSize:11 }}>AI печатает...</span></div>
         </div>}
         <div ref={bottomRef} />
       </div>
