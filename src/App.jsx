@@ -5390,6 +5390,13 @@ function buildOfflineAnswer(query, results) {
   return answer;
 }
 
+
+function detectResponseLanguage(text = "") {
+  const cyr = (text.match(/[Ѐ-ӿ]/g) || []).length;
+  const lat = (text.match(/[A-Za-z]/g) || []).length;
+  return cyr >= lat ? "ru" : "en";
+}
+
 const AI_QUICK_QUESTIONS = [
   { icon:"📈", title:"Пик превышает норму", desc:"Проверка превышений и резонансов", query:"Пик превышает норму" },
   { icon:"📶", title:"Шумы в кабеле", desc:"Поиск причин наводок в жгуте", query:"Шумы в кабеле" },
@@ -5445,10 +5452,23 @@ function AiAssistantScreen({ onClose }) {
     e.target.value = "";
   };
 
-  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken, emcRelated = true, mikhailMode = false) => {
-    const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.
+  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken, emcRelated = true, mikhailMode = false, responseLanguage = "ru") => {
+    const systemPrompt = responseLanguage === "en"
+      ? `You are an AI assistant for EMC (electromagnetic compatibility) engineers. Reply briefly, clearly, and fully in English only. Do not mix English with Russian in normal assistant phrases. Keep technical abbreviations unchanged when needed: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN, Ollama. Standard: GOST RV 20.57.306.
+
+If the question is not about EMC/engineering, answer naturally with light dry humor and calm irony (no cringe), in the tone of an experienced engineer. Keep it short and smart. When appropriate, gently steer back to EMC. Avoid bureaucratic and robotic wording.
+
+Never use generic filler phrases such as "Ready to help", "What's on your mind?", or "How can I assist you today?".
+
+Knowledge base context:
+${kbContext}
+
+${mikhailMode ? "If Mikhail is mentioned, respond noticeably warmer, with respect for his experience and calm engineering confidence; light friendly irony is fine." : ""}`
+      : `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко, по делу и полностью на русском языке. Не смешивай русский и английский в обычных фразах. Технические аббревиатуры можно оставлять без изменений: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN, Ollama. Стандарт: ГОСТ РВ 20.57.306.
 
 Если вопрос не связан с ЭМС/инженерией: ответь естественно, с лёгким сухим юмором и спокойной иронией (без кринжа), в тоне опытного инженера. Коротко и умно. При уместности мягко верни разговор к ЭМС. Избегай канцелярита и роботизированных формулировок.
+
+Никогда не используй шаблонные фразы вроде "Ready to help", "What's on your mind?", "How can I assist you today?".
 
 Контекст из базы знаний:
 ${kbContext}
@@ -5573,13 +5593,14 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
     const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
     const emcRelated = isEmcRelatedQuery(q, kbResults);
     const mikhailMode = mentionsMikhail(q);
+    const responseLanguage = detectResponseLanguage(q);
 
     if (aiMode === "ollama") {
       try {
         const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
         let i = 0;
         const timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
-        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial), emcRelated, mikhailMode);
+        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial), emcRelated, mikhailMode, responseLanguage);
         clearInterval(timer);
         setStreamingText("");
         appendMsg({ role:"assistant", text: result.text, source: result.source });
@@ -5603,21 +5624,33 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
         appendMsg({ role:"assistant", text:"📷 Анализ фотографий доступен только в режиме Ollama с моделью llava.\n\nУстановите Ollama и загрузите: ollama pull llava", source:"📚 База знаний EMC Pro" });
       } else {
         if (!emcRelated) {
-          const wittyBase = `Вопрос не по ЭМС, но звучит достойно.
+          const wittyBase = responseLanguage === "en"
+            ? `Not an EMC question, but still a solid one.
+
+Short version: first we live, then we calibrate. If noise, frequencies, or a stubborn amplifier show up, we switch back to engineering mode.`
+            : `Вопрос не по ЭМС, но звучит достойно.
 
 Если коротко: сначала живём, потом калибруемся. Если где-то рядом всплывут помехи, частоты или упрямый усилитель — продолжим уже по инженерной части.`;
           const witty = mikhailMode
-            ? `С Михаилом даже такие вопросы обычно решаются спокойно и точно — видно, что человек знает своё дело.
+            ? (responseLanguage === "en"
+              ? `With Mikhail, even questions like this are usually solved calmly and precisely — clearly a true professional.
 
 ${wittyBase}`
+              : `С Михаилом даже такие вопросы обычно решаются спокойно и точно — видно, что человек знает своё дело.
+
+${wittyBase}`)
             : wittyBase;
           appendMsg({ role:"assistant", text: witty, source:"📚 База знаний EMC Pro" });
         } else {
           const offlineAnswer = buildOfflineAnswer(q, kbResults);
           const withMikhailTone = mikhailMode
-            ? `С Михаилом за результат обычно переживать не приходится — с таким инженером работать одно удовольствие.
+            ? (responseLanguage === "en"
+              ? `With Mikhail, results are usually reliable — working with an engineer like that is always a pleasure.
 
 ${offlineAnswer}`
+              : `С Михаилом за результат обычно переживать не приходится — с таким инженером работать одно удовольствие.
+
+${offlineAnswer}`)
             : offlineAnswer;
           appendMsg({ role:"assistant", text: withMikhailTone, source:"📚 База знаний EMC Pro" });
         }
