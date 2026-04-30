@@ -208,14 +208,14 @@ const translations = {
 
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
-  app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
-  header: { background: C.dark, color: "#fff", padding: "16px 28px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", flexShrink: 0 },
+  app: { fontFamily: "'Inter', 'Roboto', 'Arial', sans-serif", background: "linear-gradient(180deg, #040814 0%, #030711 100%)", height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", color: C.text },
+  header: { background: "linear-gradient(180deg, rgba(8,14,28,0.92), rgba(8,14,28,0.76))", color: "#fff", padding: "18px 30px 15px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 10px 40px rgba(2,6,23,0.55), inset 0 -1px 0 rgba(148,163,184,0.14)", borderBottom: "1px solid rgba(59,130,246,0.12)", flexShrink: 0, backdropFilter: "blur(12px)" },
   headerTitle: { fontSize: 18, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
-  nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", flexShrink: 0 },
-  navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "18px 22px 24px", background: "radial-gradient(circle at 80% -10%, rgba(124,58,237,0.18), transparent 35%), radial-gradient(circle at -10% 10%, rgba(37,99,235,0.2), transparent 45%), #050814" },
-  card: { background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.05)", padding: "16px", marginBottom: 12, boxShadow: "0 0 40px rgba(80,120,255,0.15)" },
+  nav: { display: "flex", background: "rgba(7,12,24,0.88)", borderTop: "1px solid rgba(71,85,105,0.3)", borderBottom: "1px solid rgba(37,99,235,0.15)", flexShrink: 0, backdropFilter: "blur(10px)" },
+  navBtn: (active) => ({ flex: 1, padding: "11px 4px 9px", background: active ? "linear-gradient(180deg, rgba(37,99,235,0.2), rgba(124,58,237,0.08))" : "none", border: "none", color: active ? "#DCEAFE" : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: 0.55 }),
+  content: { flex: 1, overflowY: "auto", padding: "20px 24px 26px", background: "radial-gradient(circle at 80% -10%, rgba(56,189,248,0.12), transparent 35%), radial-gradient(circle at -10% 10%, rgba(124,58,237,0.16), transparent 45%), #050814" },
+  card: { background: "linear-gradient(160deg, rgba(15,23,42,0.72), rgba(8,15,30,0.72))", backdropFilter: "blur(18px)", borderRadius: 20, border: "1px solid rgba(148,163,184,0.12)", padding: "18px", marginBottom: 12, boxShadow: "0 14px 42px rgba(2,6,23,0.5), inset 0 1px 0 rgba(255,255,255,0.04)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
   input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
@@ -1404,16 +1404,16 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
   const aiScenarios = ["Пик превышает норму", "Шумы в кабеле", "Проблема с инжекцией", "Усилитель уходит в защиту"];
 
   return (
-    <div style={{ width: "100%", minHeight: "100%", background: "radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814" }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 22px 46px" }}>
+    <div style={{ width: "100%", minHeight: "100%", background: "radial-gradient(circle at 74% 10%, rgba(14,165,233,0.14), transparent 36%), radial-gradient(circle at 12% 85%, rgba(124,58,237,0.16), transparent 42%), #040814" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "30px 24px 52px" }}>
         <div style={{
           position: "relative",
-          borderRadius: 30,
-          background: "linear-gradient(132deg, rgba(16,24,39,0.94) 0%, rgba(11,18,32,0.9) 52%, rgba(19,31,57,0.95) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 0 66px rgba(80,120,255,0.26), inset 0 1px 0 rgba(255,255,255,0.08)",
-          padding: "52px 48px",
-          marginBottom: 18,
+          borderRadius: 32,
+          background: "linear-gradient(136deg, rgba(11,20,38,0.92) 0%, rgba(10,16,30,0.86) 54%, rgba(18,30,56,0.9) 100%)",
+          border: "1px solid rgba(148,163,184,0.2)",
+          boxShadow: "0 26px 70px rgba(2,6,23,0.6), inset 0 1px 0 rgba(191,219,254,0.15)",
+          padding: "56px 52px",
+          marginBottom: 20,
           overflow: "hidden",
           display: "grid",
           gridTemplateColumns: "1.1fr 0.9fr",
@@ -1422,14 +1422,14 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
           <div style={{ position: "absolute", inset: -80, background: "radial-gradient(circle at 78% 28%, rgba(124,58,237,0.3), transparent 42%), radial-gradient(circle at 30% 95%, rgba(37,99,235,0.28), transparent 45%)", pointerEvents: "none" }} />
           <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{ fontSize: 11, letterSpacing: 1.8, textTransform: "uppercase", color: "#94A3B8", marginBottom: 16 }}>EMC Toolkit · Cyber Engineering UI</div>
-            <h1 style={{ margin: "0 0 14px", fontSize: 66, lineHeight: 0.98, letterSpacing: -1.8, fontWeight: 800, background: "linear-gradient(90deg, #5B8CFF, #8A5BFF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Упрощай. Проверяй. Решай.</h1>
+            <h1 style={{ margin: "0 0 14px", fontSize: 66, lineHeight: 0.98, letterSpacing: -1.8, fontWeight: 800, background: "linear-gradient(92deg, #8BD7FF, #6FA7FF 45%, #A78BFA)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Упрощай. Проверяй. Решай.</h1>
             <div style={{ marginBottom: 12, color: "#C4D7FF", fontSize: 22, fontWeight: 600 }}>Все инструменты ЭМС — в одном месте</div>
             <p style={{ margin: "0 0 24px", color: "#94A3B8", maxWidth: 560, lineHeight: 1.65, fontSize: 15 }}>
               Расчёты, испытания, журнал, типовые ошибки и AI-помощник для быстрой работы инженера.
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(37,99,235,0.55)", background: "linear-gradient(130deg, #2563EB, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer", boxShadow: "0 0 28px rgba(37,99,235,0.32)" }}>Открыть расчёты</button>
-              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.24)", background: "rgba(15,23,42,0.5)", color: "#C7D2FE", fontWeight: 600, cursor: "pointer", boxShadow: "0 0 22px rgba(124,58,237,0.22)" }}>Перейти к AI-помощнику</button>
+              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(56,189,248,0.5)", background: "linear-gradient(130deg, #1D4ED8, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer", boxShadow: "0 0 28px rgba(37,99,235,0.36)" }}>Открыть расчёты</button>
+              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.3)", background: "rgba(15,23,42,0.62)", color: "#D7E8FF", fontWeight: 600, cursor: "pointer", boxShadow: "0 0 18px rgba(124,58,237,0.18)" }}>Перейти к AI-помощнику</button>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
