@@ -190,6 +190,16 @@ const translations = {
     english: "English",
     licenseActive: "Лицензия активна",
     language: "Язык",
+    settings: "Настройки",
+    help: "Справка",
+    home: "Главная",
+    calculators: "Калькуляторы",
+    tests: "Испытания",
+    references: "Справочники",
+    equipment: "Оборудование",
+    verify: "Поверка оборудования",
+    ai: "ИИ-помощник",
+    log: "Журнал",
   },
   en: {
     activateTitle: "Activate EMC Toolkit",
@@ -203,6 +213,16 @@ const translations = {
     english: "English",
     licenseActive: "License active",
     language: "Language",
+    settings: "Settings",
+    help: "Help",
+    home: "Home",
+    calculators: "Calculators",
+    tests: "Tests",
+    references: "References",
+    equipment: "Equipment",
+    verify: "Equipment Verification",
+    ai: "AI Assistant",
+    log: "Logbook",
   }
 };
 
@@ -5648,7 +5668,7 @@ ${offlineAnswer}`
               <span style={{ width:9, height:9, borderRadius:"50%", background:C.pass, boxShadow:"0 0 14px rgba(16,185,129,0.7)" }} />
               <span style={{ color:"#A7F3D0", fontWeight:700, fontSize:12 }}>Готов помочь</span>
             </div>
-            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ Настройки</button>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ {tr.settings}</button>
           </div>
           <div style={{ display:"flex", justifyContent:"center" }}><EMCAvatar size={170} /></div>
         </div>
@@ -5795,7 +5815,7 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, licenseKey }) {
       </button>
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", textAlign: "center", padding: "24px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 36, marginBottom: 8 }}>⚙️</div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Настройки</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{t("settings")}</div>
         <div style={{ fontSize: 12, color: "#8A9BB8", marginTop: 4 }}>EMC Engineer Toolkit v2.0</div>
       </div>
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>{t("language")} / License</div>
@@ -6503,6 +6523,7 @@ function AppInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [licenseKey, setLicenseKey] = useState(() => { try { return localStorage.getItem(LICENSE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
   const [language, setLanguage] = useState(() => { try { return localStorage.getItem(LANGUAGE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
+  const tr = translations[language] || translations.ru;
 
   // Android системная кнопка «Назад»
   useEffect(() => {
@@ -6541,14 +6562,14 @@ function AppInner() {
 
 
   const sideNavItems = [
-    { id: "home",   label: "Главная",      svgPath: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10" },
-    { id: "calc",   label: "Калькуляторы", svgPath: "M4 6h16M4 10h16M4 14h16M4 18h16" },
-    { id: "tests",  label: "Испытания",    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
-    { id: "ref",    label: "Справочники",  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
-    { id: "equip",  label: "Оборудование", svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
-    { id: "verify", label: "Поверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
-    { id: "ai",     label: "ИИ-помощник",  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
-    { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+    { id: "home",   label: tr.home,      svgPath: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10" },
+    { id: "calc",   label: tr.calculators, svgPath: "M4 6h16M4 10h16M4 14h16M4 18h16" },
+    { id: "tests",  label: tr.tests,    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+    { id: "ref",    label: tr.references,  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+    { id: "equip",  label: tr.equipment, svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
+    { id: "verify", label: tr.verify, svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
+    { id: "ai",     label: tr.ai,  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
+    { id: "log",    label: tr.log,       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
   ];
 
   return (
@@ -6631,11 +6652,11 @@ function AppInner() {
         }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
             {settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
-              sideNavItems.find(n => n.id === tab)?.label || "Главная"}
+              sideNavItems.find(n => n.id === tab)?.label || tr.home}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 12px", borderRadius: 10, fontFamily: "inherit" }}>🔍 Справка</button>
-            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 14px", borderRadius: 10, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>⚙️ Настройки</button>
+            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 12px", borderRadius: 10, fontFamily: "inherit" }}>🔍 {tr.help}</button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 14px", borderRadius: 10, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>⚙️ {tr.settings}</button>
           </div>
         </div>
 
