@@ -167,6 +167,45 @@ function getCableLoss(type, freqMHz, lengthM) {
   return { total: lossPerMeter * lengthM, perMeter: lossPerMeter };
 }
 
+
+const LICENSE_STORAGE_KEY = "emc_toolkit_license";
+const LANGUAGE_STORAGE_KEY = "emc_toolkit_language";
+const VALID_LICENSE_KEYS = ["EMC-PRO-2026", "EMC-LAB-001", "GOSHA-TEST-001", "MIKHAIL-ENGINEER-001"];
+
+function isValidLicenseKey(key) {
+  const normalized = String(key || "").trim().toUpperCase();
+  return VALID_LICENSE_KEYS.includes(normalized);
+}
+
+const translations = {
+  ru: {
+    activateTitle: "Активация EMC Toolkit",
+    activateSub: "Введите лицензионный ключ для запуска полной версии",
+    activateBtn: "Активировать",
+    activateErr: "Неверный лицензионный ключ",
+    activateNote: "Лицензия персональная. Передача третьим лицам запрещена.",
+    languageTitle: "Выбор языка",
+    languageSub: "Выберите язык интерфейса",
+    russian: "Русский",
+    english: "English",
+    licenseActive: "Лицензия активна",
+    language: "Язык",
+  },
+  en: {
+    activateTitle: "Activate EMC Toolkit",
+    activateSub: "Enter license key to unlock full version",
+    activateBtn: "Activate",
+    activateErr: "Invalid license key",
+    activateNote: "License is personal. Sharing with third parties is prohibited.",
+    languageTitle: "Language selection",
+    languageSub: "Choose interface language",
+    russian: "Russian",
+    english: "English",
+    licenseActive: "License active",
+    language: "Language",
+  }
+};
+
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
   app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
@@ -5746,7 +5785,9 @@ class ErrorBoundary extends React.Component {
 }
 
 // ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onClose }) {
+function SettingsScreen({ onClose, language = "ru", setLanguage, licenseKey }) {
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  const maskedLicense = licenseKey ? `${licenseKey.slice(0,4)}-****-${licenseKey.slice(-4)}` : "—";
   return (
     <div style={{ padding: "0 0 20px" }}>
       <button onClick={onClose} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
@@ -5757,6 +5798,18 @@ function SettingsScreen({ onClose }) {
         <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Настройки</div>
         <div style={{ fontSize: 12, color: "#8A9BB8", marginTop: 4 }}>EMC Engineer Toolkit v2.0</div>
       </div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>{t("language")} / License</div>
+      <div style={styles.card}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ fontSize:13, color:C.textSec }}>{t("licenseActive")}</div>
+          <div style={{ fontSize:13, color:C.text, fontWeight:700 }}>{maskedLicense}</div>
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setLanguage?.("ru")} style={{ ...styles.btn(), flex:1, background: language === "ru" ? C.accentLight : "#EDF0F5" }}>Русский</button>
+          <button onClick={() => setLanguage?.("en")} style={{ ...styles.btn(), flex:1, background: language === "en" ? C.accentLight : "#EDF0F5" }}>English</button>
+        </div>
+      </div>
+
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>О ПРИЛОЖЕНИИ</div>
       <div style={styles.card}>
         {[
@@ -6392,6 +6445,49 @@ function SplashScreen({ onDone }) {
 }
 
 
+
+function LicenseActivationScreen({ onActivate, language = "ru" }) {
+  const [key, setKey] = useState("");
+  const [error, setError] = useState(false);
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+
+  const submit = () => {
+    const normalized = key.trim().toUpperCase();
+    if (!isValidLicenseKey(normalized)) { setError(true); return; }
+    try { localStorage.setItem(LICENSE_STORAGE_KEY, normalized); } catch(e) {}
+    onActivate(normalized);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
+      <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26, boxShadow:"0 0 60px rgba(80,120,255,0.2)" }}>
+        <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:10 }}>{t("activateTitle")}</div>
+        <div style={{ color:C.textSec, marginBottom:16 }}>{t("activateSub")}</div>
+        <input value={key} onChange={(e)=>{ setKey(e.target.value); setError(false); }} placeholder="XXXX-XXXX-XXXX" style={{ ...styles.input, marginBottom:10 }} />
+        {error && <div style={{ color:C.fail, fontSize:12, marginBottom:8 }}>{t("activateErr")}</div>}
+        <button onClick={submit} style={{ ...styles.btn("primary"), width:"100%", marginBottom:10 }}>{t("activateBtn")}</button>
+        <div style={{ fontSize:11, color:C.textSec }}>{t("activateNote")}</div>
+      </div>
+    </div>
+  );
+}
+
+function LanguageSelectScreen({ onSelect, language = "ru" }) {
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  return (
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
+      <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26 }}>
+        <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:10 }}>{t("languageTitle")}</div>
+        <div style={{ color:C.textSec, marginBottom:16 }}>{t("languageSub")}</div>
+        <div style={{ display:"grid", gap:10 }}>
+          <button onClick={()=>onSelect("ru")} style={{ ...styles.btn(), width:"100%" }}>{t("russian")}</button>
+          <button onClick={()=>onSelect("en")} style={{ ...styles.btn(), width:"100%" }}>{t("english")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const [splash, setSplash] = useState(true);
   const [eula, setEula] = useState(() => {
@@ -6405,6 +6501,8 @@ function AppInner() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [licenseKey, setLicenseKey] = useState(() => { try { return localStorage.getItem(LICENSE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
+  const [language, setLanguage] = useState(() => { try { return localStorage.getItem(LANGUAGE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
 
   // Android системная кнопка «Назад»
   useEffect(() => {
@@ -6423,6 +6521,8 @@ function AppInner() {
 
 
 
+  useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
+
   if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
   if (eula) return (
     <EulaScreen
@@ -6431,6 +6531,10 @@ function AppInner() {
     />
   );
 
+
+
+  if (!licenseKey) return <LicenseActivationScreen onActivate={setLicenseKey} language={language || "ru"} />;
+  if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
   const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
 
@@ -6540,7 +6644,7 @@ function AppInner() {
           <div style={{ height: "100%" }}>
       <div style={styles.content}>
         {settingsOpen
-          ? <SettingsScreen onClose={() => setSettingsOpen(false)} />
+          ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} licenseKey={licenseKey} />
           : searchOpen
           ? <GlobalSearch onClose={() => setSearchOpen(false)} setTab={handleTab} setCalcId={handleSetCalcId} onErrors={() => { setErrorsOpen(true); setSearchOpen(false); }} onVerify={() => { setVerifyOpen(true); setSearchOpen(false); }} onQuiz={() => { setQuizOpen(true); setSearchOpen(false); }} />
           : verifyOpen
