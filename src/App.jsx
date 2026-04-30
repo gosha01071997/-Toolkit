@@ -177,6 +177,10 @@ function isValidLicenseKey(key) {
   return VALID_LICENSE_KEYS.includes(normalized);
 }
 
+function safeTranslate(language, key) {
+  return translations[language]?.[key] || translations.ru?.[key] || key;
+}
+
 const translations = {
   ru: {
     activateTitle: "Активация EMC Toolkit",
@@ -5806,7 +5810,7 @@ class ErrorBoundary extends React.Component {
 
 // ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
 function SettingsScreen({ onClose, language = "ru", setLanguage, licenseKey }) {
-  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  const t = (k) => safeTranslate(language, k);
   const maskedLicense = licenseKey ? `${licenseKey.slice(0,4)}-****-${licenseKey.slice(-4)}` : "—";
   return (
     <div style={{ padding: "0 0 20px" }}>
@@ -6469,7 +6473,7 @@ function SplashScreen({ onDone }) {
 function LicenseActivationScreen({ onActivate, language = "ru" }) {
   const [key, setKey] = useState("");
   const [error, setError] = useState(false);
-  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  const t = (k) => safeTranslate(language, k);
 
   const submit = () => {
     const normalized = key.trim().toUpperCase();
@@ -6493,7 +6497,7 @@ function LicenseActivationScreen({ onActivate, language = "ru" }) {
 }
 
 function LanguageSelectScreen({ onSelect, language = "ru" }) {
-  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  const t = (k) => safeTranslate(language, k);
   return (
     <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
       <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26 }}>
