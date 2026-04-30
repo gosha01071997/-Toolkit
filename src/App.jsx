@@ -177,10 +177,6 @@ function isValidLicenseKey(key) {
   return VALID_LICENSE_KEYS.includes(normalized);
 }
 
-function safeTranslate(language, key) {
-  return translations[language]?.[key] || translations.ru?.[key] || key;
-}
-
 const translations = {
   ru: {
     activateTitle: "Активация EMC Toolkit",
@@ -194,16 +190,6 @@ const translations = {
     english: "English",
     licenseActive: "Лицензия активна",
     language: "Язык",
-    settings: "Настройки",
-    help: "Справка",
-    home: "Главная",
-    calculators: "Калькуляторы",
-    tests: "Испытания",
-    references: "Справочники",
-    equipment: "Оборудование",
-    verify: "Поверка оборудования",
-    ai: "ИИ-помощник",
-    log: "Журнал",
   },
   en: {
     activateTitle: "Activate EMC Toolkit",
@@ -217,29 +203,19 @@ const translations = {
     english: "English",
     licenseActive: "License active",
     language: "Language",
-    settings: "Settings",
-    help: "Help",
-    home: "Home",
-    calculators: "Calculators",
-    tests: "Tests",
-    references: "References",
-    equipment: "Equipment",
-    verify: "Equipment Verification",
-    ai: "AI Assistant",
-    log: "Logbook",
   }
 };
 
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
-  app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
-  header: { background: C.dark, color: "#fff", padding: "16px 28px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", flexShrink: 0 },
+  app: { fontFamily: "'Inter', 'Roboto', 'Arial', sans-serif", background: "linear-gradient(180deg, #040814 0%, #030711 100%)", height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", color: C.text },
+  header: { background: "linear-gradient(180deg, rgba(8,14,28,0.92), rgba(8,14,28,0.76))", color: "#fff", padding: "18px 30px 15px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 10px 40px rgba(2,6,23,0.55), inset 0 -1px 0 rgba(148,163,184,0.14)", borderBottom: "1px solid rgba(59,130,246,0.12)", flexShrink: 0, backdropFilter: "blur(12px)" },
   headerTitle: { fontSize: 18, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
-  nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", flexShrink: 0 },
-  navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "18px 22px 24px", background: "radial-gradient(circle at 80% -10%, rgba(124,58,237,0.18), transparent 35%), radial-gradient(circle at -10% 10%, rgba(37,99,235,0.2), transparent 45%), #050814" },
-  card: { background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.05)", padding: "16px", marginBottom: 12, boxShadow: "0 0 40px rgba(80,120,255,0.15)" },
+  nav: { display: "flex", background: "rgba(7,12,24,0.88)", borderTop: "1px solid rgba(71,85,105,0.3)", borderBottom: "1px solid rgba(37,99,235,0.15)", flexShrink: 0, backdropFilter: "blur(10px)" },
+  navBtn: (active) => ({ flex: 1, padding: "11px 4px 9px", background: active ? "linear-gradient(180deg, rgba(37,99,235,0.2), rgba(124,58,237,0.08))" : "none", border: "none", color: active ? "#DCEAFE" : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: 0.55 }),
+  content: { flex: 1, overflowY: "auto", padding: "20px 24px 26px", background: "radial-gradient(circle at 80% -10%, rgba(56,189,248,0.12), transparent 35%), radial-gradient(circle at -10% 10%, rgba(124,58,237,0.16), transparent 45%), #050814" },
+  card: { background: "linear-gradient(160deg, rgba(15,23,42,0.72), rgba(8,15,30,0.72))", backdropFilter: "blur(18px)", borderRadius: 20, border: "1px solid rgba(148,163,184,0.12)", padding: "18px", marginBottom: 12, boxShadow: "0 14px 42px rgba(2,6,23,0.5), inset 0 1px 0 rgba(255,255,255,0.04)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
   input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
@@ -1428,16 +1404,16 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
   const aiScenarios = ["Пик превышает норму", "Шумы в кабеле", "Проблема с инжекцией", "Усилитель уходит в защиту"];
 
   return (
-    <div style={{ width: "100%", minHeight: "100%", background: "radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814" }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 22px 46px" }}>
+    <div style={{ width: "100%", minHeight: "100%", background: "radial-gradient(circle at 74% 10%, rgba(14,165,233,0.14), transparent 36%), radial-gradient(circle at 12% 85%, rgba(124,58,237,0.16), transparent 42%), #040814" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "30px 24px 52px" }}>
         <div style={{
           position: "relative",
-          borderRadius: 30,
-          background: "linear-gradient(132deg, rgba(16,24,39,0.94) 0%, rgba(11,18,32,0.9) 52%, rgba(19,31,57,0.95) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 0 66px rgba(80,120,255,0.26), inset 0 1px 0 rgba(255,255,255,0.08)",
-          padding: "52px 48px",
-          marginBottom: 18,
+          borderRadius: 32,
+          background: "linear-gradient(136deg, rgba(11,20,38,0.92) 0%, rgba(10,16,30,0.86) 54%, rgba(18,30,56,0.9) 100%)",
+          border: "1px solid rgba(148,163,184,0.2)",
+          boxShadow: "0 26px 70px rgba(2,6,23,0.6), inset 0 1px 0 rgba(191,219,254,0.15)",
+          padding: "56px 52px",
+          marginBottom: 20,
           overflow: "hidden",
           display: "grid",
           gridTemplateColumns: "1.1fr 0.9fr",
@@ -1446,14 +1422,14 @@ function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
           <div style={{ position: "absolute", inset: -80, background: "radial-gradient(circle at 78% 28%, rgba(124,58,237,0.3), transparent 42%), radial-gradient(circle at 30% 95%, rgba(37,99,235,0.28), transparent 45%)", pointerEvents: "none" }} />
           <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{ fontSize: 11, letterSpacing: 1.8, textTransform: "uppercase", color: "#94A3B8", marginBottom: 16 }}>EMC Toolkit · Cyber Engineering UI</div>
-            <h1 style={{ margin: "0 0 14px", fontSize: 66, lineHeight: 0.98, letterSpacing: -1.8, fontWeight: 800, background: "linear-gradient(90deg, #5B8CFF, #8A5BFF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Упрощай. Проверяй. Решай.</h1>
+            <h1 style={{ margin: "0 0 14px", fontSize: 66, lineHeight: 0.98, letterSpacing: -1.8, fontWeight: 800, background: "linear-gradient(92deg, #8BD7FF, #6FA7FF 45%, #A78BFA)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Упрощай. Проверяй. Решай.</h1>
             <div style={{ marginBottom: 12, color: "#C4D7FF", fontSize: 22, fontWeight: 600 }}>Все инструменты ЭМС — в одном месте</div>
             <p style={{ margin: "0 0 24px", color: "#94A3B8", maxWidth: 560, lineHeight: 1.65, fontSize: 15 }}>
               Расчёты, испытания, журнал, типовые ошибки и AI-помощник для быстрой работы инженера.
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(37,99,235,0.55)", background: "linear-gradient(130deg, #2563EB, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer", boxShadow: "0 0 28px rgba(37,99,235,0.32)" }}>Открыть расчёты</button>
-              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.24)", background: "rgba(15,23,42,0.5)", color: "#C7D2FE", fontWeight: 600, cursor: "pointer", boxShadow: "0 0 22px rgba(124,58,237,0.22)" }}>Перейти к AI-помощнику</button>
+              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(56,189,248,0.5)", background: "linear-gradient(130deg, #1D4ED8, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer", boxShadow: "0 0 28px rgba(37,99,235,0.36)" }}>Открыть расчёты</button>
+              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.3)", background: "rgba(15,23,42,0.62)", color: "#D7E8FF", fontWeight: 600, cursor: "pointer", boxShadow: "0 0 18px rgba(124,58,237,0.18)" }}>Перейти к AI-помощнику</button>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -5672,7 +5648,7 @@ ${offlineAnswer}`
               <span style={{ width:9, height:9, borderRadius:"50%", background:C.pass, boxShadow:"0 0 14px rgba(16,185,129,0.7)" }} />
               <span style={{ color:"#A7F3D0", fontWeight:700, fontSize:12 }}>Готов помочь</span>
             </div>
-            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ {tr.settings}</button>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ Настройки</button>
           </div>
           <div style={{ display:"flex", justifyContent:"center" }}><EMCAvatar size={170} /></div>
         </div>
@@ -5810,7 +5786,7 @@ class ErrorBoundary extends React.Component {
 
 // ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
 function SettingsScreen({ onClose, language = "ru", setLanguage, licenseKey }) {
-  const t = (k) => safeTranslate(language, k);
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
   const maskedLicense = licenseKey ? `${licenseKey.slice(0,4)}-****-${licenseKey.slice(-4)}` : "—";
   return (
     <div style={{ padding: "0 0 20px" }}>
@@ -5819,7 +5795,7 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, licenseKey }) {
       </button>
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", textAlign: "center", padding: "24px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 36, marginBottom: 8 }}>⚙️</div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{t("settings")}</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Настройки</div>
         <div style={{ fontSize: 12, color: "#8A9BB8", marginTop: 4 }}>EMC Engineer Toolkit v2.0</div>
       </div>
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>{t("language")} / License</div>
@@ -6473,7 +6449,7 @@ function SplashScreen({ onDone }) {
 function LicenseActivationScreen({ onActivate, language = "ru" }) {
   const [key, setKey] = useState("");
   const [error, setError] = useState(false);
-  const t = (k) => safeTranslate(language, k);
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
 
   const submit = () => {
     const normalized = key.trim().toUpperCase();
@@ -6497,7 +6473,7 @@ function LicenseActivationScreen({ onActivate, language = "ru" }) {
 }
 
 function LanguageSelectScreen({ onSelect, language = "ru" }) {
-  const t = (k) => safeTranslate(language, k);
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
   return (
     <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
       <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26 }}>
@@ -6527,7 +6503,6 @@ function AppInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [licenseKey, setLicenseKey] = useState(() => { try { return localStorage.getItem(LICENSE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
   const [language, setLanguage] = useState(() => { try { return localStorage.getItem(LANGUAGE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
-  const tr = translations[language] || translations.ru;
 
   // Android системная кнопка «Назад»
   useEffect(() => {
@@ -6566,14 +6541,14 @@ function AppInner() {
 
 
   const sideNavItems = [
-    { id: "home",   label: tr.home,      svgPath: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10" },
-    { id: "calc",   label: tr.calculators, svgPath: "M4 6h16M4 10h16M4 14h16M4 18h16" },
-    { id: "tests",  label: tr.tests,    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
-    { id: "ref",    label: tr.references,  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
-    { id: "equip",  label: tr.equipment, svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
-    { id: "verify", label: tr.verify, svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
-    { id: "ai",     label: tr.ai,  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
-    { id: "log",    label: tr.log,       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+    { id: "home",   label: "Главная",      svgPath: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10" },
+    { id: "calc",   label: "Калькуляторы", svgPath: "M4 6h16M4 10h16M4 14h16M4 18h16" },
+    { id: "tests",  label: "Испытания",    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+    { id: "ref",    label: "Справочники",  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+    { id: "equip",  label: "Оборудование", svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
+    { id: "verify", label: "Поверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
+    { id: "ai",     label: "ИИ-помощник",  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
+    { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
   ];
 
   return (
@@ -6656,11 +6631,11 @@ function AppInner() {
         }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
             {settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
-              sideNavItems.find(n => n.id === tab)?.label || tr.home}
+              sideNavItems.find(n => n.id === tab)?.label || "Главная"}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 12px", borderRadius: 10, fontFamily: "inherit" }}>🔍 {tr.help}</button>
-            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 14px", borderRadius: 10, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>⚙️ {tr.settings}</button>
+            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 12px", borderRadius: 10, fontFamily: "inherit" }}>🔍 Справка</button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 14px", borderRadius: 10, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>⚙️ Настройки</button>
           </div>
         </div>
 
