@@ -3929,6 +3929,10 @@ function SchemaEditor({ testId, setupItems }) {
   };
 
   const NODE_W = 120, NODE_H = 44;
+  const SCHEMA_TEXT = '#1B2A41';
+  const SCHEMA_SUBTEXT = '#31445F';
+  const SCHEMA_BUTTON_BG = '#FFFFFF';
+  const SCHEMA_CANVAS_HEIGHT = 520;
 
   return (
     <div style={{ display: 'flex', gap: 0, height: '100%', flexDirection: 'column' }}>
@@ -3939,18 +3943,18 @@ function SchemaEditor({ testId, setupItems }) {
           {equipList.slice(0, 8).map((eq, i) => (
             <button key={i} onClick={() => addNode(eq)} style={{
               padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.border}`,
-              background: '#fff', color: C.text, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit'
+              background: SCHEMA_BUTTON_BG, color: SCHEMA_TEXT, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
             }}>{eq.length > 20 ? eq.slice(0, 18) + '…' : eq}</button>
           ))}
           <button onClick={() => setShowAddCustom(!showAddCustom)} style={{
             padding: '5px 12px', borderRadius: 8, border: `1px dashed ${C.accent}`,
-            background: C.accentLight, color: C.accent, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit'
+            background: C.accentLight, color: '#1747B7', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit'
           }}>+ Свой блок</button>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-          {connecting && <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>🔗 Кликни на второй блок</span>}
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center', minHeight: 24 }}>
+          <span style={{ fontSize: 12, color: C.accent, fontWeight: 600, visibility: connecting ? 'visible' : 'hidden', minWidth: 180 }}>🔗 Кликни на второй блок</span>
           <button onClick={clearAll} style={{ padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.fail}`, background: 'transparent', color: C.fail, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>🗑 Очистить</button>
-          {saved2 && <span style={{ fontSize: 12, color: C.pass, fontWeight: 600 }}>✓ Сохранено</span>}
+          <span style={{ fontSize: 12, color: C.pass, fontWeight: 600, visibility: saved2 ? 'visible' : 'hidden', minWidth: 86 }}>✓ Сохранено</span>
         </div>
       </div>
 
@@ -3966,7 +3970,7 @@ function SchemaEditor({ testId, setupItems }) {
       )}
 
       {/* Подсказки */}
-      <div style={{ fontSize: 11, color: C.textSec, marginBottom: 8, display: 'flex', gap: 16 }}>
+      <div style={{ fontSize: 11, color: SCHEMA_SUBTEXT, marginBottom: 8, display: 'flex', gap: 16, minHeight: 18 }}>
         <span>🖱 Перетаскивай блоки</span>
         <span>🔗 Кнопка "Соединить" → клик на блоки</span>
         <span>✏️ Двойной клик на блок/стрелку = редактировать</span>
@@ -3974,9 +3978,9 @@ function SchemaEditor({ testId, setupItems }) {
       </div>
 
       {/* SVG холст */}
-      <div style={{ flex: 1, minHeight: 400, background: '#F8FAFC', borderRadius: 12, border: `1px solid ${C.border}`, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ height: SCHEMA_CANVAS_HEIGHT, minHeight: SCHEMA_CANVAS_HEIGHT, background: '#F8FAFC', borderRadius: 12, border: `1px solid ${C.border}`, position: 'relative', overflow: 'hidden' }}>
         {nodes.length === 0 && (
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', color: C.textSec }}>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', color: SCHEMA_SUBTEXT }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>📐</div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Добавьте блоки оборудования выше</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>Затем соедините их стрелками</div>
@@ -3985,7 +3989,7 @@ function SchemaEditor({ testId, setupItems }) {
         <svg
           ref={svgRef}
           width="100%" height="100%"
-          style={{ cursor: dragging ? 'grabbing' : connecting ? 'crosshair' : 'default', minHeight: 400 }}
+          style={{ cursor: dragging ? 'grabbing' : connecting ? 'crosshair' : 'default', minHeight: SCHEMA_CANVAS_HEIGHT }}
           onMouseMove={onSvgMouseMove}
           onMouseUp={onSvgMouseUp}
           onMouseLeave={onSvgMouseUp}
@@ -4051,7 +4055,7 @@ function SchemaEditor({ testId, setupItems }) {
                 strokeWidth={connecting?.fromId === node.id ? 2.5 : 1.5}
                 style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.10))' }}
               />
-              <text x={node.x} y={node.y + 5} textAnchor="middle" fontSize="12" fill={C.text} fontWeight="600"
+              <text x={node.x} y={node.y + 5} textAnchor="middle" fontSize="12" fill={SCHEMA_TEXT} fontWeight="700"
                 style={{ pointerEvents: 'none', userSelect: 'none' }}>
                 {node.label.length > 16 ? node.label.slice(0, 14) + '…' : node.label}
               </text>
