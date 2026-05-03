@@ -4597,6 +4597,47 @@ function DependenciesTab() {
 }
 
 // ─── EQUIPMENT DATA ───────────────────────────────────────────────────────────
+
+const normalizeSpecs = (specs, fallback = "") => {
+  if (Array.isArray(specs)) {
+    return specs
+      .map((s) => ({
+        key: typeof s?.key === "string" ? s.key : String(s?.key ?? ""),
+        value: typeof s?.value === "string" ? s.value : String(s?.value ?? ""),
+      }))
+      .map((s) => ({ key: s.key.trim(), value: s.value.trim() }))
+      .filter((s) => s.key || s.value);
+  }
+  if (typeof specs === "string") return specs;
+  return fallback;
+};
+
+const normalizeEquipmentItem = (item, editPatch = {}) => {
+  const merged = { ...item, ...editPatch };
+  const specs = normalizeSpecs(merged.specs, "Добавьте технические характеристики");
+  return {
+    ...merged,
+    name: typeof merged.name === "string" ? merged.name : String(merged.name || ""),
+    type: typeof merged.type === "string" ? merged.type : String(merged.type || ""),
+    arm: typeof merged.arm === "string" ? merged.arm : String(merged.arm || ""),
+    desc: typeof merged.desc === "string" ? merged.desc : "",
+    photo: typeof merged.photo === "string" ? merged.photo : "",
+    specs,
+    deleted: Boolean(merged.deleted),
+  };
+};
+
+const formatSpecsShort = (specs) => {
+  if (Array.isArray(specs)) {
+    if (!specs.length) return "Добавьте технические характеристики";
+    return specs
+      .map((s) => [s.key, s.value].filter(Boolean).join(": "))
+      .filter(Boolean)
+      .join(" • ");
+  }
+  return typeof specs === "string" && specs.trim() ? specs : "Добавьте технические характеристики";
+};
+
 const EQUIPMENT_DATA = [
   { id:"e1", photo:"", arm:"Станция A", name:"Оборудование 1", type:"Измерительное оборудование", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📻" },
   { id:"e2", photo:"", arm:"Станция A", name:"Оборудование 2", type:"Анализатор", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📊" },
@@ -4605,7 +4646,7 @@ const EQUIPMENT_DATA = [
   { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
 ];
 
-function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
+function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
   const [showSpecsForm, setShowSpecsForm] = useState(false);
   const [specRows, setSpecRows] = useState(
     Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]
@@ -4614,9 +4655,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
   const [editDesc, setEditDesc] = useState(e.desc || "");
 
   const saveSpecs = () => {
-    const normalized = specRows
-      .map((s) => ({ key: String(s.key || "").trim(), value: String(s.value || "").trim() }))
-      .filter((s) => s.key || s.value);
+    const normalized = normalizeSpecs(specRows, "");
     onSaveChanges(e.id, { specs: normalized, type: editType, desc: editDesc });
     setShowSpecsForm(false);
   };
@@ -4658,7 +4697,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
             </div>
           ))
         ) : (
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>📐 {e.specs}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>📐 {formatSpecsShort(e.specs)}</div>
         )}
         <button onClick={() => setShowSpecsForm((v) => !v)} style={{ ...styles.btn(), marginTop: 8 }}>Добавить характеристики</button>
         {showSpecsForm && (
@@ -4679,12 +4718,6 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
         )}
       </div>
 
-      {/* Описание */}
-      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ОПИСАНИЕ</div>
-      <div style={{ ...styles.card, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{e.desc}</div>
-      </div>
-
       {/* Фото под описанием */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ФОТО</div>
@@ -4703,6 +4736,8 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
           <input type="file" accept="image/*" onChange={onPhotoChange} style={{ display: "none" }} />
         </label>
       </div>
+
+      <button onClick={() => onDelete(e.id)} style={{ ...styles.btn("fail"), width: "100%" }}>Удалить оборудование</button>
     </div>
   );
 }
@@ -4721,7 +4756,9 @@ const [equipmentEdits, setEquipmentEdits] = useState(() => {
 });
   const arms = ["Все", "Станция A", "Станция B", "Станция C", "Станция A", "Станция C", "Станция C", "Станция C", "Станция C"];
   const [armFilter, setArmFilter] = useState("Все");
-const allEquip = [...EQUIPMENT_DATA, ...customEquip].map((item) => ({ ...item, ...(equipmentEdits[item.id] || {}) }));
+const allEquip = [...EQUIPMENT_DATA, ...customEquip]
+  .map((item) => normalizeEquipmentItem(item, equipmentEdits[item.id] || {}))
+  .filter((item) => !item.deleted);
 const saveEquipmentChanges = (id, patch) => {
   setEquipmentEdits((prev) => {
     const updated = { ...prev, [id]: { ...(prev[id] || {}), ...patch } };
@@ -4731,6 +4768,18 @@ const saveEquipmentChanges = (id, patch) => {
 };
 
 const requestAdmin = (title, action) => setAdminModal({ title, action });
+
+const deleteEquipment = (id) => {
+  requestAdmin("Удаление оборудования", () => {
+    setEquipmentEdits((prev) => {
+      const updated = { ...prev, [id]: { ...(prev[id] || {}), deleted: true } };
+      try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+    setSelected(null);
+    setAdminModal(null);
+  });
+};
 
 const deleteCustom = (id) => {
   requestAdmin("Удаление оборудования", () => {
@@ -4813,7 +4862,8 @@ const addEquip = () => {
 
   if (selected) {
     const e = allEquip.find(x => x.id === selected);
-    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} />;
+    if (!e) return <div style={{ fontSize: 13, color: C.textSec }}>Оборудование не найдено</div>;
+    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={deleteEquipment} />;
   }
 
   return (
@@ -4834,7 +4884,7 @@ const addEquip = () => {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{e.name}</div>
             <div style={{ fontSize: 11, color: C.textSec, marginBottom: 2 }}>{e.type}</div>
-            <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{e.specs}</div>
+            <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{formatSpecsShort(e.specs)}</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
             <div style={{ fontSize: 10, background: C.accentLight, color: C.accent, borderRadius: 5, padding: "2px 7px", fontWeight: 700 }}>{e.arm}</div>
