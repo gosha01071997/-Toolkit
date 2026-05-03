@@ -4746,8 +4746,6 @@ function EquipmentTab() {
  const [search, setSearch] = useState("");
 const [selected, setSelected] = useState(null);
 const [adminModal, setAdminModal] = useState(null);
-const [addForm, setAddForm] = useState(false);
-const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
 const [customEquip, setCustomEquip] = useState(() => {
   try { return JSON.parse(localStorage.getItem("emc_custom_equip_v1") || "[]"); } catch(e) { return []; }
 });
@@ -4771,34 +4769,46 @@ const requestAdmin = (title, action) => setAdminModal({ title, action });
 
 const deleteEquipment = (id) => {
   requestAdmin("Удаление оборудования", () => {
-    setEquipmentEdits((prev) => {
-      const updated = { ...prev, [id]: { ...(prev[id] || {}), deleted: true } };
-      try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(updated)); } catch (e) {}
-      return updated;
-    });
+    const isCustom = customEquip.some((x) => x.id === id);
+    if (isCustom) {
+      const updatedCustom = customEquip.filter((x) => x.id !== id);
+      setCustomEquip(updatedCustom);
+      try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updatedCustom)); } catch(e) {}
+      setEquipmentEdits((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+    } else {
+      setEquipmentEdits((prev) => {
+        const updated = { ...prev, [id]: { ...(prev[id] || {}), deleted: true } };
+        try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(updated)); } catch (e) {}
+        return updated;
+      });
+    }
     setSelected(null);
     setAdminModal(null);
   });
 };
 
-const deleteCustom = (id) => {
-  requestAdmin("Удаление оборудования", () => {
-    const updated = customEquip.filter(e => e.id !== id);
-    setCustomEquip(updated);
-    try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
-    setAdminModal(null);
+const createEquipment = () => {
+  const arm = armFilter !== "Все" ? armFilter : "Станция A";
+  const item = normalizeEquipmentItem({
+    id: `custom_${Date.now()}`,
+    name: "Новое оборудование",
+    type: "Тип оборудования",
+    arm,
+    desc: "",
+    specs: [],
+    photo: null,
+    icon: "🔧",
   });
-};
-
-const addEquip = () => {
-  if (!newItem.name) return;
-  const item = { ...newItem, id: `custom_${Date.now()}` };
   const updated = [...customEquip, item];
   setCustomEquip(updated);
   try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
-  setAddForm(false);
-  setNewItem({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
-  setAdminModal(null);
+  setSelected(item.id);
 };
   const filtered = allEquip.filter(e => {
     const q = search.toLowerCase();
@@ -4877,7 +4887,10 @@ const addEquip = () => {
           <button key={a} onClick={() => setArmFilter(a)} style={{ padding: "5px 10px", borderRadius: 8, border: `1px solid ${armFilter === a ? C.accent : C.border}`, background: armFilter === a ? C.accentLight : C.bg, color: armFilter === a ? C.accent : C.textSec, fontSize: 11, fontWeight: armFilter === a ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{a}</button>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: C.textSec, marginBottom: 10 }}>Найдено: {filtered.length} единиц оборудования</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: C.textSec }}>Найдено: {filtered.length} единиц оборудования</div>
+        <button onClick={createEquipment} style={{ ...styles.btn(), padding: "7px 12px", fontSize: 12 }}>+ Добавить оборудование</button>
+      </div>
       {filtered.map(e => (
         <div key={e.id} onClick={() => setSelected(e.id)} style={{ ...styles.card, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
           <div style={{ fontSize: 24, minWidth: 32 }}>{e.icon}</div>
