@@ -4648,11 +4648,19 @@ const EQUIPMENT_DATA = [
 
 function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
   const [showSpecsForm, setShowSpecsForm] = useState(false);
+  const [editName, setEditName] = useState(e.name || "");
   const [specRows, setSpecRows] = useState(
     Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]
   );
   const [editType, setEditType] = useState(e.type || "");
   const [editDesc, setEditDesc] = useState(e.desc || "");
+
+  useEffect(() => {
+    setEditName(e.name || "");
+    setEditType(e.type || "");
+    setEditDesc(e.desc || "");
+    setSpecRows(Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]);
+  }, [e]);
 
   const saveSpecs = () => {
     const normalized = normalizeSpecs(specRows, "");
@@ -4680,8 +4688,13 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
             {getEquipSVG(e.type)}
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{e.name}</div>
+            <input
+              style={{ ...styles.input, fontSize: 18, fontWeight: 800, marginBottom: 6, color: C.textOnLight }}
+              value={editName}
+              onChange={(ev) => setEditName(ev.target.value)}
+            />
             <div style={{ fontSize: 12, color: "#8A9BB8", marginBottom: 6 }}>{e.type}</div>
+            <button onClick={() => onSaveChanges(e.id, { name: editName })} style={{ ...styles.btn(), padding: "7px 12px", fontSize: 12, marginBottom: 6 }}>Сохранить</button>
             <div style={{ display: "inline-block", background: "rgba(30,91,232,0.2)", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "#4A9FFF", fontWeight: 600 }}>{e.arm}</div>
           </div>
         </div>
@@ -4745,7 +4758,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
 function EquipmentTab() {
  const [search, setSearch] = useState("");
 const [selected, setSelected] = useState(null);
-const [adminModal, setAdminModal] = useState(null);
+const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 const [customEquip, setCustomEquip] = useState(() => {
   try { return JSON.parse(localStorage.getItem("emc_custom_equip_v1") || "[]"); } catch(e) { return []; }
 });
@@ -4765,10 +4778,7 @@ const saveEquipmentChanges = (id, patch) => {
   });
 };
 
-const requestAdmin = (title, action) => setAdminModal({ title, action });
-
 const deleteEquipment = (id) => {
-  requestAdmin("Удаление оборудования", () => {
     const isCustom = customEquip.some((x) => x.id === id);
     if (isCustom) {
       const updatedCustom = customEquip.filter((x) => x.id !== id);
@@ -4789,8 +4799,7 @@ const deleteEquipment = (id) => {
       });
     }
     setSelected(null);
-    setAdminModal(null);
-  });
+    setDeleteCandidateId(null);
 };
 
 const createEquipment = () => {
@@ -4873,7 +4882,7 @@ const createEquipment = () => {
   if (selected) {
     const e = allEquip.find(x => x.id === selected);
     if (!e) return <div style={{ fontSize: 13, color: C.textSec }}>Оборудование не найдено</div>;
-    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={deleteEquipment} />;
+    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={(id) => setDeleteCandidateId(id)} />;
   }
 
   return (
@@ -4891,6 +4900,17 @@ const createEquipment = () => {
         <div style={{ fontSize: 11, color: C.textSec }}>Найдено: {filtered.length} единиц оборудования</div>
         <button onClick={createEquipment} style={{ ...styles.btn(), padding: "7px 12px", fontSize: 12 }}>+ Добавить оборудование</button>
       </div>
+      {deleteCandidateId && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+          <div style={{ ...styles.card, width:"100%", maxWidth:360, marginBottom:0 }}>
+            <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14 }}>Вы действительно хотите удалить это оборудование?</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={() => deleteEquipment(deleteCandidateId)} style={{ ...styles.btn("fail"), flex:1 }}>Да</button>
+              <button onClick={() => setDeleteCandidateId(null)} style={{ ...styles.btn("secondary"), flex:1 }}>Нет</button>
+            </div>
+          </div>
+        </div>
+      )}
       {filtered.map(e => (
         <div key={e.id} onClick={() => setSelected(e.id)} style={{ ...styles.card, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
           <div style={{ fontSize: 24, minWidth: 32 }}>{e.icon}</div>
@@ -6095,7 +6115,7 @@ function VerificationScreen({ onClose }) {
   });
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("all");
-  const [adminModal, setAdminModal] = useState(null);
+  const [deleteCandidateId, setDeleteCandidateId] = useState(null);
   const [addForm, setAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
 const requestAdmin = (title, action) => {
