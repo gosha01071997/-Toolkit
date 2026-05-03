@@ -4605,7 +4605,31 @@ const EQUIPMENT_DATA = [
   { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
 ];
 
-function EquipDetailCard({ e, onBack, getEquipSVG }) {
+function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
+  const [showSpecsForm, setShowSpecsForm] = useState(false);
+  const [specRows, setSpecRows] = useState(
+    Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]
+  );
+  const [editType, setEditType] = useState(e.type || "");
+  const [editDesc, setEditDesc] = useState(e.desc || "");
+
+  const saveSpecs = () => {
+    const normalized = specRows
+      .map((s) => ({ key: String(s.key || "").trim(), value: String(s.value || "").trim() }))
+      .filter((s) => s.key || s.value);
+    onSaveChanges(e.id, { specs: normalized, type: editType, desc: editDesc });
+    setShowSpecsForm(false);
+  };
+
+  const onPhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onSaveChanges(e.id, { photo: String(reader.result || "") });
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
   return (
     <div>
       <button onClick={onBack} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>‹ Назад</button>
@@ -4627,7 +4651,32 @@ function EquipDetailCard({ e, onBack, getEquipSVG }) {
       {/* Характеристики */}
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ХАРАКТЕРИСТИКИ</div>
       <div style={{ ...styles.card, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>📐 {e.specs}</div>
+        {Array.isArray(e.specs) && e.specs.length ? (
+          e.specs.map((s, idx) => (
+            <div key={`${s.key}_${idx}`} style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>
+              <span style={{ fontWeight: 700 }}>{s.key || "Параметр"}:</span> {s.value || "—"}
+            </div>
+          ))
+        ) : (
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>📐 {e.specs}</div>
+        )}
+        <button onClick={() => setShowSpecsForm((v) => !v)} style={{ ...styles.btn(), marginTop: 8 }}>Добавить характеристики</button>
+        {showSpecsForm && (
+          <div style={{ marginTop: 10 }}>
+            <Field label="Тип"><input style={styles.input} value={editType} onChange={(ev) => setEditType(ev.target.value)} /></Field>
+            <Field label="Описание"><textarea style={{ ...styles.input, minHeight: 70 }} value={editDesc} onChange={(ev) => setEditDesc(ev.target.value)} /></Field>
+            {specRows.map((row, idx) => (
+              <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <input style={styles.input} placeholder="Параметр" value={row.key} onChange={(ev) => setSpecRows((prev) => prev.map((x, i) => i === idx ? { ...x, key: ev.target.value } : x))} />
+                <input style={styles.input} placeholder="Значение" value={row.value} onChange={(ev) => setSpecRows((prev) => prev.map((x, i) => i === idx ? { ...x, value: ev.target.value } : x))} />
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button onClick={() => setSpecRows((prev) => [...prev, { key: "", value: "" }])} style={styles.btn("secondary")}>+ Параметр</button>
+              <button onClick={saveSpecs} style={styles.btn()}>Сохранить</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Описание */}
@@ -4640,11 +4689,19 @@ function EquipDetailCard({ e, onBack, getEquipSVG }) {
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ФОТО</div>
         <div style={{ ...styles.card, minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-          <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 700 }}>Добавить фото оборудования</div>
-            <div>Фото оборудования не добавлено</div>
-          </div>
+          {e.photo ? (
+            <img src={e.photo} alt={e.name} style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 12 }} />
+          ) : (
+            <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 700 }}>Добавить фото оборудования</div>
+              <div>Фото оборудования не добавлено</div>
+            </div>
+          )}
         </div>
+        <label style={{ ...styles.btn(), display: "inline-block" }}>
+          Добавить фото
+          <input type="file" accept="image/*" onChange={onPhotoChange} style={{ display: "none" }} />
+        </label>
       </div>
     </div>
   );
@@ -4659,9 +4716,19 @@ const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", specs:"", des
 const [customEquip, setCustomEquip] = useState(() => {
   try { return JSON.parse(localStorage.getItem("emc_custom_equip_v1") || "[]"); } catch(e) { return []; }
 });
+const [equipmentEdits, setEquipmentEdits] = useState(() => {
+  try { return JSON.parse(localStorage.getItem("emc_equip_edits_v1") || "{}"); } catch(e) { return {}; }
+});
   const arms = ["Все", "Станция A", "Станция B", "Станция C", "Станция A", "Станция C", "Станция C", "Станция C", "Станция C"];
   const [armFilter, setArmFilter] = useState("Все");
-const allEquip = [...EQUIPMENT_DATA, ...customEquip];
+const allEquip = [...EQUIPMENT_DATA, ...customEquip].map((item) => ({ ...item, ...(equipmentEdits[item.id] || {}) }));
+const saveEquipmentChanges = (id, patch) => {
+  setEquipmentEdits((prev) => {
+    const updated = { ...prev, [id]: { ...(prev[id] || {}), ...patch } };
+    try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(updated)); } catch (e) {}
+    return updated;
+  });
+};
 
 const requestAdmin = (title, action) => setAdminModal({ title, action });
 
@@ -4745,8 +4812,8 @@ const addEquip = () => {
   };
 
   if (selected) {
-    const e = EQUIPMENT_DATA.find(x => x.id === selected);
-    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} />;
+    const e = allEquip.find(x => x.id === selected);
+    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} />;
   }
 
   return (
