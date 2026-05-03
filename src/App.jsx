@@ -4882,7 +4882,22 @@ const createEquipment = () => {
   if (selected) {
     const e = allEquip.find(x => x.id === selected);
     if (!e) return <div style={{ fontSize: 13, color: C.textSec }}>Оборудование не найдено</div>;
-    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={(id) => setDeleteCandidateId(id)} />;
+    return (
+      <>
+        <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={(id) => setDeleteCandidateId(id)} />
+        {deleteCandidateId && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+            <div style={{ ...styles.card, width:"100%", maxWidth:360, marginBottom:0 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14 }}>Вы действительно хотите удалить это оборудование?</div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => deleteEquipment(deleteCandidateId)} style={{ ...styles.btn("fail"), flex:1 }}>Да</button>
+                <button onClick={() => setDeleteCandidateId(null)} style={{ ...styles.btn("secondary"), flex:1 }}>Нет</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
   }
 
   return (
@@ -4912,6 +4927,7 @@ const createEquipment = () => {
         </div>
       )}
       {filtered.map(e => (
+
         <div key={e.id} onClick={() => setSelected(e.id)} style={{ ...styles.card, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
           <div style={{ fontSize: 24, minWidth: 32 }}>{e.icon}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
