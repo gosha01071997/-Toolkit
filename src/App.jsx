@@ -4605,7 +4605,7 @@ const EQUIPMENT_DATA = [
   { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
 ];
 
-function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
+function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
   const [showSpecsForm, setShowSpecsForm] = useState(false);
   const [specRows, setSpecRows] = useState(
     Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]
@@ -4679,12 +4679,6 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
         )}
       </div>
 
-      {/* Описание */}
-      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ОПИСАНИЕ</div>
-      <div style={{ ...styles.card, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{e.desc}</div>
-      </div>
-
       {/* Фото под описанием */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ФОТО</div>
@@ -4703,6 +4697,8 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges }) {
           <input type="file" accept="image/*" onChange={onPhotoChange} style={{ display: "none" }} />
         </label>
       </div>
+
+      <button onClick={() => onDelete(e.id)} style={{ ...styles.btn("fail"), width: "100%" }}>Удалить оборудование</button>
     </div>
   );
 }
@@ -4721,7 +4717,9 @@ const [equipmentEdits, setEquipmentEdits] = useState(() => {
 });
   const arms = ["Все", "Станция A", "Станция B", "Станция C", "Станция A", "Станция C", "Станция C", "Станция C", "Станция C"];
   const [armFilter, setArmFilter] = useState("Все");
-const allEquip = [...EQUIPMENT_DATA, ...customEquip].map((item) => ({ ...item, ...(equipmentEdits[item.id] || {}) }));
+const allEquip = [...EQUIPMENT_DATA, ...customEquip]
+  .map((item) => ({ ...item, ...(equipmentEdits[item.id] || {}) }))
+  .filter((item) => !item.deleted);
 const saveEquipmentChanges = (id, patch) => {
   setEquipmentEdits((prev) => {
     const updated = { ...prev, [id]: { ...(prev[id] || {}), ...patch } };
@@ -4731,6 +4729,18 @@ const saveEquipmentChanges = (id, patch) => {
 };
 
 const requestAdmin = (title, action) => setAdminModal({ title, action });
+
+const deleteEquipment = (id) => {
+  requestAdmin("Удаление оборудования", () => {
+    setEquipmentEdits((prev) => {
+      const updated = { ...prev, [id]: { ...(prev[id] || {}), deleted: true } };
+      try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+    setSelected(null);
+    setAdminModal(null);
+  });
+};
 
 const deleteCustom = (id) => {
   requestAdmin("Удаление оборудования", () => {
@@ -4813,7 +4823,7 @@ const addEquip = () => {
 
   if (selected) {
     const e = allEquip.find(x => x.id === selected);
-    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} />;
+    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={deleteEquipment} />;
   }
 
   return (
