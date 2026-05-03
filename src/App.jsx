@@ -6128,6 +6128,7 @@ function VerificationScreen({ onClose }) {
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("all");
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
+  const [adminModal, setAdminModal] = useState(null);
   const [addForm, setAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
 const requestAdmin = (title, action) => {
