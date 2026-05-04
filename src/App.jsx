@@ -169,6 +169,7 @@ function getCableLoss(type, freqMHz, lengthM) {
 
 
 const LICENSE_STORAGE_KEY = "emc_toolkit_license";
+const FORCED_APP_MODE = "engineer"; // temporary release bypass
 const LANGUAGE_STORAGE_KEY = "emc_toolkit_language";
 const VALID_LICENSE_KEYS = ["EMC-PRO-2026", "BETA-KEY-001", "DEMO-KEY-002", "ENGINEER-KEY-003"];
 
@@ -5887,9 +5888,8 @@ class ErrorBoundary extends React.Component {
 }
 
 // ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onClose, language = "ru", setLanguage, licenseKey }) {
+function SettingsScreen({ onClose, language = "ru", setLanguage }) {
   const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
-  const maskedLicense = licenseKey ? `${licenseKey.slice(0,4)}-****-${licenseKey.slice(-4)}` : "—";
   return (
     <div style={{ padding: "0 0 20px" }}>
       <button onClick={onClose} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
@@ -5900,12 +5900,8 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, licenseKey }) {
         <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Настройки</div>
         <div style={{ fontSize: 12, color: "#8A9BB8", marginTop: 4 }}>EMC Engineer Toolkit v2.0</div>
       </div>
-      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>{t("language")} / License</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>{t("language")}</div>
       <div style={styles.card}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <div style={{ fontSize:13, color:C.textSec }}>{t("licenseActive")}</div>
-          <div style={{ fontSize:13, color:C.text, fontWeight:700 }}>{maskedLicense}</div>
-        </div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={() => setLanguage?.("ru")} style={{ ...styles.btn(), flex:1, background: language === "ru" ? C.accentLight : "#EDF0F5" }}>Русский</button>
           <button onClick={() => setLanguage?.("en")} style={{ ...styles.btn(), flex:1, background: language === "en" ? C.accentLight : "#EDF0F5" }}>English</button>
@@ -6604,7 +6600,13 @@ function AppInner() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [licenseKey, setLicenseKey] = useState(() => { try { return localStorage.getItem(LICENSE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
+  const [appMode] = useState(FORCED_APP_MODE);
+  const [licenseKey, setLicenseKey] = useState(() => {
+    // temporary early-release bypass: keep licensing storage path but force an internal engineer token
+    const forcedKey = "ENGINEER-BYPASS-2026";
+    try { localStorage.setItem(LICENSE_STORAGE_KEY, forcedKey); } catch(e) {}
+    return forcedKey;
+  });
   const [language, setLanguage] = useState(() => { try { return localStorage.getItem(LANGUAGE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
 
   // Android системная кнопка «Назад»
@@ -6636,7 +6638,7 @@ function AppInner() {
 
 
 
-  if (!licenseKey) return <LicenseActivationScreen onActivate={setLicenseKey} language={language || "ru"} />;
+  // license activation screen intentionally bypassed for temporary release build
   if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
   const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
@@ -6724,7 +6726,7 @@ function AppInner() {
       </div>
 
       {/* ОСНОВНОЙ КОНТЕНТ */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }} data-app-mode={appMode}>
 
         {/* ВЕРХНЯЯ ПАНЕЛЬ */}
         <div style={{
@@ -6747,7 +6749,7 @@ function AppInner() {
           <div style={{ height: "100%" }}>
       <div style={styles.content}>
         {settingsOpen
-          ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} licenseKey={licenseKey} />
+          ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} />
           : searchOpen
           ? <GlobalSearch onClose={() => setSearchOpen(false)} setTab={handleTab} setCalcId={handleSetCalcId} onErrors={() => { setErrorsOpen(true); setSearchOpen(false); }} onVerify={() => { setVerifyOpen(true); setSearchOpen(false); }} onQuiz={() => { setQuizOpen(true); setSearchOpen(false); }} />
           : verifyOpen
