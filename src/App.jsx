@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
@@ -7287,8 +7287,37 @@ const addItem = () => {
 
 // ─── ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ ────────────────────────────────────────────
 function EulaScreen({ onAccept, onDecline }) {
+  const scrollRef = useRef(null);
   const [scrolled, setScrolled] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [isScrollable, setIsScrollable] = useState(true);
+  const licenseSections = useMemo(() => [
+    ["1. ПРЕДМЕТ СОГЛАШЕНИЯ","Настоящее Соглашение является договором между Вами и правообладателем ПО «ЭМС Инструментарий». Устанавливая приложение, Вы принимаете все условия."],
+    ["2. ИСКЛЮЧИТЕЛЬНЫЕ ПРАВА","Приложение, включая базы данных, алгоритмы, методики расчётов и интерфейс, является объектом интеллектуальной собственности и защищено ГК РФ."],
+    ["3. ОГРАНИЧЕНИЯ","Запрещается передавать, продавать или распространять приложение третьим лицам без письменного разрешения правообладателя."],
+    ["4. ОТВЕТСТВЕННОСТЬ","Незаконное распространение влечёт ответственность по ст.1301 ГК РФ и ст.146 УК РФ."],
+    ["5. ДАННЫЕ","Приложение работает полностью в автономном режиме без подключения к интернету. Все данные пользователя хранятся исключительно на устройстве и не передаются третьим лицам."],
+    ["6. ОТКАЗ ОТ ГАРАНТИЙ","Результаты расчётов носят справочный характер и подлежат верификации согласно действующим нормативным документам."],
+  ], []);
+  const checkScrollState = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const fitsWithoutScroll = el.scrollHeight <= el.clientHeight + 4;
+    setIsScrollable(!fitsWithoutScroll);
+    setScrolled(fitsWithoutScroll || el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
+  }, []);
+
+  useEffect(() => {
+    checkScrollState();
+    const frame = requestAnimationFrame(checkScrollState);
+    window.addEventListener("resize", checkScrollState);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", checkScrollState);
+    };
+  }, [checkScrollState, licenseSections]);
+
+  const canAccept = scrolled && checked;
   return (
     <div style={{ width:"100%", height:"100vh", background:"#0D1627", display:"flex", flexDirection:"column", fontFamily:"'Roboto','Arial',sans-serif", overflow:"hidden" }}>
       <div style={{ background:"#0A1220", padding:"48px 18px 14px", borderBottom:`1px solid #1E2A40`, textAlign:"center", flexShrink:0 }}>
@@ -7296,32 +7325,26 @@ function EulaScreen({ onAccept, onDecline }) {
         <div style={{ fontSize:16, fontWeight:800, color:"#fff", marginBottom:3 }}>Лицензионное соглашение</div>
         <div style={{ fontSize:10, color:"#4A7FD4", letterSpacing:2 }}>ВЕРСИЯ 1.0</div>
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"18px 18px 8px", WebkitOverflowScrolling:"touch" }}
-        onScroll={e => { const el=e.target; if(el.scrollTop+el.clientHeight>=el.scrollHeight-40) setScrolled(true); }}>
-        {[
-          ["1. ПРЕДМЕТ СОГЛАШЕНИЯ","Настоящее Соглашение является договором между Вами и правообладателем ПО «ЭМС Инструментарий». Устанавливая приложение, Вы принимаете все условия."],
-          ["2. ИСКЛЮЧИТЕЛЬНЫЕ ПРАВА","Приложение, включая базы данных, алгоритмы, методики расчётов и интерфейс, является объектом интеллектуальной собственности и защищено ГК РФ."],
-          ["3. ОГРАНИЧЕНИЯ","Запрещается передавать, продавать или распространять приложение третьим лицам без письменного разрешения правообладателя."],
-          ["4. ОТВЕТСТВЕННОСТЬ","Незаконное распространение влечёт ответственность по ст.1301 ГК РФ и ст.146 УК РФ."],
-          ["5. ДАННЫЕ","Приложение работает полностью в автономном режиме без подключения к интернету. Все данные пользователя хранятся исключительно на устройстве и не передаются третьим лицам."],
-          ["6. ОТКАЗ ОТ ГАРАНТИЙ","Результаты расчётов носят справочный характер и подлежат верификации согласно действующим нормативным документам."],
-        ].map(([t,tx]) => (
+      <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"18px 18px 8px", WebkitOverflowScrolling:"touch" }}
+        onScroll={checkScrollState}>
+        {licenseSections.map(([t,tx]) => (
           <div key={t} style={{ marginBottom:16 }}>
             <div style={{ fontSize:12, fontWeight:700, color:"#4A9FFF", marginBottom:5 }}>{t}</div>
             <div style={{ fontSize:12, lineHeight:1.75, color:"#8A9BB8" }}>{tx}</div>
           </div>
         ))}
         {!scrolled && <div style={{ background:"rgba(30,91,232,0.1)", border:"1px solid rgba(30,91,232,0.25)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#4A9FFF", textAlign:"center" }}>↓ Прокрутите до конца</div>}
+        {scrolled && !isScrollable && <div style={{ background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.18)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#10B981", textAlign:"center" }}>Текст полностью отображён</div>}
         <div style={{ height:16 }}/>
       </div>
       <div style={{ padding:"12px 18px 36px", borderTop:"1px solid #1E2A40", background:"#0A1220", flexShrink:0 }}>
-        <div onClick={()=>scrolled&&setChecked(!checked)} style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:14, cursor:scrolled?"pointer":"default", opacity:scrolled?1:0.4 }}>
+        <div onClick={()=>scrolled&&setChecked(!checked)} role="checkbox" aria-checked={checked} aria-disabled={!scrolled} style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:14, cursor:scrolled?"pointer":"default", opacity:scrolled?1:0.4 }}>
           <div style={{ width:22, height:22, minWidth:22, borderRadius:5, marginTop:1, border:`2px solid ${checked?"#1E5BE8":"#2A3A5A"}`, background:checked?"#1E5BE8":"transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
             {checked && <span style={{ color:"#fff", fontSize:13, fontWeight:900 }}>✓</span>}
           </div>
           <div style={{ fontSize:12, color:"#8A9BB8", lineHeight:1.6 }}>Я ознакомился с условиями и принимаю Лицензионное соглашение.</div>
         </div>
-        <button onClick={()=>{ if(checked&&scrolled) onAccept(); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:checked&&scrolled?"linear-gradient(135deg,#1A3A6E,#1E5BE8)":"#1A2A40", color:checked&&scrolled?"#fff":"#2A3A5A", fontSize:15, fontWeight:800, cursor:checked&&scrolled?"pointer":"default", fontFamily:"inherit", marginBottom:10 }}>
+        <button onClick={()=>{ if(canAccept) onAccept(); }} disabled={!canAccept} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:canAccept?"linear-gradient(135deg,#1A3A6E,#1E5BE8)":"#1A2A40", color:canAccept?"#fff":"#2A3A5A", fontSize:15, fontWeight:800, cursor:canAccept?"pointer":"default", fontFamily:"inherit", marginBottom:10 }}>
           {!scrolled?"Прокрутите текст ↓":!checked?"Отметьте согласие":"✓ Принять и войти"}
         </button>
         <button onClick={onDecline} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid #1E2A40", background:"transparent", color:"#3A4A6A", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
