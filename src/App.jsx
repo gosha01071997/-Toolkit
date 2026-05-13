@@ -271,11 +271,19 @@ function ResultBox({ rows, lastNoLine }) {
 }
 
 // ─── TABS COMPONENT ───────────────────────────────────────────────────────────
-function InnerTabs({ tabs, active, onSet }) {
+function InnerTabs({ tabs, active, onSet, className = "" }) {
+  const tabsClassName = ["premium-pills", className].filter(Boolean).join(" ");
   return (
-    <div className="premium-pills" style={{ marginBottom: 18 }}>
+    <div className={tabsClassName}>
       {tabs.map(t => (
-        <button key={t.id} onClick={() => onSet(t.id)} className={`premium-pill ${active === t.id ? "active" : ""}`}>{t.label}</button>
+        <button
+          key={t.id}
+          type="button"
+          onClick={() => onSet(t.id)}
+          className={`premium-pill ${active === t.id ? "active" : ""}`}
+        >
+          {t.label}
+        </button>
       ))}
     </div>
   );
@@ -411,24 +419,70 @@ function PremiumUiStyles() {
     }
     .premium-search input::placeholder { color: #64748B; }
     .premium-search span { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94A3B8; font-size: 14px; }
-    .premium-pills { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding: 2px 0 8px; }
+    .premium-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 100%;
+      min-height: 46px;
+      margin-bottom: 18px;
+      padding: 5px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-wrap: nowrap;
+      box-sizing: border-box;
+      border: 1px solid rgba(148,163,184,0.12);
+      border-radius: 20px;
+      background: rgba(2,6,23,0.18);
+      scrollbar-width: thin;
+      scrollbar-gutter: stable;
+    }
     .premium-pill {
-      padding: 8px 14px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 14px;
+      box-sizing: border-box;
       border-radius: 999px;
       border: 1px solid rgba(148,163,184,0.16);
       background: rgba(15,23,42,0.54);
       color: #94A3B8;
       font-size: 12px;
+      line-height: 1;
       font-weight: 800;
       cursor: pointer;
       white-space: nowrap;
       font-family: inherit;
+      transition: border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
     }
     .premium-pill.active {
-      border-color: rgba(125,211,252,0.32);
-      background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(124,58,237,0.1));
+      border-color: rgba(125,211,252,0.38);
+      background: linear-gradient(135deg, rgba(37,99,235,0.24), rgba(124,58,237,0.14));
       color: #BAE6FD;
-      box-shadow: 0 0 22px rgba(37,99,235,0.14);
+      box-shadow: 0 0 22px rgba(37,99,235,0.14), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .test-detail-tabs {
+      min-height: 50px;
+      margin-bottom: 16px;
+      padding: 6px;
+      gap: 7px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.68), rgba(2,6,23,0.34));
+      border-color: rgba(148,163,184,0.16);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+    }
+    .test-detail-tabs .premium-pill { min-height: 36px; }
+    .reference-top-area {
+      width: 100%;
+      min-width: 0;
+      overflow-anchor: none;
+    }
+    .reference-content-slot {
+      width: 100%;
+      min-width: 0;
+      overflow-anchor: none;
     }
     .premium-icon-box {
       display: grid;
@@ -4505,7 +4559,7 @@ function TestDetail({ test, onBack }) {
   ];
 
   return (
-    <div>
+    <PageContainer>
       <BackBtn onBack={onBack} />
       {/* Header card */}
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 14 }}>
@@ -4522,7 +4576,7 @@ function TestDetail({ test, onBack }) {
         </div>
       </div>
 
-      <InnerTabs tabs={innerTabs} active={tab} onSet={setTab} />
+      <InnerTabs tabs={innerTabs} active={tab} onSet={setTab} className="test-detail-tabs" />
 
       {tab === "steps" && <StepsTab testId={test.id} />}
       {tab === "info" && (
@@ -4632,7 +4686,7 @@ function TestDetail({ test, onBack }) {
         </div>
       )}
 
-    </div>
+    </PageContainer>
   );
 }
 
@@ -6114,18 +6168,22 @@ function ReferenceScreen({ refTab, setRefTab }) {
           { value: STANDARDS.length, label: "стандартов" },
         ]}
       />
-      <SectionHeader title="База знаний" caption="Выберите категорию и уточните данные через поиск внутри раздела" count="offline" accent="#A78BFA" />
-      <InnerTabs tabs={tabs} active={refTab} onSet={setRefTab} />
-      {refTab === "abbr" && <AbbreviationsTab />}
-      {refTab === "equip" && <EquipmentTab compact />}
-      {refTab === "norms" && <NormsTab />}
-      {refTab === "qual" && <QualBasisTab />}
-      {refTab === "units" && <UnitsTab />}
-      {refTab === "deps" && <DependenciesTab />}
-      {refTab === "std" && <StandardsTab />}
-      {refTab === "noise" && <NoiseGuideTab />}
-      {refTab === "fail" && <FailAnalysisTab />}
-      {refTab === "formulas" && <FormulasTab />}
+      <div className="reference-top-area">
+        <SectionHeader title="База знаний" caption="Выберите категорию и уточните данные через поиск внутри раздела" count="offline" accent="#A78BFA" />
+        <InnerTabs tabs={tabs} active={refTab} onSet={setRefTab} />
+      </div>
+      <div className="reference-content-slot">
+        {refTab === "abbr" && <AbbreviationsTab />}
+        {refTab === "equip" && <EquipmentTab compact />}
+        {refTab === "norms" && <NormsTab />}
+        {refTab === "qual" && <QualBasisTab />}
+        {refTab === "units" && <UnitsTab />}
+        {refTab === "deps" && <DependenciesTab />}
+        {refTab === "std" && <StandardsTab />}
+        {refTab === "noise" && <NoiseGuideTab />}
+        {refTab === "fail" && <FailAnalysisTab />}
+        {refTab === "formulas" && <FormulasTab />}
+      </div>
     </PageContainer>
   );
 }
@@ -7674,7 +7732,7 @@ function AppInner() {
         </div>
 
         {/* КОНТЕНТ */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ flex: 1, overflowY: "auto", scrollbarGutter: "stable" }}>
           <div style={{ height: "100%" }}>
       <div style={styles.content}>
         {settingsOpen
