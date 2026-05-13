@@ -96,6 +96,11 @@ const STANDARDS = [
   { id: "gost58401-4-39", name: "ГОСТ IEC 61000-4-39-2020", desc: "Устойчивость к излучаемым полям ближней зоны. Испытания на воздействие ЭМ-поля от беспроводных устройств.", category: "Устойчивость", type: "Near Field Immunity", scope: "Оборудование вблизи беспроводных передатчиков", gost: true },
   { id: "gost32651", name: "ГОСТ Р 32651-2014", desc: "Совместимость технических средств электромагнитная. Бытовые приборы, электрические инструменты и аналогичные устройства. Требования к помехоустойчивости.", category: "Устойчивость", type: "Immunity (бытовые приборы)", scope: "Бытовая техника (аналог CISPR 14-2)", gost: true },
   { id: "gost56027", name: "ГОСТ Р 56027-2014", desc: "ЭМС. Технические требования и методы испытаний телекоммуникационного оборудования.", category: "Эмиссия + Устойчивость", type: "Полный набор", scope: "Телекоммуникационное оборудование", gost: true },
+  { id: "cispr16", name: "CISPR 16", desc: "Аппаратура и методы измерений радиопомех и помехоустойчивости.", category: "Методики", type: "EMI Measurements", scope: "Измерительные приёмники, LISN/AMN, антенны", notes: "Используйте как справочную карту требований к измерительной инфраструктуре; полные процедуры уточняйте по актуальной редакции." },
+  { id: "cispr32", name: "CISPR 32", desc: "Требования к электромагнитной эмиссии мультимедийного оборудования.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "Мультимедийное и ИТ-оборудование", notes: "Карта назначения стандарта без нормированных таблиц и полного текста." },
+  { id: "cispr35", name: "CISPR 35", desc: "Требования помехоустойчивости мультимедийного оборудования.", category: "Устойчивость", type: "Immunity", scope: "Мультимедийное и ИТ-оборудование", notes: "Подбирайте испытания по портам, режимам работы и продуктовому контексту." },
+  { id: "en55011", name: "EN 55011", desc: "Европейская гармонизированная версия требований радиопомех для ISM-оборудования.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "Промышленное, научное и медицинское оборудование", notes: "Проверяйте применимость класса, группы и редакции стандарта для декларации соответствия." },
+  { id: "iec61000-4-20", name: "IEC 61000-4-20", desc: "Методы испытаний в TEM-волноводах и GTEM-камерах.", category: "Методики", type: "Radiated Immunity / Emissions", scope: "Альтернативные камеры и ячейки", notes: "Инженерная ссылка для выбора установки; конкретные ограничения задаёт действующая редакция." },
 ];
 
 const NOISE_GUIDE = [
@@ -1870,6 +1875,335 @@ function ResonanceCalc() {
   );
 }
 
+
+function CalcHelp({ children }) {
+  return <div style={{ fontSize: 12, color: C.textSec, marginBottom: 12, lineHeight: 1.6 }}>{children}</div>;
+}
+
+function FormulaNote({ children }) {
+  return <div style={{ fontSize: 11, color: C.textSec, marginTop: 8, lineHeight: 1.6, fontFamily: "monospace" }}>{children}</div>;
+}
+
+function DbmPowerVoltageCalc() {
+  const [val, setVal] = useState("");
+  const [unit, setUnit] = useState("dBm");
+  const [impedance, setImpedance] = useState("50");
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    const r = parseNum(impedance);
+    if (isNaN(x) || isNaN(r) || r <= 0) return null;
+
+    let watts;
+    if (unit === "dBm") watts = Math.pow(10, x / 10) / 1000;
+    if (unit === "W") watts = x;
+    if (unit === "mW") watts = x / 1000;
+    if (unit === "Vrms") watts = (x * x) / r;
+    if (unit === "Vpp") watts = Math.pow(x / (2 * Math.sqrt(2)), 2) / r;
+    if (unit === "Vpeak") watts = Math.pow(x / Math.sqrt(2), 2) / r;
+    if (!isFinite(watts) || watts < 0) return null;
+
+    const vrms = Math.sqrt(watts * r);
+    const vpeak = vrms * Math.sqrt(2);
+    const vpp = 2 * vpeak;
+    return [
+      { label: "dBm", value: watts > 0 ? `${fmt(10 * Math.log10(watts * 1000), 3)} dBm` : "−∞ dBm" },
+      { label: "W", value: `${fmt(watts, 9)} W` },
+      { label: "mW", value: `${fmt(watts * 1000, 6)} mW` },
+      { label: "Vrms", value: `${fmt(vrms, 6)} V rms` },
+      { label: "Vpp", value: `${fmt(vpp, 6)} Vpp` },
+      { label: "Vpeak", value: `${fmt(vpeak, 6)} Vpeak` },
+    ];
+  }, [val, unit, impedance]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>dBm / W / V калькулятор</div>
+      <div style={styles.card}>
+        <CalcHelp>Пересчёт мощности и напряжения в согласованном ВЧ-тракте. По умолчанию используется импеданс 50 Ω.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение">
+            <input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="Например: 13" inputMode="decimal" />
+          </Field>
+          <Field label="Тип входа">
+            <select style={styles.select} value={unit} onChange={e => setUnit(e.target.value)}>
+              {[
+                ["dBm", "dBm"], ["W", "W"], ["mW", "mW"], ["Vrms", "Vrms"], ["Vpp", "Vpp"], ["Vpeak", "Vpeak"]
+              ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Импеданс (Ω)">
+          <input style={styles.input} value={impedance} onChange={e => setImpedance(e.target.value)} placeholder="50" inputMode="decimal" />
+        </Field>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите корректное значение и положительный импеданс.</div>}
+        <FormulaNote>P = Vrms² / R · Vpp = 2√2·Vrms · dBm = 10log10(P/1 mW)</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function VswrCalc() {
+  const [val, setVal] = useState("");
+  const [mode, setMode] = useState("vswr");
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    if (isNaN(x)) return null;
+    let gamma;
+    if (mode === "vswr") {
+      if (x < 1) return null;
+      gamma = (x - 1) / (x + 1);
+    } else if (mode === "gamma") {
+      if (x < 0 || x >= 1) return null;
+      gamma = x;
+    } else {
+      if (x < 0) return null;
+      gamma = Math.pow(10, -x / 20);
+    }
+    const vswr = gamma >= 1 ? Infinity : (1 + gamma) / (1 - gamma);
+    const returnLoss = gamma > 0 ? -20 * Math.log10(gamma) : Infinity;
+    const mismatchLoss = gamma < 1 ? -10 * Math.log10(1 - gamma * gamma) : Infinity;
+    const reflectedPct = gamma * gamma * 100;
+    return [
+      { label: "КСВ / VSWR", value: isFinite(vswr) ? fmt(vswr, 3) : "∞" },
+      { label: "Коэффициент отражения |Γ|", value: fmt(gamma, 5) },
+      { label: "Return Loss", value: isFinite(returnLoss) ? `${fmt(returnLoss, 3)} dB` : "∞ dB" },
+      { label: "Mismatch Loss", value: isFinite(mismatchLoss) ? `${fmt(mismatchLoss, 4)} dB` : "∞ dB" },
+      { label: "Отражённая мощность", value: `${fmt(reflectedPct, 3)} %` },
+    ];
+  }, [val, mode]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>VSWR / КСВ калькулятор</div>
+      <div style={styles.card}>
+        <CalcHelp>Оценка согласования ВЧ-тракта по КСВ, коэффициенту отражения или return loss.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение">
+            <input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="Например: 1.5" inputMode="decimal" />
+          </Field>
+          <Field label="Тип входа">
+            <select style={styles.select} value={mode} onChange={e => setMode(e.target.value)}>
+              <option value="vswr">VSWR / КСВ</option>
+              <option value="gamma">|Γ| коэффициент отражения</option>
+              <option value="rl">Return Loss, dB</option>
+            </select>
+          </Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Проверьте ввод: КСВ ≥ 1, 0 ≤ |Γ| &lt; 1, Return Loss ≥ 0 dB.</div>}
+        <FormulaNote>VSWR = (1+|Γ|)/(1−|Γ|) · RL = −20log10|Γ| · ML = −10log10(1−|Γ|²)</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function FsplCalc() {
+  const [freq, setFreq] = useState("");
+  const [freqUnit, setFreqUnit] = useState("MHz");
+  const [distance, setDistance] = useState("");
+  const [distUnit, setDistUnit] = useState("m");
+  const [txPower, setTxPower] = useState("");
+  const [txGain, setTxGain] = useState("");
+  const [rxGain, setRxGain] = useState("");
+
+  const res = useMemo(() => {
+    const fIn = parseNum(freq);
+    const dIn = parseNum(distance);
+    if (isNaN(fIn) || isNaN(dIn) || fIn <= 0 || dIn <= 0) return null;
+    const fHz = fIn * ({ Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 }[freqUnit] || 1);
+    const dM = dIn * (distUnit === "km" ? 1000 : 1);
+    const fspl = 20 * Math.log10(dM) + 20 * Math.log10(fHz) - 147.55;
+    const rows = [{ label: "FSPL", value: `${fmt(fspl, 3)} dB` }];
+    const p = parseNum(txPower);
+    if (!isNaN(p)) {
+      const gt = parseNum(txGain) || 0;
+      const gr = parseNum(rxGain) || 0;
+      rows.push({ label: "Оценка уровня на входе Rx", value: `${fmt(p + gt + gr - fspl, 3)} dBm` });
+    }
+    rows.push({ label: "Длина волны", value: `${fmt(299792458 / fHz, 6)} м` });
+    return rows;
+  }, [freq, freqUnit, distance, distUnit, txPower, txGain, rxGain]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Free Space Path Loss</div>
+      <div style={styles.card}>
+        <CalcHelp>Свободнопространственные потери для оценки радиолиний и лабораторных расстояний без учёта отражений и стенда.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Частота"><input style={styles.input} value={freq} onChange={e => setFreq(e.target.value)} placeholder="100" inputMode="decimal" /></Field>
+          <Field label="Единица частоты"><select style={styles.select} value={freqUnit} onChange={e => setFreqUnit(e.target.value)}>{["Hz","kHz","MHz","GHz"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        <div style={styles.row}>
+          <Field label="Расстояние"><input style={styles.input} value={distance} onChange={e => setDistance(e.target.value)} placeholder="3" inputMode="decimal" /></Field>
+          <Field label="Единица расстояния"><select style={styles.select} value={distUnit} onChange={e => setDistUnit(e.target.value)}><option value="m">m</option><option value="km">km</option></select></Field>
+        </div>
+        <div style={styles.row}>
+          <Field label="Мощность передатчика (dBm), опц."><input style={styles.input} value={txPower} onChange={e => setTxPower(e.target.value)} placeholder="Напр.: 10" inputMode="decimal" /></Field>
+          <Field label="Усиление Tx / Rx (dBi), опц."><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><input style={styles.input} value={txGain} onChange={e => setTxGain(e.target.value)} placeholder="Tx" inputMode="decimal" /><input style={styles.input} value={rxGain} onChange={e => setRxGain(e.target.value)} placeholder="Rx" inputMode="decimal" /></div></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите положительные частоту и расстояние.</div>}
+        <FormulaNote>FSPL(dB) = 20log10(d[m]) + 20log10(f[Hz]) − 147.55</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function FieldStrengthCalc() {
+  const [val, setVal] = useState("");
+  const [unit, setUnit] = useState("V/m");
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    if (isNaN(x)) return null;
+    let eVm;
+    if (unit === "V/m") eVm = x;
+    if (unit === "mV/m") eVm = x / 1000;
+    if (unit === "µV/m") eVm = x / 1e6;
+    if (unit === "dBµV/m") eVm = Math.pow(10, (x - 120) / 20);
+    if (unit === "W/m²") eVm = Math.sqrt(Math.max(x, 0) * 377);
+    if (unit === "mW/cm²") eVm = Math.sqrt(Math.max(x, 0) * 10 * 377);
+    if (!isFinite(eVm) || eVm < 0) return null;
+    const powerDensity = eVm * eVm / 377;
+    return [
+      { label: "V/m", value: `${fmt(eVm, 6)} V/m` },
+      { label: "dBµV/m", value: eVm > 0 ? `${fmt(20 * Math.log10(eVm) + 120, 3)} dBµV/m` : "−∞ dBµV/m" },
+      { label: "W/m²", value: `${fmt(powerDensity, 9)} W/m²` },
+      { label: "mW/cm²", value: `${fmt(powerDensity / 10, 9)} mW/cm²` },
+    ];
+  }, [val, unit]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Напряжённость электрического поля</div>
+      <div style={styles.card}>
+        <CalcHelp>Пересчёт E-поля и плотности потока мощности для дальней зоны в свободном пространстве.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение"><input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="10" inputMode="decimal" /></Field>
+          <Field label="Единицы"><select style={styles.select} value={unit} onChange={e => setUnit(e.target.value)}>{["V/m","mV/m","µV/m","dBµV/m","W/m²","mW/cm²"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите корректное неотрицательное значение.</div>}
+        <FormulaNote>S = E² / 377 Ω · dBµV/m = 20log10(E[V/m]) + 120</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function MagneticFieldCalc() {
+  const [val, setVal] = useState("");
+  const [unit, setUnit] = useState("A/m");
+  const MU0 = 4 * Math.PI * 1e-7;
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    if (isNaN(x)) return null;
+    let h;
+    if (unit === "A/m") h = x;
+    if (unit === "mA/m") h = x / 1000;
+    if (unit === "µA/m") h = x / 1e6;
+    if (unit === "dBµA/m") h = Math.pow(10, (x - 120) / 20);
+    if (["T", "mT", "µT", "nT"].includes(unit)) {
+      const bT = x * ({ T: 1, mT: 1e-3, "µT": 1e-6, nT: 1e-9 }[unit] || 1);
+      h = bT / MU0;
+    }
+    if (!isFinite(h) || h < 0) return null;
+    const bT = MU0 * h;
+    return [
+      { label: "A/m", value: `${fmt(h, 6)} A/m` },
+      { label: "dBµA/m", value: h > 0 ? `${fmt(20 * Math.log10(h) + 120, 3)} dBµA/m` : "−∞ dBµA/m" },
+      { label: "µT", value: `${fmt(bT * 1e6, 6)} µT` },
+      { label: "mT", value: `${fmt(bT * 1e3, 9)} mT` },
+    ];
+  }, [val, unit]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Конвертер магнитного поля</div>
+      <div style={styles.card}>
+        <CalcHelp>Пересчёт H и B с приближением воздуха/свободного пространства: B = µ₀·H.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение"><input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="1" inputMode="decimal" /></Field>
+          <Field label="Единицы"><select style={styles.select} value={unit} onChange={e => setUnit(e.target.value)}>{["A/m","mA/m","µA/m","dBµA/m","T","mT","µT","nT"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите корректное неотрицательное значение.</div>}
+        <div style={styles.warn}>Используется приближение для воздуха/свободного пространства; в материалах с другой магнитной проницаемостью результат отличается.</div>
+      </div>
+    </div>
+  );
+}
+
+function NearFarFieldCalc() {
+  const [freq, setFreq] = useState("");
+  const [freqUnit, setFreqUnit] = useState("MHz");
+  const [dimension, setDimension] = useState("");
+
+  const res = useMemo(() => {
+    const fIn = parseNum(freq);
+    const d = parseNum(dimension);
+    if (isNaN(fIn) || isNaN(d) || fIn <= 0 || d < 0) return null;
+    const fHz = fIn * ({ Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 }[freqUnit] || 1);
+    const lambda = 299792458 / fHz;
+    return [
+      { label: "Длина волны λ", value: `${fmt(lambda, 6)} м` },
+      { label: "Граница реактивной ближней зоны", value: `${fmt(lambda / (2 * Math.PI), 6)} м` },
+      { label: "Дальняя зона 2D²/λ", value: `${fmt((2 * d * d) / lambda, 6)} м` },
+    ];
+  }, [freq, freqUnit, dimension]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Near Field / Far Field</div>
+      <div style={styles.card}>
+        <CalcHelp>Оценка длины волны, ближней зоны и расстояния дальней зоны по максимальному размеру антенны.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Частота"><input style={styles.input} value={freq} onChange={e => setFreq(e.target.value)} placeholder="100" inputMode="decimal" /></Field>
+          <Field label="Единица частоты"><select style={styles.select} value={freqUnit} onChange={e => setFreqUnit(e.target.value)}>{["Hz","kHz","MHz","GHz"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        <Field label="Наибольший размер антенны D (м)"><input style={styles.input} value={dimension} onChange={e => setDimension(e.target.value)} placeholder="1" inputMode="decimal" /></Field>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите положительную частоту и неотрицательный размер D.</div>}
+        <div style={styles.warn}>⚠️ Результаты являются инженерными оценками и зависят от типа антенны и конфигурации испытательного стенда.</div>
+        <FormulaNote>Reactive NF ≈ λ / 2π · Far field ≈ 2D² / λ</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function AntennaFactorCalc() {
+  const [reading, setReading] = useState("");
+  const [af, setAf] = useState("");
+  const [cableLoss, setCableLoss] = useState("");
+  const [preampGain, setPreampGain] = useState("");
+
+  const res = useMemo(() => {
+    const r = parseNum(reading);
+    const a = parseNum(af);
+    const c = parseNum(cableLoss) || 0;
+    const p = parseNum(preampGain) || 0;
+    if (isNaN(r) || isNaN(a)) return null;
+    const corrected = r + a + c - p;
+    return [{ label: "Скорректированный уровень поля", value: `${fmt(corrected, 3)} dBµV/m` }];
+  }, [reading, af, cableLoss, preampGain]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Antenna Factor / коррекция уровня</div>
+      <div style={styles.card}>
+        <CalcHelp>Коррекция показаний приёмника/анализатора с учётом антенного фактора, потерь кабеля и усиления предусилителя.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Показание приёмника (dBµV)"><input style={styles.input} value={reading} onChange={e => setReading(e.target.value)} placeholder="40" inputMode="decimal" /></Field>
+          <Field label="Antenna Factor (dB/m)"><input style={styles.input} value={af} onChange={e => setAf(e.target.value)} placeholder="18" inputMode="decimal" /></Field>
+        </div>
+        <div style={styles.row}>
+          <Field label="Потери кабеля (dB)"><input style={styles.input} value={cableLoss} onChange={e => setCableLoss(e.target.value)} placeholder="2" inputMode="decimal" /></Field>
+          <Field label="Усиление предусилителя (dB)"><input style={styles.input} value={preampGain} onChange={e => setPreampGain(e.target.value)} placeholder="20" inputMode="decimal" /></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите показание приёмника и антенный фактор.</div>}
+        <FormulaNote>Ecorr = Reading + AF + Cable Loss − Preamp Gain</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
 // ─── UNIT CONVERTER ───────────────────────────────────────────────────────
 function UnitConverter() {
   const [val, setVal] = useState("");
@@ -2437,40 +2771,86 @@ function CalibrationDotsCalc() {
 }
 
 function CalculatorsScreen({ calcId, setCalcId }) {
-  const tools = [
-    { id: "db", icon: "📊", title: "dB-конвертер", sub: "дБмкВ, дБм, дБмкА, дБмкВ/м" },
-    { id: "bci", icon: "⚡", title: "Расчёт инжекции тока", sub: "Уровень генератора, ток инжекции" },
-    { id: "cable", icon: "🔌", title: "Потери кабеля", sub: "RG-58, LMR-400, Custom..." },
-    { id: "cablelen", icon: "📏", title: "Длина кабеля по резонансу", sub: "λ/4, λ/2 и λ/1 по частоте" },
-    { id: "caldots", icon: "📋", title: "Таблица калибровочных точек", sub: "Шаг 1% по КТ-160G п.20.5, 20.4, 21.4, 21.5" },
-    { id: "powgain", icon: "📶", title: "Мощность и усиление", sub: "Вход → усилитель → выход" },
-    { id: "resonance", icon: "〰️", title: "Резонансная частота кабеля", sub: "По длине кабеля" },
-    { id: "time", icon: "⏱️", title: "Конвертер времени", sub: "нс, мкс, мс, с, мин, ч — с контекстом ЭМС" },
-    { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение..." },
+  const groups = [
+    {
+      title: "Базовые EMC",
+      tools: [
+        { id: "db", icon: "📊", title: "dB-конвертер", sub: "dBµV, dBm, dBµA, dBµV/m" },
+        { id: "dbmwv", icon: "🔋", title: "dBm / W / V", sub: "Мощность и напряжение в 50 Ω тракте" },
+        { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение, мощность" },
+      ],
+    },
+    {
+      title: "Кабели и RF тракт",
+      tools: [
+        { id: "cable", icon: "🔌", title: "Потери кабеля", sub: "RG-58, LMR-400, Custom..." },
+        { id: "resonance", icon: "〰️", title: "Резонансная частота кабеля", sub: "По длине кабеля и velocity factor" },
+        { id: "cablelen", icon: "📏", title: "Длина кабеля по резонансу", sub: "λ/4, λ/2 и λ/1 по частоте" },
+        { id: "vswr", icon: "📡", title: "VSWR / КСВ", sub: "Return loss, mismatch loss, отражённая мощность" },
+        { id: "fspl", icon: "🛰️", title: "Free Space Path Loss", sub: "Потери в свободном пространстве и уровень Rx" },
+      ],
+    },
+    {
+      title: "Поля и антенны",
+      tools: [
+        { id: "field", icon: "⚙️", title: "Напряжённость E-поля", sub: "V/m, dBµV/m, W/m², mW/cm²" },
+        { id: "magfield", icon: "🧲", title: "Магнитное поле", sub: "A/m, dBµA/m, µT, mT" },
+        { id: "nearfar", icon: "📐", title: "Near Field / Far Field", sub: "λ, ближняя зона, 2D²/λ" },
+        { id: "antfactor", icon: "📶", title: "Antenna Factor / коррекция", sub: "Reading + AF + cable loss − preamp gain" },
+      ],
+    },
+    {
+      title: "Испытания",
+      tools: [
+        { id: "bci", icon: "⚡", title: "Расчёт инжекции тока", sub: "Уровень генератора, ток инжекции" },
+        { id: "caldots", icon: "📋", title: "Таблица калибровочных точек", sub: "Шаг 1% по КТ-160G п.20.5, 20.4, 21.4, 21.5" },
+      ],
+    },
+    {
+      title: "Дополнительно",
+      tools: [
+        { id: "powgain", icon: "📶", title: "Мощность и усиление", sub: "Вход → усилитель → выход" },
+        { id: "time", icon: "⏱️", title: "Конвертер времени", sub: "нс, мкс, мс, с, мин, ч — с контекстом ЭМС" },
+      ],
+    },
   ];
 
   if (calcId === "db") return <><BackBtn onBack={() => setCalcId(null)} /><DbConverter /></>;
+  if (calcId === "dbmwv") return <><BackBtn onBack={() => setCalcId(null)} /><DbmPowerVoltageCalc /></>;
   if (calcId === "bci") return <><BackBtn onBack={() => setCalcId(null)} /><BciCalc /></>;
   if (calcId === "cable") return <><BackBtn onBack={() => setCalcId(null)} /><CableLossCalc /></>;
   if (calcId === "cablelen") return <><BackBtn onBack={() => setCalcId(null)} /><CableLengthCalc /></>;
   if (calcId === "caldots") return <><BackBtn onBack={() => setCalcId(null)} /><CalibrationDotsCalc /></>;
   if (calcId === "powgain") return <><BackBtn onBack={() => setCalcId(null)} /><PowerGainCalc /></>;
   if (calcId === "resonance") return <><BackBtn onBack={() => setCalcId(null)} /><ResonanceCalc /></>;
+  if (calcId === "vswr") return <><BackBtn onBack={() => setCalcId(null)} /><VswrCalc /></>;
+  if (calcId === "fspl") return <><BackBtn onBack={() => setCalcId(null)} /><FsplCalc /></>;
+  if (calcId === "field") return <><BackBtn onBack={() => setCalcId(null)} /><FieldStrengthCalc /></>;
+  if (calcId === "magfield") return <><BackBtn onBack={() => setCalcId(null)} /><MagneticFieldCalc /></>;
+  if (calcId === "nearfar") return <><BackBtn onBack={() => setCalcId(null)} /><NearFarFieldCalc /></>;
+  if (calcId === "antfactor") return <><BackBtn onBack={() => setCalcId(null)} /><AntennaFactorCalc /></>;
   if (calcId === "time") return <><BackBtn onBack={() => setCalcId(null)} /><TimeConverter /></>;
   if (calcId === "units") return <><BackBtn onBack={() => setCalcId(null)} /><UnitConverter /></>;
 
   return (
     <div>
       <div style={styles.sectionTitle}>Калькуляторы</div>
-      {tools.map(t => (
-        <button key={t.id} onClick={() => setCalcId(t.id)} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", width: "100%", textAlign: "left", margin: "0 0 10px 0" }}>
-          <span style={{ fontSize: 26, minWidth: 36 }}>{t.icon}</span>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{t.title}</div>
-            <div style={{ fontSize: 12, color: C.textSec, marginTop: 2 }}>{t.sub}</div>
+      {groups.map(group => (
+        <div key={group.title} style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", margin: "10px 0 8px" }}>{group.title}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+            {group.tools.map(t => (
+              <button key={t.id} onClick={() => setCalcId(t.id)} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", width: "100%", textAlign: "left", margin: 0, minHeight: 92 }}>
+                <span style={{ fontSize: 26, minWidth: 36 }}>{t.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{t.title}</div>
+                  <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{t.sub}</div>
+                </div>
+                <span style={{ marginLeft: "auto", color: C.textSec }}>›</span>
+              </button>
+            ))}
           </div>
-          <span style={{ marginLeft: "auto", color: C.textSec }}>›</span>
-        </button>
+        </div>
       ))}
     </div>
   );
@@ -4110,7 +4490,8 @@ function StandardsTab() {
   const gostCount = STANDARDS.filter(s => s.gost).length;
   const iecCount = STANDARDS.filter(s => !s.gost).length;
   const filtered = useMemo(() => STANDARDS.filter(s => {
-    const matchQ = s.name.toLowerCase().includes(q.toLowerCase()) || s.desc.toLowerCase().includes(q.toLowerCase()) || s.type.toLowerCase().includes(q.toLowerCase());
+    const query = q.toLowerCase();
+    const matchQ = [s.name, s.desc, s.type, s.scope, s.notes].filter(Boolean).some(v => v.toLowerCase().includes(query));
     const matchO = origin === "all" || (origin === "gost" && s.gost) || (origin === "iec" && !s.gost);
     return matchQ && matchO;
   }), [q, origin]);
@@ -4141,9 +4522,11 @@ function StandardsTab() {
             </div>
             <span style={{ ...styles.tag("info"), whiteSpace: "nowrap", flexShrink: 0 }}>{s.category}</span>
           </div>
-          <div style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>{s.desc}</div>
-          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 2 }}>Тип воздействия: <b style={{ color: C.text }}>{s.type}</b></div>
-          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>Применение: {s.scope}</div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 3 }}>Номер стандарта: <b style={{ color: C.text }}>{s.name}</b></div>
+          <div style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>Назначение: {s.desc}</div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 2 }}>Связанный тип испытаний: <b style={{ color: C.text }}>{s.type}</b></div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 6 }}>Область применения: {s.scope}</div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>Примечание: {s.notes || "Краткая справочная карточка без полного текста стандарта и без нормированных таблиц."}</div>
           <div style={{ fontSize: 11, background: C.warnLight, color: C.warn, padding: "6px 8px", borderRadius: 6 }}>
             ⚠️ Данные справочные. Актуальные требования уточняйте по действующей редакции стандарта.
           </div>
