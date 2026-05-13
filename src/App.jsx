@@ -246,8 +246,8 @@ const styles = {
   }),
   chip: { display: "inline-block", background: C.accentLight, color: C.accent, borderRadius: 6, padding: "3px 9px", fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4 },
   warn: { background: C.warnLight, border: `1px solid #FACEAA`, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.warn, marginTop: 8 },
-  searchInput: { width: "100%", padding: "10px 12px 10px 36px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
-  searchWrap: { position: "relative", marginBottom: 12 },
+  searchInput: { width: "100%", padding: "12px 14px 12px 40px", border: "1px solid rgba(148,163,184,0.16)", borderRadius: 16, fontSize: 14, color: C.text, background: "rgba(15,23,42,0.66)", outline: "none", boxSizing: "border-box", fontFamily: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)" },
+  searchWrap: { position: "relative", marginBottom: 14 },
   mbSm: { marginBottom: 8 },
   mb: { marginBottom: 12 },
   mbLg: { marginBottom: 16 },
@@ -273,18 +273,262 @@ function ResultBox({ rows, lastNoLine }) {
 // ─── TABS COMPONENT ───────────────────────────────────────────────────────────
 function InnerTabs({ tabs, active, onSet }) {
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
+    <div className="premium-pills" style={{ marginBottom: 18 }}>
       {tabs.map(t => (
-        <button key={t.id} onClick={() => onSet(t.id)} style={{
-          padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${active === t.id ? C.accent : C.border}`,
-          background: active === t.id ? C.accentLight : C.card, color: active === t.id ? C.accent : C.textSec,
-          fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap"
-        }}>{t.label}</button>
+        <button key={t.id} onClick={() => onSet(t.id)} className={`premium-pill ${active === t.id ? "active" : ""}`}>{t.label}</button>
       ))}
     </div>
   );
 }
 
+
+
+function PremiumUiStyles() {
+  return <style>{`
+    .premium-page {
+      width: 100%;
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 6px clamp(0px, 1.2vw, 16px) 34px;
+    }
+    .premium-hero {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 22px;
+      min-height: 128px;
+      margin-bottom: 24px;
+      padding: 28px 30px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(56,189,248,0.18), transparent 34%),
+        radial-gradient(circle at 92% 12%, rgba(124,58,237,0.22), transparent 36%),
+        linear-gradient(135deg, rgba(15,23,42,0.88), rgba(8,15,30,0.76));
+      box-shadow: 0 22px 70px rgba(2,6,23,0.48), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .premium-hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -18% -80% 38%;
+      height: 180px;
+      background: linear-gradient(90deg, transparent, rgba(56,189,248,0.14), rgba(124,58,237,0.1), transparent);
+      transform: rotate(-5deg);
+      pointer-events: none;
+    }
+    .premium-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: #7DD3FC;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+    }
+    .premium-title {
+      margin: 0;
+      color: #F8FAFC;
+      font-size: clamp(28px, 3vw, 44px);
+      line-height: 1.04;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+    .premium-subtitle {
+      max-width: 680px;
+      margin-top: 12px;
+      color: #A8B6CC;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .premium-hero-meta {
+      display: grid;
+      grid-template-columns: repeat(var(--meta-cols, 3), minmax(112px, 1fr));
+      gap: 10px;
+      z-index: 1;
+      min-width: min(450px, 42vw);
+    }
+    .premium-meta-card {
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 18px;
+      padding: 14px 16px;
+      background: rgba(2,6,23,0.28);
+      backdrop-filter: blur(14px);
+    }
+    .premium-meta-value { color: #F8FAFC; font-size: 22px; font-weight: 800; line-height: 1; }
+    .premium-meta-label { color: #94A3B8; font-size: 11px; margin-top: 7px; letter-spacing: 0.4px; }
+    .premium-section-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 22px 2px 14px;
+    }
+    .premium-section-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .premium-section-mark {
+      width: 4px;
+      height: 34px;
+      border-radius: 999px;
+      background: var(--section-accent, #38BDF8);
+      box-shadow: 0 0 22px color-mix(in srgb, var(--section-accent, #38BDF8) 52%, transparent);
+      flex: 0 0 auto;
+    }
+    .premium-section-title { color: #E2E8F0; font-size: 17px; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+    .premium-section-caption { color: #94A3B8; font-size: 12px; line-height: 1.45; margin-top: 4px; }
+    .premium-card {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 22px;
+      background: linear-gradient(150deg, rgba(15,23,42,0.86), rgba(7,12,24,0.78)), radial-gradient(circle at 18% 0%, rgba(56,189,248,0.1), transparent 36%);
+      box-shadow: 0 16px 46px rgba(2,6,23,0.42), inset 0 1px 0 rgba(255,255,255,0.045);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .premium-card-action { cursor: pointer; font-family: inherit; color: inherit; text-align: left; }
+    .premium-card-action:hover {
+      transform: translateY(-3px);
+      border-color: rgba(125,211,252,0.34);
+      box-shadow: 0 22px 58px rgba(2,6,23,0.56), 0 0 32px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .premium-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .premium-list { display: grid; gap: 12px; }
+    .premium-search { position: relative; margin-bottom: 14px; }
+    .premium-search input {
+      width: 100%;
+      padding: 13px 14px 13px 42px;
+      border: 1px solid rgba(148,163,184,0.16);
+      border-radius: 16px;
+      color: #F8FAFC;
+      background: rgba(15,23,42,0.66);
+      outline: none;
+      box-sizing: border-box;
+      font: inherit;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+    }
+    .premium-search input::placeholder { color: #64748B; }
+    .premium-search span { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94A3B8; font-size: 14px; }
+    .premium-pills { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding: 2px 0 8px; }
+    .premium-pill {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.16);
+      background: rgba(15,23,42,0.54);
+      color: #94A3B8;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .premium-pill.active {
+      border-color: rgba(125,211,252,0.32);
+      background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(124,58,237,0.1));
+      color: #BAE6FD;
+      box-shadow: 0 0 22px rgba(37,99,235,0.14);
+    }
+    .premium-icon-box {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      border: 1px solid rgba(125,211,252,0.24);
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(56,189,248,0.12), rgba(2,6,23,0.28));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 18px rgba(56,189,248,0.1);
+      font-size: 22px;
+      flex: 0 0 auto;
+    }
+    .premium-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(125,211,252,0.2);
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: rgba(14,165,233,0.08);
+      color: #7DD3FC;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    @media (max-width: 1180px) { .premium-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 980px) {
+      .premium-hero { align-items: stretch; flex-direction: column; padding: 24px; }
+      .premium-hero-meta { min-width: 0; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .premium-page { padding: 2px 0 28px; }
+      .premium-hero { border-radius: 22px; margin-bottom: 22px; padding: 22px 18px; }
+      .premium-subtitle { font-size: 13px; }
+      .premium-hero-meta, .premium-grid { grid-template-columns: 1fr; }
+      .premium-section-header { align-items: flex-start; flex-direction: column; gap: 10px; }
+    }
+  `}</style>;
+}
+
+function PageContainer({ children }) {
+  return <div className="premium-page"><PremiumUiStyles />{children}</div>;
+}
+
+function SectionHero({ kicker = "EMC Toolkit · Engineering Suite", title, subtitle, stats = [] }) {
+  return (
+    <header className="premium-hero">
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div className="premium-kicker">{kicker}</div>
+        <h1 className="premium-title">{title}</h1>
+        {subtitle && <div className="premium-subtitle">{subtitle}</div>}
+      </div>
+      {stats.length > 0 && (
+        <div className="premium-hero-meta" style={{ "--meta-cols": Math.min(stats.length, 3) }}>
+          {stats.map((s, i) => (
+            <div key={`${s.label}_${i}`} className="premium-meta-card">
+              <div className="premium-meta-value">{s.value}</div>
+              <div className="premium-meta-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </header>
+  );
+}
+
+function SectionHeader({ title, caption, count, accent = "#38BDF8" }) {
+  return (
+    <div className="premium-section-header" style={{ "--section-accent": accent }}>
+      <div className="premium-section-title-wrap">
+        <div className="premium-section-mark" />
+        <div>
+          <div className="premium-section-title">{title}</div>
+          {caption && <div className="premium-section-caption">{caption}</div>}
+        </div>
+      </div>
+      {count && <div className="premium-badge">{count}</div>}
+    </div>
+  );
+}
+
+function PremiumSearch({ value, onChange, placeholder }) {
+  return (
+    <div className="premium-search">
+      <span>🔍</span>
+      <input value={value} onChange={onChange} placeholder={placeholder} />
+    </div>
+  );
+}
+
+function PremiumPills({ items, active, onSet }) {
+  return (
+    <div className="premium-pills">
+      {items.map(([value, label]) => (
+        <button key={value} onClick={() => onSet(value)} className={`premium-pill ${active === value ? "active" : ""}`}>{label}</button>
+      ))}
+    </div>
+  );
+}
 // ─── QUIZ DATA (200 вопросов) ─────────────────────────────────────────────────
 const QUIZ_POOL = [
   // ── ЕДИНИЦЫ И ВЕЛИЧИНЫ ──
@@ -4682,31 +4926,41 @@ function SchemaEditor({ testId, setupItems }) {
 
 function TestsScreen() {
   const [selected, setSelected] = useState(null);
+  const standardGroups = new Set(TESTS_DATA.map(t => (t.standard || "").split("·")[0].trim()).filter(Boolean));
   if (selected) return <TestDetail test={selected} onBack={() => setSelected(null)} />;
   return (
-    <div>
-      <div style={styles.sectionTitle}>Испытания по ГОСТ РВ 20.57.306</div>
-      {/* Header info */}
-      <div style={{ ...styles.card, borderLeft: "3px solid #C0392B", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 22 }}>🇷🇺</span>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>ГОСТ РВ 20.57.306-98</div>
-            <div style={{ fontSize: 11, color: C.textSec, marginTop: 2 }}>Испытания на стойкость к электромагнитным воздействиям</div>
-          </div>
-        </div>
+    <PageContainer>
+      <SectionHero
+        title="Испытания"
+        subtitle="Шаблоны EMC/EMI испытаний с кратким назначением, диапазонами и составом стенда — в едином инженерном стиле EMC Toolkit."
+        stats={[
+          { value: TESTS_DATA.length, label: "шаблонов" },
+          { value: standardGroups.size, label: "групп стандартов" },
+          { value: "ГОСТ РВ", label: "активный стандарт" },
+        ]}
+      />
+      <SectionHeader title="ГОСТ РВ 20.57.306" caption="Испытания на стойкость к электромагнитным воздействиям" count={`${TESTS_DATA.length} карточек`} accent="#F59E0B" />
+      <div className="premium-list">
+        {TESTS_DATA.map(t => (
+          <button key={t.id} onClick={() => setSelected(t)} className="premium-card premium-card-action" style={{ width: "100%", display: "grid", gridTemplateColumns: "64px minmax(0, 1fr) minmax(110px, 180px) 18px", alignItems: "center", gap: 16, padding: "18px 20px", borderLeft: "3px solid rgba(245,158,11,0.78)" }}>
+            <div className="premium-icon-box" style={{ color: "#FBBF24", fontSize: 13, fontWeight: 900, lineHeight: 1.15, textAlign: "center" }}>{t.short}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 5 }}>
+                <span className="premium-badge" style={{ color: "#FBBF24", borderColor: "rgba(251,191,36,0.22)", background: "rgba(245,158,11,0.08)" }}>{t.short}</span>
+                <span style={{ fontSize: 12, color: C.textSec, fontWeight: 800 }}>{t.standard}</span>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 850, color: C.text, letterSpacing: "-0.01em" }}>{t.name}</div>
+              <div style={{ fontSize: 12, color: C.textSec, marginTop: 6, lineHeight: 1.45 }}>{t.desc}</div>
+            </div>
+            <div style={{ justifySelf: "end", textAlign: "right" }}>
+              <div className="premium-badge">{t.range}</div>
+              <div style={{ fontSize: 11, color: C.textSec, marginTop: 8 }}>Диапазон / тип</div>
+            </div>
+            <div style={{ fontSize: 26, color: "#64748B" }}>›</div>
+          </button>
+        ))}
       </div>
-      {TESTS_DATA.map(t => (
-        <button key={t.id} onClick={() => setSelected(t)} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", width: "100%", textAlign: "left", margin: "0 0 10px 0", borderLeft: "3px solid #C0392B" }}>
-          <div style={{ width: 50, height: 50, borderRadius: 10, background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#C0392B", minWidth: 50, textAlign: "center", lineHeight: 1.2 }}>{t.short}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{t.name}</div>
-            <div style={{ fontSize: 11, color: "#C0392B", fontWeight: 600, marginTop: 2 }}>{t.standard}</div>
-          </div>
-          <div style={{ fontSize: 10, color: C.textSec, textAlign: "right", maxWidth: 80, lineHeight: 1.3 }}>{t.range}</div>
-        </button>
-      ))}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -5391,7 +5645,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
   );
 }
 
-function EquipmentTab() {
+function EquipmentTab({ compact = false } = {}) {
  const [search, setSearch] = useState("");
 const [selected, setSelected] = useState(null);
 const [deleteCandidateId, setDeleteCandidateId] = useState(null);
@@ -5543,38 +5797,47 @@ const createEquipment = () => {
     );
   }
 
-  return (
-    <div>
-      <div style={styles.searchWrap}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>🔍</span>
-        <input style={{ ...styles.searchInput }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по названию или типу..." />
-      </div>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8, marginBottom: 12 }}>
-        {arms.map(a => (
-          <button key={a} onClick={() => setArmFilter(a)} style={{ padding: "5px 10px", borderRadius: 8, border: `1px solid ${armFilter === a ? C.accent : C.border}`, background: armFilter === a ? C.accentLight : C.bg, color: armFilter === a ? C.accent : C.textSec, fontSize: 11, fontWeight: armFilter === a ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{a}</button>
-        ))}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
-        <div style={{ fontSize: 11, color: C.textSec }}>Найдено: {filtered.length} единиц оборудования</div>
-        <button onClick={createEquipment} style={{ ...styles.btn(), padding: "7px 12px", fontSize: 12 }}>+ Добавить оборудование</button>
+  const stationCount = new Set(allEquip.map(e => e.arm).filter(Boolean)).size;
+  const typeCount = new Set(allEquip.map(e => e.type).filter(Boolean)).size;
+
+  const content = (
+    <>
+      {!compact && (
+        <SectionHero
+          title="Оборудование"
+          subtitle="Каталог измерительных приборов, испытательных средств и стендовой оснастки с быстрыми фильтрами по станциям."
+          stats={[
+            { value: allEquip.length, label: "единиц" },
+            { value: stationCount, label: "станций" },
+            { value: typeCount, label: "типов" },
+          ]}
+        />
+      )}
+      <SectionHeader title="Парк оборудования" caption="Поиск, станции и карточки приборов без изменения данных и логики управления" count={`${filtered.length} найдено`} accent="#60A5FA" />
+      <PremiumSearch value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по названию, типу или описанию..." />
+      <PremiumPills items={arms.map(a => [a, a])} active={armFilter} onSet={setArmFilter} />
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <button onClick={createEquipment} style={{ ...styles.btn(), padding: "9px 14px", fontSize: 12, borderRadius: 12 }}>+ Добавить оборудование</button>
       </div>
       {deleteConfirmModal}
-      {filtered.map(e => (
-        <div key={e.id} onClick={() => setSelected(e.id)} style={{ ...styles.card, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
-          <div style={{ fontSize: 24, minWidth: 32 }}>{e.icon}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{e.name}</div>
-            <div style={{ fontSize: 11, color: C.textSec, marginBottom: 2 }}>{e.type}</div>
-            <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{formatSpecsShort(e.specs)}</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-            <div style={{ fontSize: 10, background: C.accentLight, color: C.accent, borderRadius: 5, padding: "2px 7px", fontWeight: 700 }}>{e.arm}</div>
-            <div style={{ fontSize: 16, color: C.textSec }}>›</div>
-          </div>
-        </div>
-      ))}
-    </div>
+      <div className="premium-list">
+        {filtered.map(e => (
+          <button key={e.id} onClick={() => setSelected(e.id)} className="premium-card premium-card-action" style={{ width: "100%", display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto 20px", alignItems: "center", gap: 14, padding: "16px 18px" }}>
+            <div className="premium-icon-box" style={{ fontSize: 24 }}>{e.icon}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 850, color: C.text, marginBottom: 4, letterSpacing: "-0.01em" }}>{e.name}</div>
+              <div style={{ fontSize: 12, color: C.textSec, marginBottom: 5 }}>{e.type}</div>
+              <div style={{ fontSize: 11, color: "#7DD3FC", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatSpecsShort(e.specs)}</div>
+            </div>
+            <div className="premium-badge">{e.arm}</div>
+            <div style={{ fontSize: 24, color: "#64748B" }}>›</div>
+          </button>
+        ))}
+      </div>
+    </>
   );
+
+  return compact ? <div>{content}</div> : <PageContainer>{content}</PageContainer>;
 }
 
 
@@ -5841,11 +6104,20 @@ function ReferenceScreen({ refTab, setRefTab }) {
     { id: "formulas", label: "Формулы" },
   ];
   return (
-    <div>
-      <div style={styles.sectionTitle}>Справочник</div>
+    <PageContainer>
+      <SectionHero
+        title="Справочники"
+        subtitle="Единый центр инженерной информации: сокращения, нормы, стандарты, оборудование, зависимости, типовые помехи и формулы."
+        stats={[
+          { value: tabs.length, label: "разделов" },
+          { value: ABBREVIATIONS.length, label: "сокращений" },
+          { value: STANDARDS.length, label: "стандартов" },
+        ]}
+      />
+      <SectionHeader title="База знаний" caption="Выберите категорию и уточните данные через поиск внутри раздела" count="offline" accent="#A78BFA" />
       <InnerTabs tabs={tabs} active={refTab} onSet={setRefTab} />
       {refTab === "abbr" && <AbbreviationsTab />}
-      {refTab === "equip" && <EquipmentTab />}
+      {refTab === "equip" && <EquipmentTab compact />}
       {refTab === "norms" && <NormsTab />}
       {refTab === "qual" && <QualBasisTab />}
       {refTab === "units" && <UnitsTab />}
@@ -5854,7 +6126,7 @@ function ReferenceScreen({ refTab, setRefTab }) {
       {refTab === "noise" && <NoiseGuideTab />}
       {refTab === "fail" && <FailAnalysisTab />}
       {refTab === "formulas" && <FormulasTab />}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -5869,25 +6141,30 @@ const MOCK_LOG = [
 ];
 
 function LogEntry({ entry, onEdit, onDelete }) {
+  const tone = entry.result === "PASS" ? "pass" : entry.result === "FAIL" ? "fail" : "info";
   return (
-    <div style={{ ...styles.card, marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{entry.project}</div>
-          <div style={{ fontSize: 12, color: C.textSec, marginTop: 1 }}>{entry.date} · {entry.testType}</div>
+    <div className="premium-card" style={{ marginBottom: 12, padding: "18px 20px", borderLeft: `3px solid ${entry.result === "PASS" ? C.pass : entry.result === "FAIL" ? C.fail : C.accent}` }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 14, alignItems: "start", marginBottom: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
+            <span style={{ fontSize: 16, fontWeight: 850, color: C.text }}>{entry.project || "Без проекта"}</span>
+            <span style={{ fontSize: 11, color: C.textSec, fontWeight: 800 }}>{entry.date}</span>
+          </div>
+          <div style={{ fontSize: 12, color: C.textSec }}>{entry.testType}</div>
         </div>
-        <span style={styles.tag(entry.result === "PASS" ? "pass" : entry.result === "FAIL" ? "fail" : "info")}>{entry.result}</span>
+        <span style={styles.tag(tone)}>{entry.result}</span>
       </div>
-      <div style={{ fontSize: 12, color: C.textSec, marginBottom: 2 }}>Стандарт: <b style={{ color: C.text }}>{entry.standard}</b></div>
-      <div style={{ fontSize: 12, color: C.textSec, marginBottom: 6 }}>Диапазон: {entry.freqRange}</div>
-      {entry.fail && <div style={{ fontSize: 12, background: C.failLight, color: C.fail, padding: "6px 8px", borderRadius: 6, marginBottom: 6 }}>❌ {entry.fail}</div>}
-      {entry.action && <div style={{ fontSize: 12, background: C.warnLight, color: C.warn, padding: "6px 8px", borderRadius: 6, marginBottom: 6 }}>🔧 {entry.action}</div>}
-      {entry.comment && <div style={{ fontSize: 12, color: C.textSec, marginBottom: 6 }}>💬 {entry.comment}</div>}
-      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button onClick={() => onEdit(entry)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "6px 14px" }}>Редактировать</button>
-        <button onClick={() => onDelete(entry.id)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "6px 14px", color: C.fail }}>Удалить</button>
-
-
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 12 }}>
+        <div className="premium-meta-card" style={{ padding: "10px 12px" }}><div className="premium-meta-label" style={{ marginTop: 0 }}>Стандарт</div><div style={{ color: C.text, fontSize: 12, fontWeight: 800, marginTop: 5 }}>{entry.standard || "—"}</div></div>
+        <div className="premium-meta-card" style={{ padding: "10px 12px" }}><div className="premium-meta-label" style={{ marginTop: 0 }}>Диапазон</div><div style={{ color: C.text, fontSize: 12, fontWeight: 800, marginTop: 5 }}>{entry.freqRange || "—"}</div></div>
+        <div className="premium-meta-card" style={{ padding: "10px 12px" }}><div className="premium-meta-label" style={{ marginTop: 0 }}>Уровень</div><div style={{ color: C.text, fontSize: 12, fontWeight: 800, marginTop: 5 }}>{entry.level || "—"}</div></div>
+      </div>
+      {entry.fail && <div style={{ fontSize: 12, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#FCA5A5", padding: "9px 11px", borderRadius: 12, marginBottom: 8 }}>❌ {entry.fail}</div>}
+      {entry.action && <div style={{ fontSize: 12, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", color: "#FCD34D", padding: "9px 11px", borderRadius: 12, marginBottom: 8 }}>🔧 {entry.action}</div>}
+      {entry.comment && <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>💬 {entry.comment}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" }}>
+        <button onClick={() => onEdit(entry)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10 }}>Редактировать</button>
+        <button onClick={() => onDelete(entry.id)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10, color: C.fail }}>Удалить</button>
       </div>
     </div>
   );
@@ -5980,28 +6257,29 @@ function LogbookScreen() {
   if (adding) return <LogForm onSave={save} onCancel={() => setAdding(false)} />;
   if (editing) return <LogForm entry={editing} onSave={save} onCancel={() => setEditing(null)} />;
 
+  const passCount = entries.filter(e => e.result === "PASS").length;
+  const failCount = entries.filter(e => e.result === "FAIL").length;
+
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={styles.sectionTitle}>Журнал испытаний</div>
-        <button onClick={() => setAdding(true)} style={{ ...styles.btn("primary"), padding: "8px 14px", fontSize: 13 }}>+ Добавить</button>
+    <PageContainer>
+      <SectionHero
+        title="Журнал"
+        subtitle="История EMC испытаний с результатами, диапазонами, отказами и рекомендациями в чистом карточном представлении."
+        stats={[
+          { value: entries.length, label: "записей" },
+          { value: passCount, label: "PASS" },
+          { value: failCount, label: "FAIL" },
+        ]}
+      />
+      <SectionHeader title="Журнал испытаний" caption="Поиск по проектам и типам испытаний, быстрые PASS/FAIL фильтры" count={`${visible.length} отображается`} accent="#22C55E" />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button onClick={() => setAdding(true)} style={{ ...styles.btn("primary"), padding: "9px 14px", fontSize: 13, borderRadius: 12 }}>+ Добавить</button>
       </div>
-      <div style={styles.searchWrap}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.textSec, fontSize: 14 }}>🔍</span>
-        <input style={styles.searchInput} value={q} onChange={e => setQ(e.target.value)} placeholder="Поиск по проекту или типу испытания..." />
-      </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {[["all", "Все"], ["pass", "PASS"], ["fail", "FAIL"]].map(([v, l]) => (
-          <button key={v} onClick={() => setFilter(v)} style={{
-            padding: "6px 16px", borderRadius: 20, border: `1.5px solid ${filter === v ? C.accent : C.border}`,
-            background: filter === v ? C.accentLight : C.card, color: filter === v ? C.accent : C.textSec,
-            fontSize: 12, fontWeight: 600, cursor: "pointer"
-          }}>{l} {v !== "all" && <span style={{ ...styles.tag(v), fontSize: 10, marginLeft: 4 }}>{entries.filter(e => e.result === v.toUpperCase()).length}</span>}</button>
-        ))}
-      </div>
-      {visible.length === 0 && <div style={{ textAlign: "center", color: C.textSec, padding: 40 }}>Записей не найдено</div>}
+      <PremiumSearch value={q} onChange={e => setQ(e.target.value)} placeholder="Поиск по проекту или типу испытания..." />
+      <PremiumPills items={[["all", `Все (${entries.length})`], ["pass", `PASS (${passCount})`], ["fail", `FAIL (${failCount})`]]} active={filter} onSet={setFilter} />
+      {visible.length === 0 && <div className="premium-card" style={{ textAlign: "center", color: C.textSec, padding: 40 }}>Записей не найдено</div>}
       {visible.map(e => <LogEntry key={e.id} entry={e} onEdit={setEditing} onDelete={del} />)}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -6803,10 +7081,10 @@ const addItem = () => {
   };
 
   const STATUS_CONFIG = {
-    ok:      { color:"#1A9B5A", bg:"#E6F7EE", label:"✓ Актуальна" },
-    soon:    { color:"#E07B00", bg:"#FFF4E5", label:"⚠ Истекает" },
-    expired: { color:"#D93025", bg:"#FDECEA", label:"✗ Просрочена" },
-    unknown: { color:"#8A9BB8", bg:"#F4F6F9", label:"— Не внесена" },
+    ok:      { color:"#34D399", bg:"rgba(16,185,129,0.12)", label:"✓ Актуальна" },
+    soon:    { color:"#FBBF24", bg:"rgba(245,158,11,0.12)", label:"⚠ Истекает" },
+    expired: { color:"#F87171", bg:"rgba(239,68,68,0.12)", label:"✗ Просрочена" },
+    unknown: { color:"#94A3B8", bg:"rgba(148,163,184,0.1)", label:"— Не внесена" },
   };
 
   const enriched = items.map(i => ({ ...i, status: getStatus(i.nextDate) }));
@@ -6850,25 +7128,34 @@ const addItem = () => {
   }
 
   return (
-    <div>
-<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-  <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
-  <button onClick={() => setAddForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
-</div>
-      {/* Summary */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+    <PageContainer>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
+        <button onClick={() => setAddForm(true)} style={{ padding:"9px 16px", borderRadius:12, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
+      </div>
+      <SectionHero
+        title="Проверка оборудования"
+        subtitle="Дашборд поверок и калибровок: актуальные, истекающие, просроченные и не внесённые записи по лабораторному парку."
+        stats={[
+          { value: items.length, label: "позиций" },
+          { value: counts.ok, label: "актуальных" },
+          { value: counts.expired, label: "просрочено" },
+        ]}
+      />
+      <SectionHeader title="Статусы поверки" caption="KPI-карточки работают как фильтр списка оборудования" count={filter === "all" ? "все статусы" : STATUS_CONFIG[filter]?.label} accent="#F59E0B" />
+      <div className="premium-grid" style={{ marginBottom: 18 }}>
         {[
           { key:"ok", label:"Актуальных", count:counts.ok },
-          { key:"soon", label:"Истекает (30 дн)", count:counts.soon },
+          { key:"soon", label:"Истекает", count:counts.soon },
           { key:"expired", label:"Просрочено", count:counts.expired },
           { key:"unknown", label:"Не внесено", count:counts.unknown },
         ].map(s => {
           const sc = STATUS_CONFIG[s.key];
           return (
-            <div key={s.key} onClick={()=>setFilter(filter===s.key?"all":s.key)}
-              style={{ ...styles.card, textAlign:"center", cursor:"pointer", border:`2px solid ${filter===s.key?sc.color:C.border}`, background:filter===s.key?sc.bg:"transparent" }}>
-              <div style={{ fontSize:22, fontWeight:800, color:sc.color }}>{s.count}</div>
-              <div style={{ fontSize:11, color:C.textSec, marginTop:2 }}>{s.label}</div>
+            <div key={s.key} onClick={()=>setFilter(filter===s.key?"all":s.key)} className="premium-card premium-card-action"
+              style={{ textAlign:"left", cursor:"pointer", border:`1px solid ${filter===s.key?sc.color:"rgba(148,163,184,0.14)"}`, padding:"18px", background:filter===s.key?`linear-gradient(150deg, ${sc.bg}, rgba(7,12,24,0.78))`:undefined }}>
+              <div style={{ fontSize:28, fontWeight:900, color:sc.color, lineHeight:1 }}>{s.count}</div>
+              <div style={{ fontSize:12, color:C.textSec, marginTop:8, fontWeight:800 }}>{s.label}</div>
             </div>
           );
         })}
@@ -6903,27 +7190,26 @@ const addItem = () => {
         const daysLeft = item.nextDate ? Math.floor((new Date(item.nextDate)-new Date())/86400000) : null;
         return (
           <div key={item.id} onClick={()=>setEditing({...item})}
-            style={{ ...styles.card, cursor:"pointer", borderLeft:`3px solid ${sc.color}`, marginBottom:8 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:2 }}>{item.name}</div>
-                <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>{item.arm} · {item.type}</div>
+            className="premium-card premium-card-action" style={{ cursor:"pointer", borderLeft:`3px solid ${sc.color}`, marginBottom:10, padding:"16px 18px" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr) auto", gap:14, alignItems:"center" }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:15, fontWeight:850, color:C.text, marginBottom:4 }}>{item.name}</div>
+                <div style={{ fontSize:12, color:C.textSec, marginBottom:6 }}>{item.arm} · {item.type}</div>
                 {item.certNum && <div style={{ fontSize:11, color:C.textSec }}>Св-во: {item.certNum}</div>}
-                {item.nextDate && <div style={{ fontSize:11, color:sc.color, fontWeight:600, marginTop:2 }}>
+                {item.nextDate && <div style={{ fontSize:12, color:sc.color, fontWeight:700, marginTop:2 }}>
                   До {item.nextDate.split("-").reverse().join(".")}
-                  {daysLeft !== null && daysLeft >= 0 && ` (${daysLeft} дн.)`}
-                  {daysLeft !== null && daysLeft < 0 && ` (просрочено ${Math.abs(daysLeft)} дн.)`}
+                  {daysLeft !== null && daysLeft >= 0 && ` · ${daysLeft} дн.`}
+                  {daysLeft !== null && daysLeft < 0 && ` · просрочено ${Math.abs(daysLeft)} дн.`}
                 </div>}
               </div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                <div style={{ background:sc.bg, color:sc.color, borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{sc.label}</div>
-                <div style={{ fontSize:16, color:C.textSec }}>›</div>
-<button
-  onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
-  style={{ fontSize:10, padding:"3px 8px", borderRadius:5, border:`1px solid ${C.fail}`,
-    background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit" }}>
-  Удалить
-</button>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div className="premium-badge" style={{ background:sc.bg, color:sc.color, borderColor:sc.bg }}>{sc.label}</div>
+                <div style={{ fontSize:22, color:C.textSec }}>›</div>
+                <button
+                  onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
+                  style={{ fontSize:11, padding:"6px 10px", borderRadius:10, border:`1px solid rgba(239,68,68,0.28)`, background:"rgba(239,68,68,0.08)", color:C.fail, cursor:"pointer", fontFamily:"inherit" }}>
+                  Удалить
+                </button>
               </div>
             </div>
           </div>
@@ -6936,7 +7222,7 @@ const addItem = () => {
     onCancel={() => setAdminModal(null)}
   />
 )}
-    </div>
+    </PageContainer>
   );
 }
 
