@@ -2774,43 +2774,53 @@ function CalculatorsScreen({ calcId, setCalcId }) {
   const groups = [
     {
       title: "Базовые EMC",
+      caption: "Единицы, уровни и базовые пересчёты для ежедневной работы",
+      accent: "#38BDF8",
       tools: [
-        { id: "db", icon: "📊", title: "dB-конвертер", sub: "dBµV, dBm, dBµA, dBµV/m" },
+        { id: "db", icon: "📊", title: "dB-конвертер", sub: "dBµV, dBm, dBµA и dBµV/m" },
         { id: "dbmwv", icon: "🔋", title: "dBm / W / V", sub: "Мощность и напряжение в 50 Ω тракте" },
-        { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение, мощность" },
+        { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение и мощность" },
       ],
     },
     {
       title: "Кабели и RF тракт",
+      caption: "Потери, согласование, резонансы и радиолинии",
+      accent: "#60A5FA",
       tools: [
-        { id: "cable", icon: "🔌", title: "Потери кабеля", sub: "RG-58, LMR-400, Custom..." },
-        { id: "resonance", icon: "〰️", title: "Резонансная частота кабеля", sub: "По длине кабеля и velocity factor" },
-        { id: "cablelen", icon: "📏", title: "Длина кабеля по резонансу", sub: "λ/4, λ/2 и λ/1 по частоте" },
-        { id: "vswr", icon: "📡", title: "VSWR / КСВ", sub: "Return loss, mismatch loss, отражённая мощность" },
-        { id: "fspl", icon: "🛰️", title: "Free Space Path Loss", sub: "Потери в свободном пространстве и уровень Rx" },
+        { id: "cable", icon: "🔌", title: "Потери кабеля", sub: "RG-58, LMR-400 и пользовательский кабель" },
+        { id: "resonance", icon: "〰️", title: "Резонанс кабеля", sub: "По длине кабеля и velocity factor" },
+        { id: "cablelen", icon: "📏", title: "Длина по резонансу", sub: "λ/4, λ/2 и λ/1 по заданной частоте" },
+        { id: "vswr", icon: "📡", title: "VSWR / КСВ", sub: "Return loss, mismatch loss и отражение" },
+        { id: "fspl", icon: "🛰️", title: "Free Space Path Loss", sub: "Потери в пространстве и уровень Rx" },
       ],
     },
     {
       title: "Поля и антенны",
+      caption: "Электрические и магнитные поля, зоны и антенные поправки",
+      accent: "#A78BFA",
       tools: [
-        { id: "field", icon: "⚙️", title: "Напряжённость E-поля", sub: "V/m, dBµV/m, W/m², mW/cm²" },
-        { id: "magfield", icon: "🧲", title: "Магнитное поле", sub: "A/m, dBµA/m, µT, mT" },
-        { id: "nearfar", icon: "📐", title: "Near Field / Far Field", sub: "λ, ближняя зона, 2D²/λ" },
-        { id: "antfactor", icon: "📶", title: "Antenna Factor / коррекция", sub: "Reading + AF + cable loss − preamp gain" },
+        { id: "field", icon: "⚙️", title: "Напряжённость E-поля", sub: "V/m, dBµV/m, W/m² и mW/cm²" },
+        { id: "magfield", icon: "🧲", title: "Магнитное поле", sub: "A/m, dBµA/m, µT и mT" },
+        { id: "nearfar", icon: "📐", title: "Near / Far Field", sub: "λ, ближняя зона и граница 2D²/λ" },
+        { id: "antfactor", icon: "📶", title: "Antenna Factor", sub: "Reading + AF + cable loss − preamp gain" },
       ],
     },
     {
       title: "Испытания",
+      caption: "Расчёты для подготовки и проведения EMC/EMI проверок",
+      accent: "#F59E0B",
       tools: [
-        { id: "bci", icon: "⚡", title: "Расчёт инжекции тока", sub: "Уровень генератора, ток инжекции" },
-        { id: "caldots", icon: "📋", title: "Таблица калибровочных точек", sub: "Шаг 1% по КТ-160G п.20.5, 20.4, 21.4, 21.5" },
+        { id: "bci", icon: "⚡", title: "Инжекция тока", sub: "Уровень генератора и ток инжекции" },
+        { id: "caldots", icon: "📋", title: "Калибровочные точки", sub: "Шаг 1% по разделам 20.4, 20.5, 21.4, 21.5" },
       ],
     },
     {
       title: "Дополнительно",
+      caption: "Сервисные инженерные конвертеры и вспомогательные расчёты",
+      accent: "#22C55E",
       tools: [
         { id: "powgain", icon: "📶", title: "Мощность и усиление", sub: "Вход → усилитель → выход" },
-        { id: "time", icon: "⏱️", title: "Конвертер времени", sub: "нс, мкс, мс, с, мин, ч — с контекстом ЭМС" },
+        { id: "time", icon: "⏱️", title: "Конвертер времени", sub: "нс, мкс, мс, с, мин и часы" },
       ],
     },
   ];
@@ -2833,24 +2843,266 @@ function CalculatorsScreen({ calcId, setCalcId }) {
   if (calcId === "units") return <><BackBtn onBack={() => setCalcId(null)} /><UnitConverter /></>;
 
   return (
-    <div>
-      <div style={styles.sectionTitle}>Калькуляторы</div>
+    <div className="calculators-page">
+      <style>{`
+        .calculators-page {
+          width: 100%;
+          max-width: 1480px;
+          margin: 0 auto;
+          padding: 6px clamp(0px, 1.2vw, 16px) 34px;
+        }
+        .calculators-hero {
+          position: relative;
+          overflow: hidden;
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 22px;
+          min-height: 128px;
+          margin-bottom: 30px;
+          padding: 28px 30px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(56,189,248,0.18), transparent 34%),
+            radial-gradient(circle at 92% 12%, rgba(124,58,237,0.22), transparent 36%),
+            linear-gradient(135deg, rgba(15,23,42,0.88), rgba(8,15,30,0.76));
+          box-shadow: 0 22px 70px rgba(2,6,23,0.48), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .calculators-hero::after {
+          content: "";
+          position: absolute;
+          inset: auto -18% -80% 38%;
+          height: 180px;
+          background: linear-gradient(90deg, transparent, rgba(56,189,248,0.14), rgba(124,58,237,0.1), transparent);
+          transform: rotate(-5deg);
+          pointer-events: none;
+        }
+        .calculators-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+          color: #7DD3FC;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 1.8px;
+          text-transform: uppercase;
+        }
+        .calculators-title {
+          margin: 0;
+          color: #F8FAFC;
+          font-size: clamp(28px, 3vw, 44px);
+          line-height: 1.04;
+          font-weight: 800;
+          letter-spacing: -0.04em;
+        }
+        .calculators-subtitle {
+          max-width: 620px;
+          margin-top: 12px;
+          color: #A8B6CC;
+          font-size: 15px;
+          line-height: 1.55;
+        }
+        .calculators-hero-meta {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(108px, 1fr));
+          gap: 10px;
+          z-index: 1;
+          min-width: 250px;
+        }
+        .calculators-meta-card {
+          border: 1px solid rgba(148,163,184,0.14);
+          border-radius: 18px;
+          padding: 14px 16px;
+          background: rgba(2,6,23,0.28);
+          backdrop-filter: blur(14px);
+        }
+        .calculators-meta-value { color: #F8FAFC; font-size: 22px; font-weight: 800; line-height: 1; }
+        .calculators-meta-label { color: #94A3B8; font-size: 11px; margin-top: 7px; letter-spacing: 0.4px; }
+        .calculator-section { margin-top: 34px; }
+        .calculator-section:first-of-type { margin-top: 0; }
+        .calculator-section-header {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 18px;
+          margin-bottom: 14px;
+          padding: 0 2px;
+        }
+        .calculator-section-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .calculator-section-mark {
+          width: 4px;
+          height: 34px;
+          border-radius: 999px;
+          background: var(--section-accent);
+          box-shadow: 0 0 22px color-mix(in srgb, var(--section-accent) 52%, transparent);
+          flex: 0 0 auto;
+        }
+        .calculator-section-title {
+          color: #E2E8F0;
+          font-size: 17px;
+          line-height: 1.2;
+          font-weight: 800;
+          letter-spacing: -0.01em;
+        }
+        .calculator-section-caption {
+          color: #94A3B8;
+          font-size: 12px;
+          line-height: 1.45;
+          margin-top: 4px;
+        }
+        .calculator-section-count {
+          color: #7DD3FC;
+          border: 1px solid rgba(125,211,252,0.2);
+          background: rgba(14,165,233,0.08);
+          border-radius: 999px;
+          padding: 5px 10px;
+          font-size: 11px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+        .calculator-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+        }
+        .calculator-card {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          display: grid;
+          grid-template-columns: 48px minmax(0, 1fr) 22px;
+          align-items: start;
+          gap: 14px;
+          width: 100%;
+          min-height: 132px;
+          padding: 18px;
+          border: 1px solid rgba(148,163,184,0.14);
+          border-radius: 22px;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+          background:
+            linear-gradient(150deg, rgba(15,23,42,0.86), rgba(7,12,24,0.78)),
+            radial-gradient(circle at 18% 0%, rgba(56,189,248,0.12), transparent 32%);
+          box-shadow: 0 16px 46px rgba(2,6,23,0.42), inset 0 1px 0 rgba(255,255,255,0.045);
+          font-family: inherit;
+          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .calculator-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          opacity: 0;
+          background: radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--section-accent) 22%, transparent), transparent 42%);
+          transition: opacity .18s ease;
+        }
+        .calculator-card:hover {
+          transform: translateY(-3px);
+          border-color: color-mix(in srgb, var(--section-accent) 52%, rgba(148,163,184,0.2));
+          box-shadow: 0 22px 58px rgba(2,6,23,0.56), 0 0 32px color-mix(in srgb, var(--section-accent) 16%, transparent), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .calculator-card:hover::before { opacity: 1; }
+        .calculator-icon-box {
+          display: grid;
+          place-items: center;
+          width: 48px;
+          height: 48px;
+          border: 1px solid color-mix(in srgb, var(--section-accent) 28%, rgba(148,163,184,0.16));
+          border-radius: 16px;
+          background: linear-gradient(145deg, color-mix(in srgb, var(--section-accent) 16%, rgba(15,23,42,0.8)), rgba(2,6,23,0.28));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 18px color-mix(in srgb, var(--section-accent) 12%, transparent);
+          font-size: 22px;
+          line-height: 1;
+        }
+        .calculator-card-title {
+          display: block;
+          color: #F8FAFC;
+          font-size: 15px;
+          font-weight: 800;
+          line-height: 1.28;
+          letter-spacing: -0.01em;
+        }
+        .calculator-card-desc {
+          display: block;
+          color: #94A3B8;
+          font-size: 12px;
+          line-height: 1.48;
+          margin-top: 7px;
+        }
+        .calculator-card-chevron {
+          align-self: center;
+          justify-self: end;
+          color: #64748B;
+          font-size: 24px;
+          line-height: 1;
+          transition: transform .18s ease, color .18s ease;
+        }
+        .calculator-card:hover .calculator-card-chevron { transform: translateX(3px); color: var(--section-accent); }
+        @media (max-width: 1320px) { .calculator-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 980px) {
+          .calculators-hero { align-items: stretch; flex-direction: column; padding: 24px; }
+          .calculators-hero-meta { min-width: 0; width: 100%; }
+          .calculator-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 640px) {
+          .calculators-page { padding: 2px 0 28px; }
+          .calculators-hero { border-radius: 22px; margin-bottom: 24px; padding: 22px 18px; }
+          .calculators-subtitle { font-size: 13px; }
+          .calculators-hero-meta { grid-template-columns: 1fr; }
+          .calculator-section { margin-top: 28px; }
+          .calculator-section-header { align-items: flex-start; flex-direction: column; gap: 10px; }
+          .calculator-grid { grid-template-columns: 1fr; gap: 12px; }
+          .calculator-card { min-height: 118px; padding: 16px; grid-template-columns: 44px minmax(0, 1fr) 18px; }
+          .calculator-icon-box { width: 44px; height: 44px; border-radius: 14px; }
+        }
+      `}</style>
+
+      <header className="calculators-hero">
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div className="calculators-kicker">EMC Toolkit · Engineering Suite</div>
+          <h1 className="calculators-title">Калькуляторы</h1>
+          <div className="calculators-subtitle">Быстрые инженерные расчёты и EMC/EMI инструменты для кабельных трактов, полей, антенн и испытательных сценариев.</div>
+        </div>
+        <div className="calculators-hero-meta" aria-label="Сводка калькуляторов">
+          <div className="calculators-meta-card">
+            <div className="calculators-meta-value">{groups.reduce((sum, group) => sum + group.tools.length, 0)}</div>
+            <div className="calculators-meta-label">инструментов</div>
+          </div>
+          <div className="calculators-meta-card">
+            <div className="calculators-meta-value">{groups.length}</div>
+            <div className="calculators-meta-label">секций</div>
+          </div>
+        </div>
+      </header>
+
       {groups.map(group => (
-        <div key={group.title} style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", margin: "10px 0 8px" }}>{group.title}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+        <section key={group.title} className="calculator-section" style={{ "--section-accent": group.accent }}>
+          <div className="calculator-section-header">
+            <div className="calculator-section-title-wrap">
+              <div className="calculator-section-mark" />
+              <div>
+                <h2 className="calculator-section-title">{group.title}</h2>
+                <div className="calculator-section-caption">{group.caption}</div>
+              </div>
+            </div>
+            <div className="calculator-section-count">{group.tools.length} {group.tools.length === 1 ? "инструмент" : "инструмента"}</div>
+          </div>
+          <div className="calculator-grid">
             {group.tools.map(t => (
-              <button key={t.id} onClick={() => setCalcId(t.id)} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", width: "100%", textAlign: "left", margin: 0, minHeight: 92 }}>
-                <span style={{ fontSize: 26, minWidth: 36 }}>{t.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{t.title}</div>
-                  <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{t.sub}</div>
-                </div>
-                <span style={{ marginLeft: "auto", color: C.textSec }}>›</span>
+              <button key={t.id} onClick={() => setCalcId(t.id)} className="calculator-card">
+                <span className="calculator-icon-box" aria-hidden="true">{t.icon}</span>
+                <span>
+                  <span className="calculator-card-title">{t.title}</span>
+                  <span className="calculator-card-desc">{t.sub}</span>
+                </span>
+                <span className="calculator-card-chevron" aria-hidden="true">›</span>
               </button>
             ))}
           </div>
-        </div>
+        </section>
       ))}
     </div>
   );
@@ -7039,6 +7291,12 @@ function AppInner() {
     { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
   ];
 
+  const topBarTitle = settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
+    sideNavItems.find(n => n.id === tab)?.label || "Главная";
+  const topBarSubtitle = !settingsOpen && !searchOpen && !verifyOpen && !errorsOpen && !quizOpen && tab === "calc"
+    ? "Быстрые инженерные расчёты и EMC/EMI инструменты"
+    : null;
+
   return (
     <div style={{ display: "flex", height: "100vh", background: "#050814", color: C.text, fontFamily: "'Roboto','Arial',sans-serif" }}>
 
@@ -7114,16 +7372,18 @@ function AppInner() {
         {/* ВЕРХНЯЯ ПАНЕЛЬ */}
         <div style={{
           background: "rgba(11,18,32,0.86)", borderBottom: "1px solid rgba(148,163,184,0.16)",
-          padding: "0 24px", height: 56, display: "flex", alignItems: "center",
-          justifyContent: "space-between", flexShrink: 0
+          padding: topBarSubtitle ? "0 28px" : "0 24px", minHeight: topBarSubtitle ? 72 : 56, display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: 18, flexShrink: 0, boxShadow: topBarSubtitle ? "0 14px 42px rgba(2,6,23,0.24)" : "none"
         }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
-            {settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
-              sideNavItems.find(n => n.id === tab)?.label || "Главная"}
+          <div>
+            <div style={{ fontSize: topBarSubtitle ? 16 : 15, fontWeight: 700, color: C.text, letterSpacing: topBarSubtitle ? -0.2 : 0 }}>
+              {topBarTitle}
+            </div>
+            {topBarSubtitle && <div style={{ color: C.textSec, fontSize: 12, lineHeight: 1.45, marginTop: 3 }}>{topBarSubtitle}</div>}
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 12px", borderRadius: 10, fontFamily: "inherit" }}>🔍 Справка</button>
-            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.45)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "8px 14px", borderRadius: 10, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>⚙️ Настройки</button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.58)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "9px 13px", borderRadius: 12, fontFamily: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>🔍 Справка</button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.58)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "9px 14px", borderRadius: 12, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>⚙️ Настройки</button>
           </div>
         </div>
 
