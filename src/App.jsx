@@ -7292,12 +7292,9 @@ function EulaScreen({ onAccept, onDecline }) {
   const [checked, setChecked] = useState(false);
   const [isScrollable, setIsScrollable] = useState(true);
   const licenseSections = useMemo(() => [
-    ["1. ПРЕДМЕТ СОГЛАШЕНИЯ","Настоящее Соглашение является договором между Вами и правообладателем ПО «ЭМС Инструментарий». Устанавливая приложение, Вы принимаете все условия."],
-    ["2. ИСКЛЮЧИТЕЛЬНЫЕ ПРАВА","Приложение, включая базы данных, алгоритмы, методики расчётов и интерфейс, является объектом интеллектуальной собственности и защищено ГК РФ."],
-    ["3. ОГРАНИЧЕНИЯ","Запрещается передавать, продавать или распространять приложение третьим лицам без письменного разрешения правообладателя."],
-    ["4. ОТВЕТСТВЕННОСТЬ","Незаконное распространение влечёт ответственность по ст.1301 ГК РФ и ст.146 УК РФ."],
-    ["5. ДАННЫЕ","Приложение работает полностью в автономном режиме без подключения к интернету. Все данные пользователя хранятся исключительно на устройстве и не передаются третьим лицам."],
-    ["6. ОТКАЗ ОТ ГАРАНТИЙ","Результаты расчётов носят справочный характер и подлежат верификации согласно действующим нормативным документам."],
+    ["ЛИЦЕНЗИОННОЕ СОГЛАШЕНИЕ С КОНЕЧНЫМ ПОЛЬЗОВАТЕЛЕМ (EULA)", "ПО «ЭМС Инструментарий»"],
+    ["Версия 1.1", ""],
+    ["Новая редакция", "[ВСТАВИТЬ ПОЛНЫЙ ТЕКСТ НОВОЙ РЕДАКЦИИ EULA]"],
   ], []);
   const checkScrollState = useCallback(() => {
     const el = scrollRef.current;
@@ -7323,14 +7320,14 @@ function EulaScreen({ onAccept, onDecline }) {
       <div style={{ background:"#0A1220", padding:"48px 18px 14px", borderBottom:`1px solid #1E2A40`, textAlign:"center", flexShrink:0 }}>
         <div style={{ fontSize:20, marginBottom:6 }}>🛡️</div>
         <div style={{ fontSize:16, fontWeight:800, color:"#fff", marginBottom:3 }}>Лицензионное соглашение</div>
-        <div style={{ fontSize:10, color:"#4A7FD4", letterSpacing:2 }}>ВЕРСИЯ 1.0</div>
+        <div style={{ fontSize:10, color:"#4A7FD4", letterSpacing:2 }}>ВЕРСИЯ 1.1</div>
       </div>
       <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"18px 18px 8px", WebkitOverflowScrolling:"touch" }}
         onScroll={checkScrollState}>
         {licenseSections.map(([t,tx]) => (
           <div key={t} style={{ marginBottom:16 }}>
             <div style={{ fontSize:12, fontWeight:700, color:"#4A9FFF", marginBottom:5 }}>{t}</div>
-            <div style={{ fontSize:12, lineHeight:1.75, color:"#8A9BB8" }}>{tx}</div>
+            <div style={{ fontSize:12, lineHeight:1.75, color:"#8A9BB8", whiteSpace:"pre-wrap", overflowWrap:"anywhere", wordBreak:"break-word" }}>{tx}</div>
           </div>
         ))}
         {!scrolled && <div style={{ background:"rgba(30,91,232,0.1)", border:"1px solid rgba(30,91,232,0.25)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#4A9FFF", textAlign:"center" }}>↓ Прокрутите до конца</div>}
