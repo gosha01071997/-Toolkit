@@ -5709,7 +5709,7 @@ const [customEquip, setCustomEquip] = useState(() => {
 const [equipmentEdits, setEquipmentEdits] = useState(() => {
   try { return JSON.parse(localStorage.getItem("emc_equip_edits_v1") || "{}"); } catch(e) { return {}; }
 });
-  const arms = ["Все", "Станция A", "Станция B", "Станция C", "Станция A", "Станция C", "Станция C", "Станция C", "Станция C"];
+  const arms = ["Все", "Станция A", "Станция B", "Станция C"];
   const [armFilter, setArmFilter] = useState("Все");
 const allEquip = [...EQUIPMENT_DATA, ...customEquip]
   .map((item) => normalizeEquipmentItem(item, equipmentEdits[item.id] || {}))
@@ -5771,7 +5771,7 @@ const createEquipment = () => {
   const filtered = allEquip.filter(e => {
     const q = search.toLowerCase();
     const matchSearch = !q || e.name.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q);
-    const matchArm = armFilter === "Все" || e.arm === armFilter || (armFilter === "Станция B/3" && (e.arm === "Станция B" || e.arm === "АРМ3" || e.arm === "Станция B/3"));
+    const matchArm = armFilter === "Все" || e.arm === armFilter;
     return matchSearch && matchArm;
   });
 
