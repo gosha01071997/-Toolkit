@@ -24,6 +24,99 @@ const C = {
 };
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
+
+const APP_DATA_SCHEMA_VERSION = "2026-06-emc-lab-feedback-v1";
+const USER_DATA_BACKUP_KEY = "emc_user_backups_v1";
+const USER_DATA_SCHEMA_KEY = "emc_user_data_schema_version_v1";
+const USER_DATA_KEY_PREFIXES = ["emc_"];
+
+const isUserDataStorageKey = (key) => (
+  USER_DATA_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
+  && key !== USER_DATA_BACKUP_KEY
+);
+
+const collectUserDataSnapshot = () => {
+  const data = {};
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && isUserDataStorageKey(key)) data[key] = localStorage.getItem(key);
+    }
+  } catch (e) {}
+  return data;
+};
+
+const readBackupLog = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(USER_DATA_BACKUP_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const createUserDataBackup = (reason = "manual") => {
+  const snapshot = collectUserDataSnapshot();
+  const entry = {
+    id: `backup_${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    reason,
+    appDataSchemaVersion: APP_DATA_SCHEMA_VERSION,
+    keys: Object.keys(snapshot).sort(),
+    data: snapshot,
+  };
+  try {
+    const next = [entry, ...readBackupLog()].slice(0, 10);
+    localStorage.setItem(USER_DATA_BACKUP_KEY, JSON.stringify(next));
+    return { ok: true, entry, backups: next };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Не удалось создать резервную копию", entry: null, backups: readBackupLog() };
+  }
+};
+
+const restoreUserDataBackup = (entry) => {
+  if (!entry?.data) return { ok: false, error: "Резервная копия не выбрана" };
+  try {
+    Object.entries(entry.data).forEach(([key, value]) => {
+      if (isUserDataStorageKey(key) && value !== null && value !== undefined) localStorage.setItem(key, value);
+    });
+    localStorage.setItem(USER_DATA_SCHEMA_KEY, entry.appDataSchemaVersion || APP_DATA_SCHEMA_VERSION);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Не удалось восстановить данные" };
+  }
+};
+
+const ensureAutomaticBackupForSchemaVersion = () => {
+  try {
+    const current = localStorage.getItem(USER_DATA_SCHEMA_KEY);
+    if (current !== APP_DATA_SCHEMA_VERSION) {
+      createUserDataBackup(current ? "auto-before-data-version-change" : "auto-initial-data-protection");
+      localStorage.setItem(USER_DATA_SCHEMA_KEY, APP_DATA_SCHEMA_VERSION);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+};
+
+const emptyAntennaProfile = () => ({
+  minFieldVm: "",
+  maxFieldVm: "",
+  frequencyRange: "",
+  polarization: "",
+  recommendedDistance: "",
+  powerLimitations: "",
+  engineerNotes: "",
+  applicableStandards: "",
+});
+
+const normalizeAntennaProfile = (profile = {}) => ({
+  ...emptyAntennaProfile(),
+  ...(profile && typeof profile === "object" ? profile : {}),
+});
+
+const isAntennaEquipment = (item) => String(item?.type || "").toLowerCase().includes("антенн");
+
 const ABBREVIATIONS = [
   { abbr: "A", full: "Ampere", ru: "Ампер — единица силы тока" },
   { abbr: "mA", full: "milliampere", ru: "Миллиампер (10⁻³ А)" },
@@ -5567,6 +5660,7 @@ const normalizeEquipmentItem = (item, editPatch = {}) => {
     desc: typeof merged.desc === "string" ? merged.desc : "",
     photo: typeof merged.photo === "string" ? merged.photo : "",
     specs,
+    antennaProfile: normalizeAntennaProfile(merged.antennaProfile),
     deleted: Boolean(merged.deleted),
   };
 };
@@ -5585,7 +5679,7 @@ const formatSpecsShort = (specs) => {
 const EQUIPMENT_DATA = [
   { id:"e1", photo:"", arm:"Станция A", name:"Оборудование 1", type:"Измерительное оборудование", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📻" },
   { id:"e2", photo:"", arm:"Станция A", name:"Оборудование 2", type:"Анализатор", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📊" },
-  { id:"e3", photo:"", arm:"Станция B", name:"Оборудование 3", type:"Антенна", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📡" },
+  { id:"e3", photo:"", arm:"Станция B", name:"Оборудование 3", type:"Антенна", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📡", antennaProfile: emptyAntennaProfile() },
   { id:"e4", photo:"", arm:"Станция B", name:"Оборудование 4", type:"Генератор", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"⚡" },
   { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
 ];
@@ -5598,19 +5692,34 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
   );
   const [editType, setEditType] = useState(e.type || "");
   const [editDesc, setEditDesc] = useState(e.desc || "");
+  const [antennaProfile, setAntennaProfile] = useState(normalizeAntennaProfile(e.antennaProfile));
 
   useEffect(() => {
     setEditName(e.name || "");
     setEditType(e.type || "");
     setEditDesc(e.desc || "");
+    setAntennaProfile(normalizeAntennaProfile(e.antennaProfile));
     setSpecRows(Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]);
   }, [e]);
 
   const saveSpecs = () => {
     const normalized = normalizeSpecs(specRows, "");
-    onSaveChanges(e.id, { specs: normalized, type: editType, desc: editDesc });
+    onSaveChanges(e.id, { specs: normalized, type: editType, desc: editDesc, antennaProfile: normalizeAntennaProfile(antennaProfile) });
     setShowSpecsForm(false);
   };
+
+  const antennaRows = [
+    ["minFieldVm", "Минимальная напряжённость поля, В/м"],
+    ["maxFieldVm", "Максимальная напряжённость поля, В/м"],
+    ["frequencyRange", "Рабочий диапазон частот"],
+    ["polarization", "Поляризация"],
+    ["recommendedDistance", "Рекомендуемое расстояние"],
+    ["powerLimitations", "Ограничения по мощности/усилителю"],
+    ["applicableStandards", "Стандарты/режимы испытаний"],
+    ["engineerNotes", "Примечания инженера"],
+  ];
+
+  const updateAntennaProfile = (key, value) => setAntennaProfile((prev) => ({ ...prev, [key]: value }));
 
   const onPhotoChange = (event) => {
     const file = event.target.files?.[0];
@@ -5674,6 +5783,34 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
           </div>
         )}
       </div>
+
+      {isAntennaEquipment(e) && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ДИАПАЗОНЫ НАПРЯЖЁННОСТИ ПОЛЯ</div>
+          <div style={{ ...styles.card, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10, marginBottom: 10 }}>
+              {antennaRows.map(([key, label]) => (
+                <div key={key} style={{ background: "rgba(15,23,42,0.42)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 11, color: C.textSec, fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 13, color: antennaProfile[key] ? C.text : C.textSec, lineHeight: 1.45 }}>{antennaProfile[key] || "Не заполнено"}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.55, marginBottom: showSpecsForm ? 10 : 0 }}>
+              Поля оставлены пустыми до ручного заполнения инженером: реальные уровни В/м и ограничения усилителя нельзя подставлять без паспортных данных или протокола калибровки.
+            </div>
+            {showSpecsForm && (
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                {antennaRows.map(([key, label]) => (
+                  <Field key={key} label={label}>
+                    <input style={styles.input} value={antennaProfile[key] || ""} placeholder={key === "applicableStandards" ? "Например: RS103; IEC 61000-4-3" : "Заполнить по паспорту/методике"} onChange={(ev) => updateAntennaProfile(key, ev.target.value)} />
+                  </Field>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Фото под описанием */}
       <div style={{ marginBottom: 12 }}>
@@ -6144,10 +6281,103 @@ function QualBasisTab() {
   );
 }
 
+const LEARNING_EQUIPMENT_SCHEMES = [
+  {
+    id: "antenna",
+    title: "Антенна",
+    caption: "Излучение, направление поля, поляризация и область воздействия",
+    points: ["E-поле формируется перед антенной и контролируется датчиком поля", "Горизонтальная/вертикальная поляризация задаётся разворотом антенны", "Рабочая зона должна быть подтверждена методикой калибровки"],
+  },
+  {
+    id: "current-injector",
+    title: "Инжектор тока",
+    caption: "Наведение ВЧ-помехи в кабель без разрыва цепи",
+    points: ["Клещи охватывают провод/жгут", "Стрелка показывает наведённый ток помехи", "Уровень ограничивается калибровкой, мощностью усилителя и нагревом"],
+  },
+  {
+    id: "attenuator",
+    title: "Аттенюатор",
+    caption: "Ослабление сигнала между входом и выходом",
+    points: ["Сигнал проходит от входа к выходу", "Ослабление задаётся в dB", "Проверяйте допустимую мощность и частотный диапазон конкретного аттенюатора"],
+  },
+];
+
+function LearningSchemeSvg({ id }) {
+  if (id === "current-injector") return (
+    <svg viewBox="0 0 420 220" width="100%" style={{ display:"block" }}>
+      <defs><marker id="arrow-current" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#38BDF8"/></marker></defs>
+      <rect x="24" y="24" width="372" height="172" rx="18" fill="#07111F" stroke="rgba(148,163,184,0.25)"/>
+      <line x1="48" y1="110" x2="372" y2="110" stroke="#E2E8F0" strokeWidth="10" strokeLinecap="round"/>
+      <text x="54" y="88" fill="#94A3B8" fontSize="13">кабель / жгут</text>
+      <circle cx="210" cy="110" r="56" fill="none" stroke="#2563EB" strokeWidth="16"/>
+      <circle cx="210" cy="110" r="34" fill="none" stroke="#22C55E" strokeWidth="5" strokeDasharray="8 7"/>
+      <path d="M122 72 C150 38, 254 38, 286 72" fill="none" stroke="#38BDF8" strokeWidth="4" markerEnd="url(#arrow-current)"/>
+      <path d="M112 140 C156 178, 266 178, 308 140" fill="none" stroke="#F59E0B" strokeWidth="4" markerEnd="url(#arrow-current)"/>
+      <text x="156" y="34" fill="#38BDF8" fontSize="13" fontWeight="700">наведённая ВЧ-помеха</text>
+      <text x="150" y="202" fill="#F59E0B" fontSize="13" fontWeight="700">направление тока</text>
+    </svg>
+  );
+  if (id === "attenuator") return (
+    <svg viewBox="0 0 420 220" width="100%" style={{ display:"block" }}>
+      <defs><marker id="arrow-att" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#60A5FA"/></marker></defs>
+      <rect x="24" y="24" width="372" height="172" rx="18" fill="#07111F" stroke="rgba(148,163,184,0.25)"/>
+      <line x1="48" y1="110" x2="132" y2="110" stroke="#60A5FA" strokeWidth="5" markerEnd="url(#arrow-att)"/>
+      <rect x="148" y="70" width="124" height="80" rx="14" fill="#0F172A" stroke="#7C3AED" strokeWidth="3"/>
+      <text x="210" y="104" textAnchor="middle" fill="#E2E8F0" fontSize="16" fontWeight="800">ATT</text>
+      <text x="210" y="126" textAnchor="middle" fill="#C4B5FD" fontSize="14">− dB</text>
+      <line x1="272" y1="110" x2="372" y2="110" stroke="#22C55E" strokeWidth="3" markerEnd="url(#arrow-att)"/>
+      <text x="50" y="82" fill="#93C5FD" fontSize="13" fontWeight="700">вход</text>
+      <text x="330" y="82" fill="#86EFAC" fontSize="13" fontWeight="700">выход</text>
+      <text x="110" y="174" fill="#94A3B8" fontSize="13">проверить мощность и частотный диапазон</text>
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 420 220" width="100%" style={{ display:"block" }}>
+      <defs><marker id="arrow-ant" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#38BDF8"/></marker></defs>
+      <rect x="24" y="24" width="372" height="172" rx="18" fill="#07111F" stroke="rgba(148,163,184,0.25)"/>
+      <line x1="92" y1="52" x2="92" y2="168" stroke="#60A5FA" strokeWidth="5"/>
+      <line x1="70" y1="92" x2="118" y2="68" stroke="#60A5FA" strokeWidth="4"/>
+      <line x1="70" y1="128" x2="118" y2="152" stroke="#60A5FA" strokeWidth="4"/>
+      {[0,1,2].map((i)=><path key={i} d={`M${135+i*38} 62 C${190+i*38} 92, ${190+i*38} 128, ${135+i*38} 158`} fill="none" stroke="#38BDF8" strokeWidth="3" opacity={0.95-i*0.22}/>) }
+      <path d="M122 110 L330 110" stroke="#F59E0B" strokeWidth="4" markerEnd="url(#arrow-ant)"/>
+      <rect x="282" y="72" width="62" height="72" rx="10" fill="rgba(34,197,94,0.12)" stroke="#22C55E" strokeDasharray="6 5"/>
+      <text x="286" y="64" fill="#86EFAC" fontSize="13" fontWeight="700">рабочая зона</text>
+      <text x="150" y="42" fill="#38BDF8" fontSize="13" fontWeight="700">волны / E-поле</text>
+      <text x="170" y="102" fill="#FBBF24" fontSize="13" fontWeight="700">направление поля</text>
+      <text x="50" y="190" fill="#94A3B8" fontSize="12">поляризация: горизонтальная / вертикальная поворотом антенны</text>
+    </svg>
+  );
+}
+
+function LearningEquipmentTab() {
+  const [activeId, setActiveId] = useState(LEARNING_EQUIPMENT_SCHEMES[0].id);
+  const active = LEARNING_EQUIPMENT_SCHEMES.find((x) => x.id === activeId) || LEARNING_EQUIPMENT_SCHEMES[0];
+  return (
+    <div>
+      <SectionHeader title="Как работает оборудование" caption="Инженерные SVG-схемы без тяжёлых 3D-библиотек; список можно расширять новыми типами оборудования" count={`${LEARNING_EQUIPMENT_SCHEMES.length} схемы`} accent="#22D3EE" />
+      <PremiumPills items={LEARNING_EQUIPMENT_SCHEMES.map((x) => [x.id, x.title])} active={activeId} onSet={setActiveId} />
+      <div style={{ ...styles.card, overflow: "hidden" }}>
+        <div style={{ fontSize: 18, fontWeight: 850, color: C.text, marginBottom: 4 }}>{active.title}</div>
+        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 12 }}>{active.caption}</div>
+        <div style={{ background: "#020617", border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 12 }}>
+          <LearningSchemeSvg id={active.id} />
+        </div>
+        {active.points.map((point, idx) => (
+          <div key={idx} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: idx < active.points.length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <span style={{ color: C.cyan, fontWeight: 900 }}>{idx + 1}</span>
+            <span style={{ fontSize: 13, color: C.text, lineHeight: 1.55 }}>{point}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ReferenceScreen({ refTab, setRefTab }) {
   const tabs = [
     { id: "abbr", label: "Сокращения" },
     { id: "equip", label: "Оборудование" },
+    { id: "learn", label: "🎓 Как работает" },
     { id: "norms", label: "📊 Нормы" },
     { id: "qual", label: "⭐ Базис T/M/P" },
     { id: "units", label: "Единицы" },
@@ -6175,6 +6405,7 @@ function ReferenceScreen({ refTab, setRefTab }) {
       <div className="reference-content-slot">
         {refTab === "abbr" && <AbbreviationsTab />}
         {refTab === "equip" && <EquipmentTab compact />}
+        {refTab === "learn" && <LearningEquipmentTab />}
         {refTab === "norms" && <NormsTab />}
         {refTab === "qual" && <QualBasisTab />}
         {refTab === "units" && <UnitsTab />}
@@ -6861,6 +7092,55 @@ class ErrorBoundary extends React.Component {
 // ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
 function SettingsScreen({ onClose, language = "ru", setLanguage }) {
   const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  const [backups, setBackups] = useState(() => readBackupLog());
+  const [backupStatus, setBackupStatus] = useState("");
+  const latestBackup = backups[0];
+
+  const handleCreateBackup = () => {
+    const result = createUserDataBackup("manual");
+    setBackups(result.backups || readBackupLog());
+    setBackupStatus(result.ok ? "Резервная копия создана. Пользовательские данные сохранены локально." : `Ошибка: ${result.error}`);
+  };
+
+  const handleRestoreBackup = () => {
+    if (!latestBackup) { setBackupStatus("Нет доступных резервных копий."); return; }
+    const ok = window.confirm("Восстановить последнюю резервную копию? Текущие пользовательские данные будут заменены сохранёнными значениями.");
+    if (!ok) return;
+    const result = restoreUserDataBackup(latestBackup);
+    setBackupStatus(result.ok ? "Данные восстановлены. Перезапустите приложение, чтобы все разделы перечитали localStorage." : `Ошибка: ${result.error}`);
+  };
+
+  const handleExportBackup = () => {
+    const result = createUserDataBackup("manual-export");
+    setBackups(result.backups || readBackupLog());
+    if (!result.ok || !result.entry) { setBackupStatus(`Ошибка: ${result.error}`); return; }
+    const blob = new Blob([JSON.stringify(result.entry, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `emc-toolkit-backup-${result.entry.createdAt.slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setBackupStatus("Экспорт подготовлен: JSON-файл содержит локальную резервную копию пользовательских данных.");
+  };
+
+  const handleImportBackup = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const entry = JSON.parse(String(reader.result || "{}"));
+        const result = restoreUserDataBackup(entry);
+        setBackupStatus(result.ok ? "Импорт выполнен. Перезапустите приложение для перечитывания данных." : `Ошибка: ${result.error}`);
+      } catch (e) {
+        setBackupStatus("Ошибка: файл резервной копии не распознан.");
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  };
+
   return (
     <div style={{ padding: "0 0 20px" }}>
       <button onClick={onClose} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
@@ -6877,6 +7157,38 @@ function SettingsScreen({ onClose, language = "ru", setLanguage }) {
           <button onClick={() => setLanguage?.("ru")} style={{ ...styles.btn(), flex:1, background: language === "ru" ? C.accentLight : "#EDF0F5" }}>Русский</button>
           <button onClick={() => setLanguage?.("en")} style={{ ...styles.btn(), flex:1, background: language === "en" ? C.accentLight : "#EDF0F5" }}>English</button>
         </div>
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>РЕЗЕРВНОЕ КОПИРОВАНИЕ ДАННЫХ</div>
+      <div style={styles.card}>
+        <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6, marginBottom: 12 }}>
+          Перед изменением версии данных приложение автоматически сохраняет копию всех пользовательских ключей localStorage с префиксом <b>emc_</b>: оборудование, правки карточек, журнал испытаний, поверку, схемы стендов и настройки разделов.
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <button onClick={handleCreateBackup} style={styles.btn()}>Создать резервную копию</button>
+          <button onClick={handleRestoreBackup} style={styles.btn("secondary")}>Восстановить из резервной копии</button>
+          <button onClick={handleExportBackup} style={styles.btn("secondary")}>Экспорт JSON</button>
+          <label style={{ ...styles.btn("secondary"), display: "inline-block" }}>
+            Импорт JSON
+            <input type="file" accept="application/json" onChange={handleImportBackup} style={{ display: "none" }} />
+          </label>
+        </div>
+        {backupStatus && <div style={{ ...styles.warn, color: backupStatus.startsWith("Ошибка") ? C.fail : C.warn }}>{backupStatus}</div>}
+        <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.6, marginTop: 10 }}>
+          Последняя копия: <b style={{ color: C.text }}>{latestBackup ? new Date(latestBackup.createdAt).toLocaleString() : "нет"}</b>
+          {latestBackup && <> · причина: <b style={{ color: C.text }}>{latestBackup.reason}</b> · ключей: <b style={{ color: C.text }}>{latestBackup.keys?.length || 0}</b></>}
+        </div>
+        {backups.length > 0 && (
+          <div style={{ marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ЖУРНАЛ РЕЗЕРВНЫХ КОПИЙ</div>
+            {backups.slice(0, 5).map((b) => (
+              <div key={b.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 12, color: C.text }}>{new Date(b.createdAt).toLocaleString()}</span>
+                <span style={{ fontSize: 12, color: C.textSec }}>{b.reason} · {b.keys?.length || 0} ключей</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>О ПРИЛОЖЕНИИ</div>
@@ -7633,6 +7945,7 @@ function AppInner() {
 
 
 
+  useEffect(() => { ensureAutomaticBackupForSchemaVersion(); }, []);
   useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
 
   if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
