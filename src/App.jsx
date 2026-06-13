@@ -1,24 +1,125 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
+import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
+import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
+import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
-  bg: "#F4F6F9",
-  card: "#FFFFFF",
-  border: "#DDE2EA",
-  text: "#1A2233",
-  textSec: "#5A6577",
-  accent: "#1E5BE8",
-  accentLight: "#EAF0FD",
-  pass: "#1A9B5A",
-  passLight: "#E6F7EE",
-  fail: "#D93025",
-  failLight: "#FDECEA",
-  warn: "#E07B00",
-  warnLight: "#FFF4E5",
-  dark: "#0D1627",
+  bg: "#050814",
+  panel: "#0B1220",
+  card: "#101827",
+  cardHover: "#14213A",
+  border: "rgba(148, 163, 184, 0.18)",
+  text: "#F8FAFC",
+  textSec: "#94A3B8",
+  textOnLight: "#0F172A",
+  accent: "#2563EB",
+  accent2: "#7C3AED",
+  cyan: "#06B6D4",
+  accentLight: "rgba(37,99,235,0.18)",
+  pass: "#10B981",
+  passLight: "rgba(16,185,129,0.18)",
+  fail: "#EF4444",
+  failLight: "rgba(239,68,68,0.2)",
+  warn: "#F59E0B",
+  warnLight: "rgba(245,158,11,0.2)",
+  dark: "#0B1220",
 };
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
+
+const APP_DATA_SCHEMA_VERSION = "2026-06-emc-lab-feedback-v1";
+const USER_DATA_BACKUP_KEY = "emc_user_backups_v1";
+const USER_DATA_SCHEMA_KEY = "emc_user_data_schema_version_v1";
+const USER_DATA_KEY_PREFIXES = ["emc_"];
+
+const isUserDataStorageKey = (key) => (
+  USER_DATA_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
+  && key !== USER_DATA_BACKUP_KEY
+);
+
+const collectUserDataSnapshot = () => {
+  const data = {};
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && isUserDataStorageKey(key)) data[key] = localStorage.getItem(key);
+    }
+  } catch (e) {}
+  return data;
+};
+
+const readBackupLog = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(USER_DATA_BACKUP_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const createUserDataBackup = (reason = "manual") => {
+  const snapshot = collectUserDataSnapshot();
+  const entry = {
+    id: `backup_${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    reason,
+    appDataSchemaVersion: APP_DATA_SCHEMA_VERSION,
+    keys: Object.keys(snapshot).sort(),
+    data: snapshot,
+  };
+  try {
+    const next = [entry, ...readBackupLog()].slice(0, 10);
+    localStorage.setItem(USER_DATA_BACKUP_KEY, JSON.stringify(next));
+    return { ok: true, entry, backups: next };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Не удалось создать резервную копию", entry: null, backups: readBackupLog() };
+  }
+};
+
+const restoreUserDataBackup = (entry) => {
+  if (!entry?.data) return { ok: false, error: "Резервная копия не выбрана" };
+  try {
+    Object.entries(entry.data).forEach(([key, value]) => {
+      if (isUserDataStorageKey(key) && value !== null && value !== undefined) localStorage.setItem(key, value);
+    });
+    localStorage.setItem(USER_DATA_SCHEMA_KEY, entry.appDataSchemaVersion || APP_DATA_SCHEMA_VERSION);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Не удалось восстановить данные" };
+  }
+};
+
+const ensureAutomaticBackupForSchemaVersion = () => {
+  try {
+    const current = localStorage.getItem(USER_DATA_SCHEMA_KEY);
+    if (current !== APP_DATA_SCHEMA_VERSION) {
+      createUserDataBackup(current ? "auto-before-data-version-change" : "auto-initial-data-protection");
+      localStorage.setItem(USER_DATA_SCHEMA_KEY, APP_DATA_SCHEMA_VERSION);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+};
+
+const emptyAntennaProfile = () => ({
+  minFieldVm: "",
+  maxFieldVm: "",
+  frequencyRange: "",
+  polarization: "",
+  recommendedDistance: "",
+  powerLimitations: "",
+  engineerNotes: "",
+  applicableStandards: "",
+});
+
+const normalizeAntennaProfile = (profile = {}) => ({
+  ...emptyAntennaProfile(),
+  ...(profile && typeof profile === "object" ? profile : {}),
+});
+
+const isAntennaEquipment = (item) => String(item?.type || "").toLowerCase().includes("антенн");
+
 const ABBREVIATIONS = [
   { abbr: "A", full: "Ampere", ru: "Ампер — единица силы тока" },
   { abbr: "mA", full: "milliampere", ru: "Миллиампер (10⁻³ А)" },
@@ -68,8 +169,8 @@ const STANDARDS = [
   { id: "61000-4-6", name: "IEC 61000-4-6", desc: "инжекция тока — проводимые помехи, вызванные RF полями", category: "Устойчивость", type: "Conducted Immunity / инжекция тока", scope: "Провода и кабели" },
   { id: "61000-4-8", name: "IEC 61000-4-8", desc: "Устойчивость к магнитному полю промышленной частоты", category: "Устойчивость", type: "Power Freq. Magnetic Field", scope: "Оборудование вблизи кабелей и шин" },
   { id: "61000-4-11", name: "IEC 61000-4-11", desc: "Провалы напряжения и кратковременные прерывания", category: "Устойчивость", type: "Voltage Dips / Interruptions", scope: "Устройства с AC-питанием" },
-  { id: "cispr11", name: "CISPR 11", desc: "Эмиссия промышленного, научного и медицинского оборудования", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "ISM-оборудование" },
-  { id: "cispr25", name: "CISPR 25", desc: "Требования к помехозащищённости для транспортных средств", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "Автомобильная электроника" },
+  { id: "cispr11", name: "Стандарт ЭМС A", desc: "Эмиссия промышленного, научного и медицинского оборудования", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "ISM-оборудование" },
+  { id: "cispr25", name: "Стандарт ЭМС A", desc: "Требования к помехозащищённости для транспортных средств", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "Автомобильная электроника" },
   { id: "milstd461", name: "MIL-STD-461", desc: "Требования к электромагнитной эмиссии и устойчивости", category: "Эмиссия + Устойчивость", type: "Полный набор", scope: "Военная техника (США)" },
   { id: "do160", name: "DO-160", desc: "Условия эксплуатации и испытания авиационного оборудования", category: "Эмиссия + Устойчивость", type: "Полный набор", scope: "Авиационное оборудование" },
   { id: "iso11452", name: "ISO 11452", desc: "Устойчивость компонентов транспортных средств к радиопомехам", category: "Устойчивость", type: "инжекция тока, Radiated, Stripline", scope: "Автомобильные компоненты" },
@@ -85,12 +186,17 @@ const STANDARDS = [
   { id: "gost30804-3-2", name: "ГОСТ 30804.3.2-2013", desc: "Электромагнитная совместимость. Нормы на эмиссию гармонических составляющих тока.", category: "Эмиссия", type: "Harmonics (CE)", scope: "Оборудование с потребляемым током ≤16 А", gost: true },
   { id: "gost30804-3-3", name: "ГОСТ 30804.3.3-2013", desc: "ЭМС. Нормы на колебания напряжения и фликер, вызываемые оборудованием.", category: "Эмиссия", type: "Flicker / Voltage Fluctuations", scope: "Оборудование с потребляемым током ≤16 А", gost: true },
   { id: "gost55190", name: "ГОСТ Р 55190-2012", desc: "Совместимость технических средств электромагнитная. Радиопомехи индустриальные. Оборудование информационных технологий. Нормы и методы испытаний.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "ИТ-оборудование (аналог CISPR 22)", gost: true },
-  { id: "gost51318-11", name: "ГОСТ Р 51318.11-2006", desc: "Совместимость технических средств электромагнитная. Промышленные, научные и медицинские аппараты. Норма радиопомех.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "ISM-оборудование (аналог CISPR 11)", gost: true },
+  { id: "gost51318-11", name: "ГОСТ Р 51318.11-2006", desc: "Совместимость технических средств электромагнитная. Промышленные, научные и медицинские аппараты. Норма радиопомех.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "ISM-оборудование (аналог Стандарт ЭМС A)", gost: true },
   { id: "gost51318-14-1", name: "ГОСТ Р 51318.14.1-2006", desc: "ЭМС. Радиопомехи от бытовых приборов и инструментов. Нормы и методы испытаний.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "Бытовые приборы, электроинструмент (аналог CISPR 14-1)", gost: true },
   { id: "gost51317-4-2", name: "ГОСТ Р 51317.4.2-2010", desc: "Устойчивость к электростатическому разряду — предшественник ГОСТ 30804.4.2.", category: "Устойчивость", type: "ESD", scope: "Общее применение (устаревающий)", gost: true },
   { id: "gost58401-4-39", name: "ГОСТ IEC 61000-4-39-2020", desc: "Устойчивость к излучаемым полям ближней зоны. Испытания на воздействие ЭМ-поля от беспроводных устройств.", category: "Устойчивость", type: "Near Field Immunity", scope: "Оборудование вблизи беспроводных передатчиков", gost: true },
   { id: "gost32651", name: "ГОСТ Р 32651-2014", desc: "Совместимость технических средств электромагнитная. Бытовые приборы, электрические инструменты и аналогичные устройства. Требования к помехоустойчивости.", category: "Устойчивость", type: "Immunity (бытовые приборы)", scope: "Бытовая техника (аналог CISPR 14-2)", gost: true },
   { id: "gost56027", name: "ГОСТ Р 56027-2014", desc: "ЭМС. Технические требования и методы испытаний телекоммуникационного оборудования.", category: "Эмиссия + Устойчивость", type: "Полный набор", scope: "Телекоммуникационное оборудование", gost: true },
+  { id: "cispr16", name: "CISPR 16", desc: "Аппаратура и методы измерений радиопомех и помехоустойчивости.", category: "Методики", type: "EMI Measurements", scope: "Измерительные приёмники, LISN/AMN, антенны", notes: "Используйте как справочную карту требований к измерительной инфраструктуре; полные процедуры уточняйте по актуальной редакции." },
+  { id: "cispr32", name: "CISPR 32", desc: "Требования к электромагнитной эмиссии мультимедийного оборудования.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "Мультимедийное и ИТ-оборудование", notes: "Карта назначения стандарта без нормированных таблиц и полного текста." },
+  { id: "cispr35", name: "CISPR 35", desc: "Требования помехоустойчивости мультимедийного оборудования.", category: "Устойчивость", type: "Immunity", scope: "Мультимедийное и ИТ-оборудование", notes: "Подбирайте испытания по портам, режимам работы и продуктовому контексту." },
+  { id: "en55011", name: "EN 55011", desc: "Европейская гармонизированная версия требований радиопомех для ISM-оборудования.", category: "Эмиссия", type: "Conducted + Radiated Emissions", scope: "Промышленное, научное и медицинское оборудование", notes: "Проверяйте применимость класса, группы и редакции стандарта для декларации соответствия." },
+  { id: "iec61000-4-20", name: "IEC 61000-4-20", desc: "Методы испытаний в TEM-волноводах и GTEM-камерах.", category: "Методики", type: "Radiated Immunity / Emissions", scope: "Альтернативные камеры и ячейки", notes: "Инженерная ссылка для выбора установки; конкретные ограничения задаёт действующая редакция." },
 ];
 
 const NOISE_GUIDE = [
@@ -162,40 +268,82 @@ function getCableLoss(type, freqMHz, lengthM) {
   return { total: lossPerMeter * lengthM, perMeter: lossPerMeter };
 }
 
+
+const LICENSE_STORAGE_KEY = "emc_toolkit_license";
+const FORCED_APP_MODE = "engineer"; // temporary release bypass
+const LANGUAGE_STORAGE_KEY = "emc_toolkit_language";
+const VALID_LICENSE_KEYS = ["EMC-PRO-2026", "BETA-KEY-001", "DEMO-KEY-002", "ENGINEER-KEY-003"];
+
+function isValidLicenseKey(key) {
+  const normalized = String(key || "").trim().toUpperCase();
+  return VALID_LICENSE_KEYS.includes(normalized);
+}
+
+const translations = {
+  ru: {
+    activateTitle: "Активация EMC Toolkit",
+    activateSub: "Введите лицензионный ключ для запуска полной версии",
+    activateBtn: "Активировать",
+    activateErr: "Неверный лицензионный ключ",
+    activateNote: "Лицензия персональная. Передача третьим лицам запрещена.",
+    languageTitle: "Выбор языка",
+    languageSub: "Выберите язык интерфейса",
+    russian: "Русский",
+    english: "English",
+    licenseActive: "Лицензия активна",
+    language: "Язык",
+  },
+  en: {
+    activateTitle: "Activate EMC Toolkit",
+    activateSub: "Enter license key to unlock full version",
+    activateBtn: "Activate",
+    activateErr: "Invalid license key",
+    activateNote: "License is personal. Sharing with third parties is prohibited.",
+    languageTitle: "Language selection",
+    languageSub: "Choose interface language",
+    russian: "Russian",
+    english: "English",
+    licenseActive: "License active",
+    language: "Language",
+  }
+};
+
 // ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 const styles = {
-  app: { fontFamily: "'Roboto', 'Arial', sans-serif", background: C.bg, height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
-  header: { background: C.dark, color: "#fff", padding: "16px 28px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.18)", flexShrink: 0 },
+  app: { fontFamily: "'Inter', 'Roboto', 'Arial', sans-serif", background: "linear-gradient(180deg, #040814 0%, #030711 100%)", height: "100vh", width: "100%", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", color: C.text },
+  header: { background: "linear-gradient(180deg, rgba(8,14,28,0.92), rgba(8,14,28,0.76))", color: "#fff", padding: "18px 30px 15px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 10px 40px rgba(2,6,23,0.55), inset 0 -1px 0 rgba(148,163,184,0.14)", borderBottom: "1px solid rgba(59,130,246,0.12)", flexShrink: 0, backdropFilter: "blur(12px)" },
   headerTitle: { fontSize: 18, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
   headerSub: { fontSize: 11, color: "#8A9BB8", margin: 0, letterSpacing: 1, textTransform: "uppercase" },
-  nav: { display: "flex", background: C.dark, borderTop: "1px solid #1E2A40", flexShrink: 0 },
-  navBtn: (active) => ({ flex: 1, padding: "10px 4px 8px", background: "none", border: "none", color: active ? C.accent : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: active ? 700 : 400, letterSpacing: 0.5 }),
-  content: { flex: 1, overflowY: "auto", padding: "20px 28px 24px" },
-  card: { background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
+  nav: { display: "flex", background: "rgba(7,12,24,0.88)", borderTop: "1px solid rgba(71,85,105,0.3)", borderBottom: "1px solid rgba(37,99,235,0.15)", flexShrink: 0, backdropFilter: "blur(10px)" },
+  navBtn: (active) => ({ flex: 1, padding: "11px 4px 9px", background: active ? "linear-gradient(180deg, rgba(37,99,235,0.2), rgba(124,58,237,0.08))" : "none", border: "none", color: active ? "#DCEAFE" : "#8A9BB8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: 0.55 }),
+  content: { flex: 1, overflowY: "auto", padding: "20px 24px 26px", background: "radial-gradient(circle at 80% -10%, rgba(56,189,248,0.12), transparent 35%), radial-gradient(circle at -10% 10%, rgba(124,58,237,0.16), transparent 45%), #050814" },
+  card: { background: "linear-gradient(160deg, rgba(15,23,42,0.72), rgba(8,15,30,0.72))", backdropFilter: "blur(18px)", borderRadius: 20, border: "1px solid rgba(148,163,184,0.12)", padding: "18px", marginBottom: 12, boxShadow: "0 14px 42px rgba(2,6,23,0.5), inset 0 1px 0 rgba(255,255,255,0.04)" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: C.textSec, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, marginTop: 4 },
   label: { fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 4, display: "block", letterSpacing: 0.3 },
-  input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
-  select: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  input: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 15, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
+  select: { width: "100%", padding: "10px 12px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textOnLight, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
   row: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 },
-  resultBox: { background: C.accentLight, border: `1px solid #B8CFFE`, borderRadius: 8, padding: "12px 14px", marginTop: 10 },
-  resultRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid #D6E4FF` },
+  resultBox: { background: "rgba(37,99,235,0.14)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "12px 14px", marginTop: 10 },
+  resultRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid rgba(148,163,184,0.2)` },
   resultLabel: { fontSize: 13, color: C.textSec },
   resultValue: { fontSize: 15, fontWeight: 700, color: C.accent, fontVariantNumeric: "tabular-nums" },
   btn: (variant = "primary") => ({
     padding: "11px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, letterSpacing: 0.3,
     background: variant === "primary" ? C.accent : variant === "pass" ? C.pass : variant === "fail" ? C.fail : "#EDF0F5",
-    color: variant === "primary" || variant === "pass" || variant === "fail" ? "#fff" : C.text,
+    color: variant === "primary" || variant === "pass" || variant === "fail" ? "#fff" : C.textOnLight,
     width: variant === "full" ? "100%" : undefined,
   }),
   tag: (type) => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-    background: type === "pass" ? C.passLight : type === "fail" ? C.failLight : C.accentLight,
-    color: type === "pass" ? C.pass : type === "fail" ? C.fail : C.accent,
+    display: "inline-block", padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+    background: type === "pass" ? "rgba(16,185,129,0.18)" : type === "fail" ? "rgba(239,68,68,0.2)" : type === "warn" ? "rgba(245,158,11,0.2)" : C.accentLight,
+    color: type === "pass" ? C.pass : type === "fail" ? C.fail : type === "warn" ? C.warn : C.accent,
+    boxShadow: type === "pass" ? "0 0 18px rgba(16,185,129,0.35)" : type === "fail" ? "0 0 18px rgba(239,68,68,0.35)" : type === "warn" ? "0 0 18px rgba(245,158,11,0.35)" : "0 0 18px rgba(37,99,235,0.26)",
+    border: "1px solid rgba(255,255,255,0.06)",
   }),
   chip: { display: "inline-block", background: C.accentLight, color: C.accent, borderRadius: 6, padding: "3px 9px", fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4 },
   warn: { background: C.warnLight, border: `1px solid #FACEAA`, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.warn, marginTop: 8 },
-  searchInput: { width: "100%", padding: "10px 12px 10px 36px", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.text, background: "#FAFBFD", outline: "none", boxSizing: "border-box", fontFamily: "inherit" },
-  searchWrap: { position: "relative", marginBottom: 12 },
+  searchInput: { width: "100%", padding: "12px 14px 12px 40px", border: "1px solid rgba(148,163,184,0.16)", borderRadius: 16, fontSize: 14, color: C.text, background: "rgba(15,23,42,0.66)", outline: "none", boxSizing: "border-box", fontFamily: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)" },
+  searchWrap: { position: "relative", marginBottom: 14 },
   mbSm: { marginBottom: 8 },
   mb: { marginBottom: 12 },
   mbLg: { marginBottom: 16 },
@@ -219,20 +367,318 @@ function ResultBox({ rows, lastNoLine }) {
 }
 
 // ─── TABS COMPONENT ───────────────────────────────────────────────────────────
-function InnerTabs({ tabs, active, onSet }) {
+function InnerTabs({ tabs, active, onSet, className = "" }) {
+  const tabsClassName = ["premium-pills", className].filter(Boolean).join(" ");
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
+    <div className={tabsClassName}>
       {tabs.map(t => (
-        <button key={t.id} onClick={() => onSet(t.id)} style={{
-          padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${active === t.id ? C.accent : C.border}`,
-          background: active === t.id ? C.accentLight : C.card, color: active === t.id ? C.accent : C.textSec,
-          fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap"
-        }}>{t.label}</button>
+        <button
+          key={t.id}
+          type="button"
+          onClick={() => onSet(t.id)}
+          className={`premium-pill ${active === t.id ? "active" : ""}`}
+        >
+          {t.label}
+        </button>
       ))}
     </div>
   );
 }
 
+
+
+function PremiumUiStyles() {
+  return <style>{`
+    .premium-page {
+      width: 100%;
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 6px clamp(0px, 1.2vw, 16px) 34px;
+    }
+    .premium-hero {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 22px;
+      min-height: 128px;
+      margin-bottom: 24px;
+      padding: 28px 30px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(56,189,248,0.18), transparent 34%),
+        radial-gradient(circle at 92% 12%, rgba(124,58,237,0.22), transparent 36%),
+        linear-gradient(135deg, rgba(15,23,42,0.88), rgba(8,15,30,0.76));
+      box-shadow: 0 22px 70px rgba(2,6,23,0.48), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .premium-hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -18% -80% 38%;
+      height: 180px;
+      background: linear-gradient(90deg, transparent, rgba(56,189,248,0.14), rgba(124,58,237,0.1), transparent);
+      transform: rotate(-5deg);
+      pointer-events: none;
+    }
+    .premium-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: #7DD3FC;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+    }
+    .premium-title {
+      margin: 0;
+      color: #F8FAFC;
+      font-size: clamp(28px, 3vw, 44px);
+      line-height: 1.04;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+    .premium-subtitle {
+      max-width: 680px;
+      margin-top: 12px;
+      color: #A8B6CC;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .premium-hero-meta {
+      display: grid;
+      grid-template-columns: repeat(var(--meta-cols, 3), minmax(112px, 1fr));
+      gap: 10px;
+      z-index: 1;
+      min-width: min(450px, 42vw);
+    }
+    .premium-meta-card {
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 18px;
+      padding: 14px 16px;
+      background: rgba(2,6,23,0.28);
+      backdrop-filter: blur(14px);
+    }
+    .premium-meta-value { color: #F8FAFC; font-size: 22px; font-weight: 800; line-height: 1; }
+    .premium-meta-label { color: #94A3B8; font-size: 11px; margin-top: 7px; letter-spacing: 0.4px; }
+    .premium-section-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 22px 2px 14px;
+    }
+    .premium-section-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .premium-section-mark {
+      width: 4px;
+      height: 34px;
+      border-radius: 999px;
+      background: var(--section-accent, #38BDF8);
+      box-shadow: 0 0 22px color-mix(in srgb, var(--section-accent, #38BDF8) 52%, transparent);
+      flex: 0 0 auto;
+    }
+    .premium-section-title { color: #E2E8F0; font-size: 17px; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+    .premium-section-caption { color: #94A3B8; font-size: 12px; line-height: 1.45; margin-top: 4px; }
+    .premium-card {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 22px;
+      background: linear-gradient(150deg, rgba(15,23,42,0.86), rgba(7,12,24,0.78)), radial-gradient(circle at 18% 0%, rgba(56,189,248,0.1), transparent 36%);
+      box-shadow: 0 16px 46px rgba(2,6,23,0.42), inset 0 1px 0 rgba(255,255,255,0.045);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .premium-card-action { cursor: pointer; font-family: inherit; color: inherit; text-align: left; }
+    .premium-card-action:hover {
+      transform: translateY(-3px);
+      border-color: rgba(125,211,252,0.34);
+      box-shadow: 0 22px 58px rgba(2,6,23,0.56), 0 0 32px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .premium-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .premium-list { display: grid; gap: 12px; }
+    .premium-search { position: relative; margin-bottom: 14px; }
+    .premium-search input {
+      width: 100%;
+      padding: 13px 14px 13px 42px;
+      border: 1px solid rgba(148,163,184,0.16);
+      border-radius: 16px;
+      color: #F8FAFC;
+      background: rgba(15,23,42,0.66);
+      outline: none;
+      box-sizing: border-box;
+      font: inherit;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+    }
+    .premium-search input::placeholder { color: #64748B; }
+    .premium-search span { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94A3B8; font-size: 14px; }
+    .premium-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 100%;
+      min-height: 46px;
+      margin-bottom: 18px;
+      padding: 5px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-wrap: nowrap;
+      box-sizing: border-box;
+      border: 1px solid rgba(148,163,184,0.12);
+      border-radius: 20px;
+      background: rgba(2,6,23,0.18);
+      scrollbar-width: thin;
+      scrollbar-gutter: stable;
+    }
+    .premium-pill {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 14px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.16);
+      background: rgba(15,23,42,0.54);
+      color: #94A3B8;
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
+    }
+    .premium-pill.active {
+      border-color: rgba(125,211,252,0.38);
+      background: linear-gradient(135deg, rgba(37,99,235,0.24), rgba(124,58,237,0.14));
+      color: #BAE6FD;
+      box-shadow: 0 0 22px rgba(37,99,235,0.14), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .test-detail-tabs {
+      min-height: 50px;
+      margin-bottom: 16px;
+      padding: 6px;
+      gap: 7px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.68), rgba(2,6,23,0.34));
+      border-color: rgba(148,163,184,0.16);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+    }
+    .test-detail-tabs .premium-pill { min-height: 36px; }
+    .reference-top-area {
+      width: 100%;
+      min-width: 0;
+      overflow-anchor: none;
+    }
+    .reference-content-slot {
+      width: 100%;
+      min-width: 0;
+      overflow-anchor: none;
+    }
+    .premium-icon-box {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      border: 1px solid rgba(125,211,252,0.24);
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(56,189,248,0.12), rgba(2,6,23,0.28));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 18px rgba(56,189,248,0.1);
+      font-size: 22px;
+      flex: 0 0 auto;
+    }
+    .premium-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(125,211,252,0.2);
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: rgba(14,165,233,0.08);
+      color: #7DD3FC;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    @media (max-width: 1180px) { .premium-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 980px) {
+      .premium-hero { align-items: stretch; flex-direction: column; padding: 24px; }
+      .premium-hero-meta { min-width: 0; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .premium-page { padding: 2px 0 28px; }
+      .premium-hero { border-radius: 22px; margin-bottom: 22px; padding: 22px 18px; }
+      .premium-subtitle { font-size: 13px; }
+      .premium-hero-meta, .premium-grid { grid-template-columns: 1fr; }
+      .premium-section-header { align-items: flex-start; flex-direction: column; gap: 10px; }
+    }
+  `}</style>;
+}
+
+function PageContainer({ children }) {
+  return <div className="premium-page"><PremiumUiStyles />{children}</div>;
+}
+
+function SectionHero({ kicker = "EMC Toolkit · Engineering Suite", title, subtitle, stats = [] }) {
+  return (
+    <header className="premium-hero">
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div className="premium-kicker">{kicker}</div>
+        <h1 className="premium-title">{title}</h1>
+        {subtitle && <div className="premium-subtitle">{subtitle}</div>}
+      </div>
+      {stats.length > 0 && (
+        <div className="premium-hero-meta" style={{ "--meta-cols": Math.min(stats.length, 3) }}>
+          {stats.map((s, i) => (
+            <div key={`${s.label}_${i}`} className="premium-meta-card">
+              <div className="premium-meta-value">{s.value}</div>
+              <div className="premium-meta-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </header>
+  );
+}
+
+function SectionHeader({ title, caption, count, accent = "#38BDF8" }) {
+  return (
+    <div className="premium-section-header" style={{ "--section-accent": accent }}>
+      <div className="premium-section-title-wrap">
+        <div className="premium-section-mark" />
+        <div>
+          <div className="premium-section-title">{title}</div>
+          {caption && <div className="premium-section-caption">{caption}</div>}
+        </div>
+      </div>
+      {count && <div className="premium-badge">{count}</div>}
+    </div>
+  );
+}
+
+function PremiumSearch({ value, onChange, placeholder }) {
+  return (
+    <div className="premium-search">
+      <span>🔍</span>
+      <input value={value} onChange={onChange} placeholder={placeholder} />
+    </div>
+  );
+}
+
+function PremiumPills({ items, active, onSet }) {
+  return (
+    <div className="premium-pills">
+      {items.map(([value, label]) => (
+        <button key={value} onClick={() => onSet(value)} className={`premium-pill ${active === value ? "active" : ""}`}>{label}</button>
+      ))}
+    </div>
+  );
+}
 // ─── QUIZ DATA (200 вопросов) ─────────────────────────────────────────────────
 const QUIZ_POOL = [
   // ── ЕДИНИЦЫ И ВЕЛИЧИНЫ ──
@@ -266,7 +712,7 @@ const QUIZ_POOL = [
   { id:26, cat:"Оборудование", q:"Что такое «опорная плоскость заземления» (плоскость заземления) на испытательном стенде?", opts:["Металлическая плоскость, обеспечивающая единый потенциал заземления","Изоляционная поверхность под Изделием","Плита для крепления антенны","Экран от внешних полей"], ans:0 },
   { id:27, cat:"Оборудование", q:"Резистор нагрузки 50 Ом в BCI-тракте предназначен для:", opts:["Согласования тракта и поглощения отражённой мощности","Ограничения тока на Изделии","Создания обратной связи усилителя","Фильтрации питания"], ans:0 },
   { id:28, cat:"Оборудование", q:"Ёмкостной зажим (capacitive clamp) применяется в:", opts:["EFT/Burst — для воздействия на сигнальные кабели","инжекция тока — для инжекции тока","ESD — для контактного разряда","Surge — для импульсных перенапряжений"], ans:0 },
-  { id:29, cat:"Оборудование", q:"Для чего используется ЛИСН NNBM 8126 A890 (АРМ1)?", opts:["Стабилизирует импеданс сети и снимает ВЧ-сигнал для измерения CE","Генерирует ток инжекция тока","Излучает РЧ-поле","Создаёт ЭСР-разряд"], ans:0 },
+  { id:29, cat:"Оборудование", q:"Для чего используется ЛИСН ЛИСН A (Станция A)?", opts:["Стабилизирует импеданс сети и снимает ВЧ-сигнал для измерения CE","Генерирует ток инжекция тока","Излучает РЧ-поле","Создаёт ЭСР-разряд"], ans:0 },
   { id:30, cat:"Оборудование", q:"Предусилитель в тракте RE используется для:", opts:["Компенсации потерь в кабеле и повышения чувствительности","Усиления сигнала генератора","Управления антенной","Согласования LISN"], ans:0 },
 
   // ── ТЕОРИЯ ЭМС ──
@@ -288,19 +734,19 @@ const QUIZ_POOL = [
 
   // ── СТАНДАРТЫ ──
   { id:46, cat:"ГОСТ РВ", q:"Какой пункт ГОСТ РВ 20.57.306 регламентирует испытание ЭСР?", opts:["Пункт 25","Пункт 20.4","Пункт 21.5","Пункт 15"], ans:0 },
-  { id:47, cat:"ГОСТ РВ", q:"ГОСТ РВ 20.57.306 п.20.5 — это:", opts:["РЧ-восприимчивость к помехам излучения","РЧ-восприимчивость к помехам проводимости","Генерация РЧ-энергии","Магнитное воздействие"], ans:0 },
+  { id:47, cat:"ГОСТ РВ", q:"Шаблон испытания 01 · Раздел 02 — это:", opts:["РЧ-восприимчивость к помехам излучения","РЧ-восприимчивость к помехам проводимости","Генерация РЧ-энергии","Магнитное воздействие"], ans:0 },
   { id:48, cat:"ГОСТ РВ", q:"Пункт 20.4 ГОСТ РВ 20.57.306 регламентирует:", opts:["РЧ-восприимчивость — помехи проводимости","РЧ-восприимчивость — помехи излучения","ЭСР","Магнитное поле"], ans:0 },
-  { id:49, cat:"ГОСТ РВ", q:"ГОСТ РВ 20.57.306 п.21 — это:", opts:["Генерация радиочастотной энергии (эмиссия)","Восприимчивость к помехам излучения","ЭСР","Импульсные помехи в цепях питания"], ans:0 },
+  { id:49, cat:"ГОСТ РВ", q:"Шаблон испытания 01 · Раздел 03 — это:", opts:["Генерация радиочастотной энергии (эмиссия)","Восприимчивость к помехам излучения","ЭСР","Импульсные помехи в цепях питания"], ans:0 },
   { id:50, cat:"ГОСТ РВ", q:"Пункт 21.4 ГОСТ РВ 20.57.306 отличается от п.20.4:", opts:["Более высокими уровнями воздействия (до 10 В ЭДС)","Другим диапазоном частот","Другим видом модуляции","Отсутствием требований к нагрузке"], ans:0 },
-  { id:51, cat:"ГОСТ РВ", q:"Диапазон частот по ГОСТ РВ 20.57.306 п.20.5:", opts:["20–1000 МГц","0,15–400 МГц","30–1000 МГц","1–400 МГц"], ans:0 },
-  { id:52, cat:"ГОСТ РВ", q:"ГОСТ РВ 20.57.306 п.21.4 — метод испытания:", opts:["Токовая инжекция инжекция тока / метод замещения","Только метод замещения","Только прямой замер","Безэховая камера"], ans:0 },
+  { id:51, cat:"ГОСТ РВ", q:"Диапазон частот по Шаблон испытания 01 · Раздел 02:", opts:["20–1000 МГц","0,15–400 МГц","30–1000 МГц","1–400 МГц"], ans:0 },
+  { id:52, cat:"ГОСТ РВ", q:"Шаблон испытания 01 · Раздел 03.4 — метод испытания:", opts:["Токовая инжекция инжекция тока / метод замещения","Только метод замещения","Только прямой замер","Безэховая камера"], ans:0 },
   { id:53, cat:"ГОСТ РВ", q:"ГОСТ РВ 6601-001-2008 регламентирует:", opts:["Испытания ВП3 и ВП4 — импульсные воздействия","Испытания ЭСР","Радиационную устойчивость","Магнитное поле"], ans:0 },
   { id:54, cat:"ГОСТ РВ", q:"Критерий качества функционирования I по ГОСТ РВ означает:", opts:["Работоспособность сохраняется во время и после воздействия","Самовосстановление после воздействия","Требуется вмешательство оператора","Допустимый отказ"], ans:0 },
   { id:55, cat:"ГОСТ РВ", q:"Критерий II по ГОСТ РВ означает:", opts:["Самовосстановление без вмешательства оператора","Работоспособность во время воздействия","Требуется перезапуск","Постоянный отказ"], ans:0 },
   { id:56, cat:"ГОСТ РВ", q:"Пункт 15 ГОСТ РВ 20.57.306 регламентирует:", opts:["Магнитное воздействие 50 Гц и постоянное поле","РЧ-восприимчивость","ЭСР","Импульсные перенапряжения"], ans:0 },
   { id:57, cat:"ГОСТ РВ", q:"Диапазон частот п.20.4 и п.21.4 ГОСТ РВ 20.57.306:", opts:["0,15–400 МГц","20–1000 МГц","0,15–30 МГц","30–400 МГц"], ans:0 },
-  { id:58, cat:"ГОСТ РВ", q:"АРМ4 (CIT-100/A + РА-00140-54C) используется для:", opts:["Испытаний п.20.4 и п.21.4 (инжекция тока)","Испытаний п.20.5 и п.21.5 (RI)","Измерений эмиссии п.21","Испытаний ЭСР п.25"], ans:0 },
-  { id:59, cat:"ГОСТ РВ", q:"Пробник LSProbe 2.0 R используется для:", opts:["Калибровки поля при испытаниях п.20.5 / п.21.5","Измерения тока инжекции при инжекции тока","Калибровки ЭСР-генератора","Измерения эмиссии"], ans:0 },
+  { id:58, cat:"ГОСТ РВ", q:"Станция C (Генератор A + Усилитель A) используется для:", opts:["Испытаний п.20.4 и п.21.4 (инжекция тока)","Испытаний п.20.5 и п.21.5 (RI)","Измерений эмиссии п.21","Испытаний ЭСР п.25"], ans:0 },
+  { id:59, cat:"ГОСТ РВ", q:"Пробник Измерительный приёмник B используется для:", opts:["Калибровки поля при испытаниях п.20.5 / п.21.5","Измерения тока инжекции при инжекции тока","Калибровки ЭСР-генератора","Измерения эмиссии"], ans:0 },
   { id:60, cat:"ГОСТ РВ", q:"Шаг частотной сетки при свипе по ГОСТ РВ 20.57.306:", opts:["Не более 1% от текущей частоты","Не более 5% от текущей частоты","Фиксированный 1 МГц","Фиксированный 10 МГц"], ans:0 },
 
   // ── ПРОВЕДЕНИЕ ИСПЫТАНИЙ ──
@@ -317,11 +763,11 @@ const QUIZ_POOL = [
   { id:71, cat:"Испытания", q:"В каком направлении проводится поляризация антенны при RI?", opts:["Горизонтальная и вертикальная поочерёдно","Только горизонтальная","Только вертикальная","Круговая"], ans:0 },
   { id:72, cat:"Испытания", q:"Что такое прямая мощность в ВЧ-тракте?", opts:["Мощность, идущая от усилителя к нагрузке/антенне","Мощность, отражённая от нагрузки","Полная мощность усилителя","Мощность, потребляемая Изделием"], ans:0 },
   { id:73, cat:"Испытания", q:"При Surge-испытании полярность '+' и '−' означает:", opts:["Оба направления импульса, испытывается каждое","Только положительный импульс","Только отрицательный импульс","Переменный импульс"], ans:0 },
-  { id:74, cat:"Испытания", q:"Какой минимальный интервал между разрядами ЭСР по ГОСТ РВ 20.57.306 п.25?", opts:["1 секунда между разрядами","0,1 секунды","5 секунд","10 секунд"], ans:0 },
+  { id:74, cat:"Испытания", q:"Какой минимальный интервал между разрядами ЭСР по Шаблон испытания 02 · Раздел 01?", opts:["1 секунда между разрядами","0,1 секунды","5 секунд","10 секунд"], ans:0 },
   { id:75, cat:"Испытания", q:"Зачем при CE-испытании вставляют LISN между сетью и Изделие?", opts:["Для стабилизации импеданса сети 50 Ом на ВЧ и отведения помехи на приёмник","Для защиты сети от Изделие","Для фильтрации 50 Гц","Для питания приёмника"], ans:0 },
 
   // ── инжекция тока СПЕЦИФИКА ──
-  { id:76, cat:"Инжекция тока", q:"Диапазон частот инжекция тока по ГОСТ РВ 20.57.306 п.20.4 и п.21.4:", opts:["0,15 – 400 МГц","1 – 400 МГц","80 МГц – 1 ГГц","30 МГц – 1 ГГц"], ans:0 },
+  { id:76, cat:"Инжекция тока", q:"Диапазон частот инжекция тока по Шаблон испытания 01 · Раздел 01 и п.21.4:", opts:["0,15 – 400 МГц","1 – 400 МГц","80 МГц – 1 ГГц","30 МГц – 1 ГГц"], ans:0 },
   { id:77, cat:"Инжекция тока", q:"Что такое insertion loss инжекционных клещей?", opts:["Потери сигнала при прохождении через клещи","Коэффициент усиления клещей","Усиление тока в жгуте","Паразитная ёмкость клещей"], ans:0 },
   { id:78, cat:"Инжекция тока", q:"Для чего используется метод замкнутой петли при инжекции тока?", opts:["Поддержание постоянного тока в жгуте независимо от нагрузки","Снижение мощности усилителя","Измерение КСВ тракта","Защита Изделия от перегрева"], ans:0 },
   { id:79, cat:"Инжекция тока", q:"Почему в диапазоне 40–80 МГц инжекция тока часто даёт нестабильные результаты?", opts:["Резонанс кабеля λ/4 и ограниченное связи клещей с жгутом","Перегрев усилителя","Ошибка LISN","Неверная поляризация"], ans:0 },
@@ -330,13 +776,13 @@ const QUIZ_POOL = [
   { id:82, cat:"Инжекция тока", q:"Как рассчитать необходимый уровень генератора при инжекции тока?", opts:["P_gen = I_цель(dBµA) − G_усил + CF + потери","P_gen = I × R","P_gen = CF × L","P_gen = 10×log(I²×R)"], ans:0 },
   { id:83, cat:"Инжекция тока", q:"Почему при инжекции тока применяется AM-модуляция 80% / 1 кГц?", opts:["Имитация реального сигнала AM-передатчика, стресс для цифровой логики","Для увеличения среднего тока","Стандарт передачи данных","Для снижения пик-фактора"], ans:0 },
   { id:84, cat:"Инжекция тока", q:"Что влияет на эффективность инжекции клещей инжектора на низких частотах (<10 МГц)?", opts:["Малая индуктивная связь клещей на низких частотах","Насыщение усилителя","Резонанс LISN","Поляризация антенны"], ans:0 },
-  { id:85, cat:"Инжекция тока", q:"Метод калибровки инжекция тока по ГОСТ РВ 20.57.306 п.20.4:", opts:["Метод замещения — калибровка без Изделия","Прямое измерение с Изделием","Только расчётный метод","Метод подстановки усилителя"], ans:0 },
+  { id:85, cat:"Инжекция тока", q:"Метод калибровки инжекция тока по Шаблон испытания 01 · Раздел 01:", opts:["Метод замещения — калибровка без Изделия","Прямое измерение с Изделием","Только расчётный метод","Метод подстановки усилителя"], ans:0 },
 
   // ── ESD СПЕЦИФИКА ──
   { id:86, cat:"Электростатика", q:"Модель разряда тела человека (HBM) имитирует:", opts:["Разряд наэлектризованного человека через объект","Разряд металлического предмета","Разряд от сети 230 В","Грозовой разряд"], ans:0 },
   { id:87, cat:"Электростатика", q:"Воздушный разряд (air discharge) применяется, когда:", opts:["Точка воздействия непроводящая или недоступна для контактного разряда","Изделие полностью металлический","LISN недоступен","Уровень напряжения выше 8 кВ"], ans:0 },
-  { id:88, cat:"Электростатика", q:"Уровни напряжения ЭСР по ГОСТ РВ 20.57.306 п.25 (контактный разряд):", opts:["±2, ±4, ±6, ±8 кВ","±1, ±2, ±4 кВ","±10, ±20 кВ","±0,5, ±1, ±2 кВ"], ans:0 },
-  { id:89, cat:"Электростатика", q:"Сколько разрядов наносится в каждую точку по ГОСТ РВ 20.57.306 п.25?", opts:["10 разрядов каждой полярности","1 разряд","3 разряда","100 разрядов"], ans:0 },
+  { id:88, cat:"Электростатика", q:"Уровни напряжения ЭСР по Шаблон испытания 02 · Раздел 01 (контактный разряд):", opts:["±2, ±4, ±6, ±8 кВ","±1, ±2, ±4 кВ","±10, ±20 кВ","±0,5, ±1, ±2 кВ"], ans:0 },
+  { id:89, cat:"Электростатика", q:"Сколько разрядов наносится в каждую точку по Шаблон испытания 02 · Раздел 01?", opts:["10 разрядов каждой полярности","1 разряд","3 разряда","100 разрядов"], ans:0 },
   { id:90, cat:"Электростатика", q:"VGP (vertical плоскость заземления) при ESD-испытании имитирует:", opts:["Вертикальные проводящие поверхности вблизи Изделие","Корпус Изделие","Экран безэховой камеры","Опорную плоскость LISN"], ans:0 },
 
   // ── ЭМИССИЯ ──
@@ -344,17 +790,17 @@ const QUIZ_POOL = [
   { id:92, cat:"Эмиссия", q:"Диапазон частот Radiated Emissions:", opts:["30 МГц – 1 ГГц (и выше по ряду стандартов)","150 кГц – 30 МГц","1 МГц – 400 МГц","9 кГц – 150 кГц"], ans:0 },
   { id:93, cat:"Эмиссия", q:"Детектор Average (среднего значения) в EMC-приёмнике используется для:", opts:["Оценки узкополосных помех и сравнения со средними нормами","Оценки импульсных помех","Только для RE-испытаний","Калибровки LISN"], ans:0 },
   { id:94, cat:"Эмиссия", q:"Что такое узкополосная эмиссия?", opts:["Помеха, занимающая полосу уже, чем полоса пропускания приёмника","Помеха, занимающая широкую полосу частот","Помеха только в диапазоне AM-радио","Помеха от промышленных установок"], ans:0 },
-  { id:95, cat:"Эмиссия", q:"Что измеряется при испытании по ГОСТ РВ 20.57.306 п.21 (RE)?", opts:["Излучаемые помехи от Изделия в пространство","Кондуктивные помехи по цепям питания","Устойчивость к радиочастотному полю","Уровень ЭСР"], ans:0 },
-  { id:96, cat:"Эмиссия", q:"Что измеряется при испытании по ГОСТ РВ 20.57.306 п.21 (CE)?", opts:["Кондуктивные помехи по цепям питания через ЛИСН","Излучаемые помехи от антенны","Устойчивость к инжекция тока","Форму импульса"], ans:0 },
+  { id:95, cat:"Эмиссия", q:"Что измеряется при испытании по Шаблон испытания 01 · Раздел 03 (RE)?", opts:["Излучаемые помехи от Изделия в пространство","Кондуктивные помехи по цепям питания","Устойчивость к радиочастотному полю","Уровень ЭСР"], ans:0 },
+  { id:96, cat:"Эмиссия", q:"Что измеряется при испытании по Шаблон испытания 01 · Раздел 03 (CE)?", opts:["Кондуктивные помехи по цепям питания через ЛИСН","Излучаемые помехи от антенны","Устойчивость к инжекция тока","Форму импульса"], ans:0 },
   { id:97, cat:"Эмиссия", q:"Для чего нужны ферриты на кабелях Изделие при RE-измерении?", opts:["Подавление синфазного тока, который является основным источником излучения","Усиление сигнала","Защита измерительной антенны","Согласование кабеля"], ans:0 },
-  { id:98, cat:"Эмиссия", q:"Расстояние от Изделия до измерительной антенны по ГОСТ РВ 20.57.306 п.21 (RE):", opts:["1 м","3 м","5 м","10 м"], ans:0 },
+  { id:98, cat:"Эмиссия", q:"Расстояние от Изделия до измерительной антенны по Шаблон испытания 01 · Раздел 03 (RE):", opts:["1 м","3 м","5 м","10 м"], ans:0 },
   { id:99, cat:"Эмиссия", q:"Что такое scan (предварительное сканирование) при CE?", opts:["Быстрый обзорный свип для выявления критичных частот","Итоговый протокол испытания","Калибровка LISN","Настройка Изделие"], ans:0 },
   { id:100, cat:"Эмиссия", q:"Почему гармоники тактового генератора обычно видны на кратных частотах?", opts:["Прямоугольные импульсы содержат нечётные гармоники (ряд Фурье)","Из-за ёмкостной связи кабеля","Из-за резонанса LISN","Из-за поляризации антенны"], ans:0 },
 
   // ── SURGE/EFT ──
   { id:101, cat:"Перенапряжения", q:"Форма воздействия ВП3 по ГОСТ РВ 6601-001-2008:", opts:["Импульс 1,2/50 мкс — экспоненциальный затухающий","Синусоида 50 Гц","Прямоугольный импульс 5/50 нс","Пачка импульсов 5 нс"], ans:0 },
   { id:102, cat:"Перенапряжения", q:"Форма воздействия ВП4 по ГОСТ РВ 6601-001-2008:", opts:["Затухающая синусоида — частота 0,1–1 МГц","Импульс 1,2/50 мкс","Прямоугольный 5 нс / 50 нс","Синусоида 50 Гц"], ans:0 },
-  { id:103, cat:"Перенапряжения", q:"Генератор для испытаний ВП3/ВП4 по ГОСТ РВ 6601-001-2008 в лаборатории — это:", opts:["ИГРВ-ВП3 и ИГРВ-ВП4 (АРМ9)","ЭСР-30К (АРМ6)","CIT-100/A (АРМ4)","АКИП-3208 (АРМ2)"], ans:0 },
+  { id:103, cat:"Перенапряжения", q:"Генератор для испытаний ВП3/ВП4 по ГОСТ РВ 6601-001-2008 в лаборатории — это:", opts:["ИГРВ-ВП3 и ИГРВ-ВП4 (Станция C)","Модуль питания A (Станция C)","Генератор A (Станция C)","Генератор A (Станция B)"], ans:0 },
   { id:104, cat:"Перенапряжения", q:"EFT-испытание проводится при частоте повторения пачек:", opts:["5 кГц (или 100 кГц по некоторым стандартам)","50 Гц","1 МГц","10 Гц"], ans:0 },
   { id:105, cat:"Перенапряжения", q:"CDN при Surge-испытании нужна для:", opts:["Наложения импульса на сетевое напряжение без повреждения генератора","Усиления импульса","Синхронизации с сетью 50 Гц","Измерения тока импульса"], ans:0 },
 
@@ -363,7 +809,7 @@ const QUIZ_POOL = [
   { id:107, cat:"Калибровка", q:"Калибровка BCI-тракта (substitution method) проводится для:", opts:["Определения уровня генератора для достижения заданного тока в жгуте","Калибровки LISN","Проверки EMC-приёмника","Измерения полосы пропускания усилителя"], ans:0 },
   { id:108, cat:"Калибровка", q:"Что такое site attenuation (затухание испытательного места)?", opts:["Параметр, подтверждающий пригодность открытого испытательного полигона (OATS)","Затухание кабеля от антенны до приёмника","Потери в LISN","Уровень фона камеры"], ans:0 },
   { id:109, cat:"Калибровка", q:"Как часто должна проходить поверку измерительного оборудования?", opts:["Согласно требованиям аккредитации лаборатории (обычно 1 раз в год)","Ежемесячно","Перед каждым испытанием","Раз в 5 лет"], ans:0 },
-  { id:110, cat:"Калибровка", q:"Чем калибруется напряжённость поля при испытании RI по ГОСТ РВ 20.57.306 п.20.5?", opts:["Пробником LSProbe 2.0 R методом замещения без Изделия","Токосъёмником МР-50","ЛИСН NNBM 8126","Анализатором спектра АСРВ-22С"], ans:0 },
+  { id:110, cat:"Калибровка", q:"Чем калибруется напряжённость поля при испытании RI по Шаблон испытания 01 · Раздел 02?", opts:["Пробником Измерительный приёмник B методом замещения без Изделия","Токосъёмником Токосъёмник A","ЛИСН ЛИСН A","Анализатором спектра Анализатор спектра A"], ans:0 },
 
   // ── БЕЗОПАСНОСТЬ ──
   { id:111, cat:"Безопасность", q:"Какой минимальный уровень мощности усилителя требует наличия блокировок безопасности?", opts:["Выше 1 Вт (в зависимости от регламента лаборатории)","10 Вт","100 Вт","Любая мощность"], ans:0 },
@@ -385,19 +831,19 @@ const QUIZ_POOL = [
   { id:125, cat:"Схемотехника", q:"Что такое guard ring на печатной плате?", opts:["Охранное кольцо для отведения токов утечки и экранирования чувствительных цепей","Шинная структура питания","Опорный полигон под микросхемой","Полигон ВЧ-фильтра"], ans:0 },
 
   // ── УСТОЙЧИВОСТЬ / RI ──
-  { id:126, cat:"Радиационная устойчивость", q:"Диапазон частот при испытании RI по ГОСТ РВ 20.57.306 п.20.5 / п.21.5:", opts:["20 МГц – 1000 МГц","0,15 – 400 МГц","30 МГц – 1 ГГц","1 – 6 ГГц"], ans:0 },
-  { id:127, cat:"Радиационная устойчивость", q:"Уровни напряжённости поля по степеням жёсткости ГОСТ РВ 20.57.306 п.21.5:", opts:["1 / 3 / 10 / 20 В/м","0,1 / 1 / 3 В/м","10 / 30 / 100 В/м","5 / 10 / 50 В/м"], ans:0 },
+  { id:126, cat:"Радиационная устойчивость", q:"Диапазон частот при испытании RI по Шаблон испытания 01 · Раздел 02 / п.21.5:", opts:["20 МГц – 1000 МГц","0,15 – 400 МГц","30 МГц – 1 ГГц","1 – 6 ГГц"], ans:0 },
+  { id:127, cat:"Радиационная устойчивость", q:"Уровни напряжённости поля по степеням жёсткости Шаблон испытания 01 · Раздел 03.5:", opts:["1 / 3 / 10 / 20 В/м","0,1 / 1 / 3 В/м","10 / 30 / 100 В/м","5 / 10 / 50 В/м"], ans:0 },
   { id:128, cat:"Радиационная устойчивость", q:"Что такое field uniformity (однородность поля) при RI-испытании?", opts:["Требование: в рабочей зоне 75% точек в ±6 дБ от заданного уровня","Равномерность мощности усилителя","Равномерность частотного отклика антенны","Равномерность нагрева Изделие"], ans:0 },
   { id:129, cat:"Радиационная устойчивость", q:"Для чего используется stripline при RI-испытании:", opts:["Создание однородного ЭМ-поля для малогабаритных компонентов","Как направленная антенна","Для BCI-испытания","Для подачи питания на Изделие"], ans:0 },
   { id:130, cat:"Радиационная устойчивость", q:"AM 80% при RI означает:", opts:["Глубина амплитудной модуляции 80%, несущая 80 МГц–1 ГГц","Мощность сигнала 80% от максимума","Рабочий цикл импульсов","КПД усилителя"], ans:0 },
 
   // ── ПРОВАЛЫ/ПРЕРЫВАНИЯ ──
   { id:131, cat:"Провалы напряжения", q:"Провал напряжения 70% Uн означает:", opts:["Напряжение снижается до 30% от номинала","Напряжение снижается на 30%","Напряжение отсутствует","Напряжение возрастает на 70%"], ans:0 },
-  { id:132, cat:"Провалы напряжения", q:"Для испытаний провалов напряжения на АРМ7 используется:", opts:["Программируемый ИП ИППГ 15 (15 кВА)","Генератор АКИП-3208","Усилитель WA-00225","ЛИСН NNBM 8126"], ans:0 },
+  { id:132, cat:"Провалы напряжения", q:"Для испытаний провалов напряжения на АРМ7 используется:", opts:["Программируемый ИП Источник питания A (15 кВА)","Генератор Генератор A","Усилитель Усилитель A","ЛИСН ЛИСН A"], ans:0 },
   { id:133, cat:"Провалы напряжения", q:"Зачем при VDI-испытании используется LISN?", opts:["Изолирует лабораторную сеть от испытательного генератора","Усиливает провал напряжения","Создаёт провал самостоятельно","Защищает Изделие от длительного провала"], ans:0 },
 
   // ── МАГНИТНОЕ ПОЛЕ ──
-  { id:134, cat:"Магнитное поле", q:"Чем измеряется напряжённость поля при испытании п.15 ГОСТ РВ 20.57.306?", opts:["Магнитометром МТМ-01 (АРМ8)","Пробником LSProbe 2.0 R","Токосъёмником МР-50","Анализатором АСРВ-22С"], ans:0 },
+  { id:134, cat:"Магнитное поле", q:"Чем измеряется напряжённость поля при испытании п.15 ГОСТ РВ 20.57.306?", opts:["Магнитометром Измеритель магнитного поля A (Станция C)","Пробником Измерительный приёмник B","Токосъёмником Токосъёмник A","Анализатором Анализатор спектра A"], ans:0 },
   { id:135, cat:"Магнитное поле", q:"Что проверяется при испытании по ГОСТ РВ 20.57.306 п.15?", opts:["Устойчивость к магнитному полю 50 Гц и постоянному полю","Устойчивость к ЭСР","Кондуктивные помехи","Радиационная устойчивость"], ans:0 },
   { id:136, cat:"Магнитное поле", q:"Единица измерения напряжённости магнитного поля при PFMF:", opts:["A/m","T","V/m","dBµV/m"], ans:0 },
 
@@ -422,7 +868,7 @@ const QUIZ_POOL = [
   { id:152, cat:"Теория", q:"Дальняя зона (far field) начинается приблизительно с расстояния:", opts:["2D²/λ (критерий Фраунгофера)","λ/4","1 метр","10 метров"], ans:0 },
   { id:153, cat:"Теория", q:"Что такое EMC margin (запас по ЭМС)?", opts:["Разница между нормой и измеренным уровнем помехи в дБ","Коэффициент безопасности усилителя","Запас по напряжению питания","Время до следующей калибровки"], ans:0 },
   { id:154, cat:"Оборудование", q:"Что такое spectrum analyzer (анализатор спектра)?", opts:["Прибор для отображения мощности сигнала в зависимости от частоты","Прибор для измерения формы волны во времени","Измеритель тока","Калибровочный генератор"], ans:0 },
-  { id:155, cat:"Оборудование", q:"Приёмник 9010F+9060 в лаборатории используется для:", opts:["Измерения эмиссии CE и RE по ГОСТ РВ 20.57.306 п.21","Генерации тока инжекция тока","Калибровки ЭСР-генератора","Измерения мощности усилителя"], ans:0 },
+  { id:155, cat:"Оборудование", q:"Приёмник Измерительный приёмник A в лаборатории используется для:", opts:["Измерения эмиссии CE и RE по Шаблон испытания 01 · Раздел 03","Генерации тока инжекция тока","Калибровки ЭСР-генератора","Измерения мощности усилителя"], ans:0 },
   { id:156, cat:"Оборудование", q:"Что такое attenuator (аттенюатор)?", opts:["Пассивное устройство для снижения уровня сигнала без отражений","Устройство для усиления сигнала","Фильтр высоких частот","Направленный ответвитель"], ans:0 },
   { id:157, cat:"Оборудование", q:"Для чего используется power meter (ваттметр ВЧ) в испытательном тракте?", opts:["Измерение прямой и отражённой мощности в тракте","Измерение тока на жгуте","Контроль напряжения питания Изделие","Калибровка LISN"], ans:0 },
   { id:158, cat:"Испытания", q:"В чём суть метода замещения при калибровке тракта инжекции тока?", opts:["Калибровка тракта путём замены жгута Изделия на согласованную нагрузку 50 Ом","Замена Изделие на эталонное устройство","Проверка усилителя без нагрузки","Измерение VSWR антенны"], ans:0 },
@@ -477,12 +923,12 @@ const QUIZ_POOL = [
   { id:205, cat:"ГОСТ РВ", q:"Пункт 15 ГОСТ РВ 20.57.306 — это какое испытание?", opts:["Магнитное воздействие 50 Гц и постоянное поле","РЧ-восприимчивость к помехам излучения","ЭСР","Генерация РЧ-энергии"], ans:0 },
   { id:206, cat:"ГОСТ РВ", q:"Пункт 21.4 ГОСТ РВ 20.57.306 — это какое испытание?", opts:["РЧ-восприимчивость к помехам проводимости (повышенные уровни)","РЧ-восприимчивость к помехам излучения","Измерение эмиссии","Магнитное поле"], ans:0 },
   { id:207, cat:"ГОСТ РВ", q:"Пункт 21.5 ГОСТ РВ 20.57.306 — это какое испытание?", opts:["РЧ-восприимчивость к помехам излучения (повышенные уровни)","РЧ-восприимчивость к помехам проводимости","ЭСР","Провалы напряжения"], ans:0 },
-  { id:208, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.20.4 / п.21.4 (инжекция тока)?", opts:["АРМ4 (CIT-100/A + РА-00140-54C + IP-DR250)","АРМ2 (АКИП-3208 + WA-00225-60C)","АРМ6 (ЭСР-30К)","АРМ1 (9010F + ЛИСН)"], ans:0 },
-  { id:209, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.20.5 / п.21.5 (RI, до 1 ГГц)?", opts:["АРМ2 (АКИП-3208 + WA-00225-60C + WA-0810-60C)","АРМ4 (CIT-100/A)","АРМ6 (ЭСР-30К)","АРМ8 (БГ-1 + МТМ-01)"], ans:0 },
-  { id:210, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.21 (эмиссия CE+RE)?", opts:["АРМ1 (9010F+9060 + ЛИСН + антенны П6)","АРМ4 (CIT-100/A)","АРМ2 (АКИП-3208)","АРМ6 (ЭСР-30К)"], ans:0 },
-  { id:211, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.25 (ЭСР)?", opts:["АРМ6 (ЭСР-30К + MSO8204)","АРМ4 (IP-DR250)","АРМ1 (9010F)","АРМ2 (АКИП-3208)"], ans:0 },
-  { id:212, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.15 (магнитное воздействие)?", opts:["АРМ8 (БГ-1 + МТМ-01 + катушка Гельмгольца)","АРМ6 (ЭСР-30К)","АРМ4 (CIT-100/A)","АРМ2 (АКИП-3208)"], ans:0 },
-  { id:213, cat:"ГОСТ РВ", q:"Какой прибор калибрует поле при испытании п.20.5 / п.21.5?", opts:["Пробник LSProbe 2.0 R (9 кГц–18 ГГц, оптоволоконный кабель)","Монитор тока МР-50","ЛИСН NNBM 8126","Осциллограф MSO8204"], ans:0 },
+  { id:208, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.20.4 / п.21.4 (инжекция тока)?", opts:["Станция C (Генератор A + Усилитель A + Токосъёмник A)","Станция B (Генератор A + Усилитель A)","Станция C (Модуль питания A)","Станция A (Измерительный приёмник A + ЛИСН)"], ans:0 },
+  { id:209, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.20.5 / п.21.5 (RI, до 1 ГГц)?", opts:["Станция B (Генератор A + Усилитель A + Усилитель A)","Станция C (Генератор A)","Станция C (Модуль питания A)","Станция C (Датчик поля A + Измеритель магнитного поля A)"], ans:0 },
+  { id:210, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.21 (эмиссия CE+RE)?", opts:["Станция A (Измерительный приёмник A + ЛИСН + антенны П6)","Станция C (Генератор A)","Станция B (Генератор A)","Станция C (Модуль питания A)"], ans:0 },
+  { id:211, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.25 (ЭСР)?", opts:["Станция C (Модуль питания A + Контроллер Alpha)","Станция C (Токосъёмник A)","Станция A (Измерительный приёмник A)","Станция B (Генератор A)"], ans:0 },
+  { id:212, cat:"ГОСТ РВ", q:"На каком АРМ проводится испытание п.15 (магнитное воздействие)?", opts:["Станция C (Датчик поля A + Измеритель магнитного поля A + катушка Гельмгольца)","Станция C (Модуль питания A)","Станция C (Генератор A)","Станция B (Генератор A)"], ans:0 },
+  { id:213, cat:"ГОСТ РВ", q:"Какой прибор калибрует поле при испытании п.20.5 / п.21.5?", opts:["Пробник Измерительный приёмник B (9 кГц–18 ГГц, оптоволоконный кабель)","Монитор тока Токосъёмник A","ЛИСН ЛИСН A","Осциллограф Контроллер Alpha"], ans:0 },
   { id:214, cat:"ГОСТ РВ", q:"Что обязательно устанавливается на конце жгута при испытании п.21.4?", opts:["Нагрузка 50 Ом","Феррит","Антенна","ЛИСН"], ans:0 },
   { id:215, cat:"ГОСТ РВ", q:"Какова модуляция воздействующего сигнала при испытаниях п.20.4, п.20.5, п.21.4, п.21.5?", opts:["AM 80% / 1 кГц","FM 100% / 400 Гц","CW без модуляции","Импульсная 1 мкс"], ans:0 },
 
@@ -1003,16 +1449,16 @@ const ERRORS_DATA = [
     title: "Калибровка инжекция тока не сходится с эталоном",
     freq: "Часто",
     solutions: [
-      "Убедитесь что жгут проходит через центр инжектора IP-DR250 — смещение даёт погрешность 2–5 дБ",
+      "Убедитесь что жгут проходит через центр инжектора Токосъёмник A — смещение даёт погрешность 2–5 дБ",
       "Проверьте что длина жгута в стенде точно 1,7 м согласно ГОСТ РВ 20.57.306 — отклонение меняет калибровку",
       "Пересчитайте калибровочную таблицу — используйте шаг не более 1% от частоты",
       "Убедитесь что нагрузка 50 Ом BCI-ACC-MIL исправна — измерьте её сопротивление омметром",
-      "Проверьте что ответвитель правильно подключён — IN к усилителю, CPL к монитору мощности NRP6AN",
+      "Проверьте что ответвитель правильно подключён — IN к усилителю, CPL к монитору мощности Измерительный приёмник A",
     ]
   },
   {
     id: "e16", cat: "RI", icon: "📡",
-    title: "LSProbe 2.0 R показывает нулевое поле",
+    title: "Измерительный приёмник B показывает нулевое поле",
     freq: "Иногда",
     solutions: [
       "Проверьте оптоволоконный кабель оптоволоконный кабель — перегиб радиусом < 30 мм обрывает сигнал",
@@ -1024,19 +1470,19 @@ const ERRORS_DATA = [
   },
   {
     id: "e17", cat: "Эмиссия", icon: "📊",
-    title: "АСРВ-22С показывает высокий шумовой пол",
+    title: "Анализатор спектра A показывает высокий шумовой пол",
     freq: "Иногда",
     solutions: [
       "Выполните Self Cal анализатора — Menu → Calibration → Self Calibration",
       "Проверьте аттенюатор на входе — при 0 дБ аттенюации шумовой пол максимальный",
       "Убедитесь что входной разъём N чистый — загрязнение деградирует чувствительность",
       "Проверьте температуру прибора — прогрев 30 минут значительно снижает шумовой пол",
-      "Используйте предусилитель при измерениях малых сигналов — АСРВ-22С имеет встроенный preamp",
+      "Используйте предусилитель при измерениях малых сигналов — Анализатор спектра A имеет встроенный preamp",
     ]
   },
   {
     id: "e18", cat: "Эмиссия", icon: "🔌",
-    title: "ЛИСН NNBM 8126 A890 греется при испытании",
+    title: "ЛИСН ЛИСН A греется при испытании",
     freq: "Редко",
     solutions: [
       "Проверьте ток нагрузки — ЛИСН рассчитан на 70 А непрерывно, 100 А кратковременно",
@@ -1047,7 +1493,7 @@ const ERRORS_DATA = [
   },
   {
     id: "e19", cat: "ESD", icon: "⚡",
-    title: "MSO8204 не захватывает осциллограмму разряда ЭСР-30К",
+    title: "Контроллер Alpha не захватывает осциллограмму разряда Модуль питания A",
     freq: "Иногда",
     solutions: [
       "Установите запуск по фронту — тип EDGE, уровень 10% от ожидаемой амплитуды разряда",
@@ -1109,7 +1555,7 @@ const ERRORS_DATA = [
       "Маркируйте кабели цветной изолентой — красный для фазы A, синий для нейтрали",
       "В протоколе фиксируйте какой порт ЛИСН использовался для каждого измерения",
       "Проверяйте подключение повторно после любого перемонтажа стенда",
-      "NNBM 8126 A890 имеет маркировку портов — сверяйтесь с ней перед каждым измерением",
+      "ЛИСН A имеет маркировку портов — сверяйтесь с ней перед каждым измерением",
     ]
   },
   {
@@ -1136,10 +1582,10 @@ const ERRORS_DATA = [
   },
   {
     id: "e27", cat: "Человеческий фактор", icon: "🤦",
-    title: "Антенна П6-522 подключена задом наперёд (вход вместо выхода)",
+    title: "Антенна Антенна A подключена задом наперёд (вход вместо выхода)",
     freq: "Редко",
     solutions: [
-      "На П6-522 разъём 7/16 — вход помечен стрелкой или надписью INPUT/IN",
+      "На Антенна A разъём 7/16 — вход помечен стрелкой или надписью INPUT/IN",
       "При неправильном подключении мощность усилителя идёт в землю — КПД нулевой",
       "Перед первым использованием сделайте фото правильного подключения и распечатайте на стенд",
       "Проверяйте подключение по чёткому росту поля при увеличении мощности — если нет роста значит что-то не так",
@@ -1152,7 +1598,7 @@ const ERRORS_DATA = [
     solutions: [
       "НИКОГДА не трогайте ВЧ-разъёмы при включённом усилителе — это мгновенно выводит из строя выходной каскад",
       "Повесьте табличку 'ВЫКЛЮЧИТЬ УСИЛИТЕЛЬ ПЕРЕД ОТКЛЮЧЕНИЕМ КАБЕЛЕЙ' прямо на стойку",
-      "WA-00225-60C стоит дорого — одна ошибка с разъёмом обходится в ремонт",
+      "Усилитель A стоит дорого — одна ошибка с разъёмом обходится в ремонт",
       "Порядок: снижаем мощность → выключаем RF → выключаем питание → только потом трогаем кабели",
     ]
   },
@@ -1173,7 +1619,7 @@ const ERRORS_DATA = [
     title: "Изделие работает нестабильно из-за просадки напряжения питания при испытании",
     freq: "Иногда",
     solutions: [
-      "Используйте ИППГ 15 (АРМ7) для стабилизации питания — он обеспечивает чистое питание с минимальными пульсациями",
+      "Используйте Источник питания A (АРМ7) для стабилизации питания — он обеспечивает чистое питание с минимальными пульсациями",
       "Проверьте сечение кабеля питания — тонкий кабель даёт просадку при токовых всплесках Изделия",
       "Измерьте напряжение прямо на клеммах Изделия под нагрузкой — не на выходе источника",
       "Установите электролитический конденсатор 1000 мкФ параллельно питанию Изделия — сглаживает кратковременные просадки",
@@ -1303,233 +1749,262 @@ function ErrorsScreen({ onClose }) {
   );
 }
 
-function HomeScreen({ setTab, setCalcId, onQuiz }) {
-  const quick = [
-    { icon: "📡", label: "dB-конвертер", tab: "calc", id: "db" },
-    { icon: "⚡", label: "Инжекция тока", tab: "calc", id: "bci" },
-    { icon: "📉", label: "Потери кабеля", tab: "calc", id: "cable" },
-    { icon: "📋", label: "Чек-листы", tab: "tests", id: null },
-    { icon: "📘", label: "Сокращения", tab: "ref", id: "abbr" }
-  ];
-
-  const sections = [
-    { title: "Тестирование", desc: "10 вопросов • практика ЭМС", color: "#3B82F6", action: onQuiz },
-    { title: "Типовые ошибки", desc: "Частые проблемы и решения", color: "#9CA3AF" },
-    { title: "Оборудование", desc: "Сроки поверки и контроль", color: "#9CA3AF" },
-    { title: "ИИ-помощник", desc: "Claude + база знаний", color: "#9CA3AF" }
-  ];
-
+function EMCAvatar({ size = 220, showPlatform = true }) {
+  const eyeSize = Math.max(7, Math.round(size * 0.045));
   return (
-    <div style={{
-      width: "100%",
-      padding: "32px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 32
-    }}>
+    <div style={{ width: size, height: size + (showPlatform ? 32 : 0), position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{`
+        @keyframes emcBreath { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        @keyframes emcGlow { 0% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } 50% { filter: drop-shadow(0 0 36px rgba(124,58,237,.5)); } 100% { filter: drop-shadow(0 0 18px rgba(37,99,235,.35)); } }
+        @keyframes emcOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes emcWave { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -120; } }
+        @keyframes emcBlink { 0%, 45%, 48%, 100% { transform: scaleY(1); } 46%, 47% { transform: scaleY(0.1); } }
+      `}</style>
+      {showPlatform && <div style={{ position: "absolute", bottom: 0, width: size * 0.72, height: 26, borderRadius: "50%", background: "radial-gradient(ellipse at center, rgba(37,99,235,0.42), rgba(124,58,237,0.18), transparent 72%)", filter: "blur(6px)" }} />}
+      <div style={{ position: "absolute", width: size * 1.03, height: size * 1.03, borderRadius: "50%", border: "1px solid rgba(125,211,252,0.45)", animation: "emcOrbit 16s linear infinite" }} />
+      <div style={{ position: "absolute", width: size * 1.2, height: size * 0.46, borderRadius: "50%", border: "1px solid rgba(167,139,250,0.35)", transform: "rotate(-15deg)", animation: "emcOrbit 11s linear infinite reverse" }} />
 
-      {/* HERO */}
-      <div style={{
-        background: "linear-gradient(135deg, #1E3A6E, #3B82F6)",
-        borderRadius: 20,
-        padding: "32px",
-        color: "#fff"
-      }}>
-        <div style={{ fontSize: 32, fontWeight: 800 }}>
-          Инструментарий инженера ЭМС
+      <div style={{ width: size * 0.84, height: size * 0.84, borderRadius: "50%", position: "relative", background: "radial-gradient(circle at 30% 24%, rgba(255,255,255,0.78), rgba(6,182,212,0.3) 25%, rgba(37,99,235,0.75) 58%, rgba(124,58,237,0.86) 100%)", animation: "emcBreath 4s ease-in-out infinite, emcGlow 3.4s ease-in-out infinite", boxShadow: "inset 0 2px 12px rgba(255,255,255,0.3), inset 0 -12px 24px rgba(2,6,23,0.4)" }}>
+        <svg viewBox="0 0 220 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <path d="M35 120 Q75 78 110 120 T185 120" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="4" strokeLinecap="round" strokeDasharray="8 8" style={{ animation: "emcWave 5s linear infinite" }} />
+          <path d="M35 136 Q75 94 110 136 T185 136" fill="none" stroke="rgba(167,139,250,0.75)" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 10" style={{ animation: "emcWave 6s linear infinite reverse" }} />
+        </svg>
+
+        <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%, -50%)", display: "flex", gap: size * 0.12 }}>
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite" }} />
+          <div style={{ width: eyeSize, height: eyeSize, borderRadius: "50%", background: "#E0F2FE", animation: "emcBlink 4s ease-in-out infinite 0.1s" }} />
         </div>
-
-        <div style={{ marginTop: 10, color: "#C7D2FE" }}>
-          Точные расчёты. Быстро. Без ошибок.
-        </div>
-
-        <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-          <button
-            onClick={() => setTab("calc")}
-            style={{
-              padding: "10px 18px",
-              borderRadius: 10,
-              background: "#fff",
-              color: "#1E3A6E",
-              border: "none",
-              cursor: "pointer",
-              fontWeight: 600
-            }}
-          >
-            Начать работу
-          </button>
-
-          <button
-            onClick={() => setTab("ref")}
-            style={{
-              padding: "10px 18px",
-              borderRadius: 10,
-              background: "transparent",
-              color: "#fff",
-              border: "1px solid rgba(255,255,255,0.4)",
-              cursor: "pointer"
-            }}
-          >
-            Справочники
-          </button>
-        </div>
+        <div style={{ position: "absolute", top: "56%", left: "50%", transform: "translateX(-50%)", width: size * 0.16, height: size * 0.06, borderBottom: "2px solid rgba(226,232,240,0.9)", borderRadius: "0 0 24px 24px" }} />
       </div>
-
-      {/* БЫСТРЫЙ ДОСТУП */}
-      <div>
-        <div style={{ fontWeight: 700, marginBottom: 12 }}>
-          Быстрый доступ
-        </div>
-
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16
-        }}>
-          {quick.map((q, i) => (
-            <div
-              key={i}
-              onClick={() => {
-                setTab(q.tab);
-                if (q.id) setCalcId(q.id);
-              }}
-              style={{
-                background: "#fff",
-                padding: "16px",
-                borderRadius: 16,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
-              }}
-            >
-              <div style={{ fontSize: 22 }}>{q.icon}</div>
-              <div>{q.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ОСНОВНЫЕ РАЗДЕЛЫ */}
-      <div>
-        <div style={{ fontWeight: 700, marginBottom: 12 }}>
-          Основные разделы
-        </div>
-
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: 16
-        }}>
-          {sections.map((s, i) => (
-            <div
-              key={i}
-              onClick={s.action}
-              style={{
-                background: "#fff",
-                padding: "20px",
-                borderRadius: 16,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                cursor: "pointer"
-              }}
-            >
-              <div style={{ fontWeight: 700 }}>{s.title}</div>
-              <div style={{ marginTop: 6, color: "#666", fontSize: 14 }}>
-                {s.desc}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </div>
   );
 }
 
-// ─── dB CONVERTER ─────────────────────────────────────────────────────────────
-function DbConverter() {
-  const [val, setVal] = useState("");
-  const [mode, setMode] = useState("dBuV_V");
-  const modes = [
-    { id: "dBuV_V", label: "dBµV ↔ V" },
-    { id: "dBm_W", label: "dBm ↔ W" },
-    { id: "dBuA_A", label: "dBµA ↔ A" },
-    { id: "dBuVm_Vm", label: "dBµV/m ↔ V/m" },
+
+function HomeScreen({ setTab, setCalcId, onQuiz, onErrors, onVerify }) {
+  const quick = [
+    { icon: "⇄", iconBg: "rgba(34,197,94,0.2)", iconColor: "#22C55E", label: "dB-конвертер", sub: "Преобразование единиц", tab: "calc", id: "db" },
+    { icon: "∿", iconBg: "rgba(59,130,246,0.22)", iconColor: "#60A5FA", label: "Инжекция тока", sub: "ГОСТ Р 51317.4.6", tab: "calc", id: "bci" },
+    { icon: "🧪", iconBg: "rgba(245,158,11,0.2)", iconColor: "#F59E0B", label: "Тестирование", sub: "10 вопросов из базы", action: onQuiz },
+    { icon: "✅", iconBg: "rgba(139,92,246,0.24)", iconColor: "#A78BFA", label: "Поверка", sub: "Сроки и свидетельства", action: onVerify },
   ];
-  const n = parseNum(val);
-  const results = useMemo(() => {
-    if (isNaN(n)) return null;
-    if (mode === "dBuV_V") {
-      const v = dbConvert.dBuV_to_V(n);
-      const db = dbConvert.V_to_dBuV(n);
-      return [
-        { label: `${fmt(n)} dBµV → V`, value: `${fmt(v, 6)} V` },
-        { label: `${fmt(n)} V → dBµV`, value: `${fmt(db)} dBµV` },
-        { label: "µV", value: `${fmt(v * 1e6)} µV` },
-        { label: "mV", value: `${fmt(v * 1e3, 6)} mV` },
-      ];
-    }
-    if (mode === "dBm_W") {
-      const w = dbConvert.dBm_to_W(n);
-      const db = dbConvert.W_to_dBm(n);
-      return [
-        { label: `${fmt(n)} dBm → W`, value: `${fmt(w, 6)} W` },
-        { label: `${fmt(n)} W → dBm`, value: `${fmt(db)} dBm` },
-        { label: "mW", value: `${fmt(w * 1e3, 4)} mW` },
-        { label: "µW", value: `${fmt(w * 1e6, 2)} µW` },
-      ];
-    }
-    if (mode === "dBuA_A") {
-      const a = dbConvert.dBuA_to_A(n);
-      const db = dbConvert.A_to_dBuA(n);
-      return [
-        { label: `${fmt(n)} dBµA → A`, value: `${fmt(a, 8)} A` },
-        { label: `${fmt(n)} A → dBµA`, value: `${fmt(db)} dBµA` },
-        { label: "mA", value: `${fmt(a * 1e3, 6)} mA` },
-        { label: "µA", value: `${fmt(a * 1e6, 3)} µA` },
-      ];
-    }
-    if (mode === "dBuVm_Vm") {
-      const vm = dbConvert.dBuVm_to_Vm(n);
-      const db = dbConvert.Vm_to_dBuVm(n);
-      return [
-        { label: `${fmt(n)} dBµV/m → V/m`, value: `${fmt(vm, 6)} V/m` },
-        { label: `${fmt(n)} V/m → dBµV/m`, value: `${fmt(db)} dBµV/m` },
-      ];
-    }
-    return null;
-  }, [n, mode]);
+
+  const latestTests = [
+    { status: "PASS", date: "2026-04-22", object: "Проект Beta", type: "Conducted Immunity", issue: "80–230 MHz" },
+    { status: "FAIL", date: "2026-04-20", object: "Блок питания БП-4", type: "BCI / инжекция тока", issue: "Пик 142 MHz" },
+    { status: "WARN", date: "2026-04-18", object: "Модуль телеметрии", type: "Radiated Emissions", issue: "Шум 310 MHz" },
+  ];
+
+  const commonErrors = [
+    { icon: "∿", title: "Костюмник не фиксирует ток инжекции", reason: "Слабая связь клещей и жгута либо ошибка подключения." },
+    { icon: "▲", title: "Пик по частоте превышает норму", reason: "Гармоника генератора или резонанс кабеля." },
+    { icon: "≈", title: "Шумы после подключения оборудования", reason: "Паразитные наводки и земляная петля." },
+  ];
+
+  const aiScenarios = ["Пик превышает норму", "Шумы в кабеле", "Проблема с инжекцией", "Усилитель уходит в защиту"];
 
   return (
-    <div>
-      <div style={styles.sectionTitle}>dB-конвертер</div>
-      <div style={styles.card}>
-        <InnerTabs tabs={modes} active={mode} onSet={setMode} />
-        <Field label="Введите значение">
-          <input style={styles.input} type="number" value={val} onChange={e => setVal(e.target.value)} placeholder="Например: 40" />
-        </Field>
-        {results && <ResultBox rows={results} lastNoLine />}
-        {val && isNaN(n) && <div style={{ color: C.fail, fontSize: 12, marginTop: 6 }}>Введите корректное число</div>}
-      </div>
-      <div style={styles.card}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.textSec, marginBottom: 8 }}>СПРАВКА ПО ФОРМУЛАМ</div>
-        {[
-          ["dBµV → V", "V = 10^((dBµV − 120) / 20)"],
-          ["dBm → W", "W = 10^(dBm / 10) / 1000"],
-          ["dBµA → A", "A = 10^((dBµA − 120) / 20)"],
-        ].map(([l, f]) => (
-          <div key={l} style={{ borderBottom: `1px solid ${C.border}`, padding: "6px 0", display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, color: C.textSec }}>{l}</span>
-            <span style={{ fontSize: 12, fontFamily: "monospace", color: C.text }}>{f}</span>
+    <div style={{ width: "100%", minHeight: "100%", background: "radial-gradient(circle at 74% 10%, rgba(14,165,233,0.14), transparent 36%), radial-gradient(circle at 12% 85%, rgba(124,58,237,0.16), transparent 42%), #040814" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "30px 24px 52px" }}>
+        <div style={{
+          position: "relative",
+          borderRadius: 32,
+          background: "linear-gradient(136deg, rgba(11,20,38,0.92) 0%, rgba(10,16,30,0.86) 54%, rgba(18,30,56,0.9) 100%)",
+          border: "1px solid rgba(148,163,184,0.2)",
+          boxShadow: "0 26px 70px rgba(2,6,23,0.6), inset 0 1px 0 rgba(191,219,254,0.15)",
+          padding: "56px 52px",
+          marginBottom: 20,
+          overflow: "hidden",
+          display: "grid",
+          gridTemplateColumns: "1.1fr 0.9fr",
+          gap: 20,
+        }}>
+          <div style={{ position: "absolute", inset: -80, background: "radial-gradient(circle at 78% 28%, rgba(124,58,237,0.3), transparent 42%), radial-gradient(circle at 30% 95%, rgba(37,99,235,0.28), transparent 45%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: 11, letterSpacing: 1.8, textTransform: "uppercase", color: "#94A3B8", marginBottom: 16 }}>EMC Toolkit · Cyber Engineering UI</div>
+            <h1 style={{ margin: "0 0 14px", fontSize: 66, lineHeight: 0.98, letterSpacing: -1.8, fontWeight: 800, background: "linear-gradient(92deg, #8BD7FF, #6FA7FF 45%, #A78BFA)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Упрощай. Проверяй. Решай.</h1>
+            <div style={{ marginBottom: 12, color: "#C4D7FF", fontSize: 22, fontWeight: 600 }}>Все инструменты ЭМС — в одном месте</div>
+            <p style={{ margin: "0 0 24px", color: "#94A3B8", maxWidth: 560, lineHeight: 1.65, fontSize: 15 }}>
+              Расчёты, испытания, журнал, типовые ошибки и AI-помощник для быстрой работы инженера.
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => setTab("calc")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(56,189,248,0.5)", background: "linear-gradient(130deg, #1D4ED8, #7C3AED)", color: "#F8FAFC", fontWeight: 700, cursor: "pointer", boxShadow: "0 0 28px rgba(37,99,235,0.36)" }}>Открыть расчёты</button>
+              <button onClick={() => setTab("ai")} style={{ padding: "13px 22px", borderRadius: 14, border: "1px solid rgba(148,163,184,0.3)", background: "rgba(15,23,42,0.62)", color: "#D7E8FF", fontWeight: 600, cursor: "pointer", boxShadow: "0 0 18px rgba(124,58,237,0.18)" }}>Перейти к AI-помощнику</button>
+            </div>
           </div>
-        ))}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <EMCAvatar size={270} />
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div style={{ ...styles.card, marginBottom: 0 }}>
+            <div style={{ ...styles.sectionTitle, marginBottom: 14, marginTop: 0, color: "#CBD5E1" }}>Ключевые быстрые действия</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {quick.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => q.action ? q.action() : (setTab(q.tab), q.id && setCalcId(q.id))}
+                  style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", textAlign: "left", padding: "14px", cursor: "pointer", transition: "transform .18s ease, border-color .2s ease, box-shadow .2s ease", fontFamily: "inherit", boxShadow: "0 0 20px rgba(80,120,255,0.08)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.borderColor = "rgba(91,140,255,0.66)"; e.currentTarget.style.boxShadow = "0 0 34px rgba(80,120,255,0.22)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.boxShadow = "0 0 20px rgba(80,120,255,0.08)"; }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 10, background: q.iconBg, color: q.iconColor, display: "grid", placeItems: "center", boxShadow: `0 0 18px ${q.iconColor}55` }}>{q.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{q.label}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#94A3B8" }}>{q.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ ...styles.card, marginBottom: 0, position: "relative", overflow: "hidden", boxShadow: "0 0 54px rgba(80,120,255,0.22)" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 10%, rgba(124,58,237,0.24), transparent 36%), radial-gradient(circle at 15% 88%, rgba(37,99,235,0.2), transparent 45%)", pointerEvents: "none" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ ...styles.sectionTitle, marginBottom: 10, marginTop: 0, color: "#CBD5E1" }}>AI-помощник</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#10B981", boxShadow: "0 0 14px rgba(16,185,129,0.7)" }} />
+                <span style={{ fontSize: 12, color: "#A7F3D0", fontWeight: 700 }}>Готов помочь</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                <EMCAvatar size={120} showPlatform={false} />
+                <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>AI-анализ отказов и инженерных сценариев. Опишите симптом и получите следующий шаг проверки.</div>
+              </div>
+              <input onFocus={() => setTab("ai")} placeholder="Опишите проблему..." style={{ width: "100%", borderRadius: 14, border: "1px solid rgba(91,140,255,0.35)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", padding: "11px 13px", fontSize: 13, outline: "none", fontFamily: "inherit", marginBottom: 10 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {aiScenarios.map((scenario) => (
+                  <button key={scenario} onClick={() => setTab("ai")} style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: "10px 12px", background: "rgba(20, 30, 60, 0.6)", backdropFilter: "blur(20px)", color: "#E2E8F0", fontSize: 12, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 20px rgba(80,120,255,0.12)" }}>• {scenario}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ ...styles.card, marginBottom: 16 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Последние испытания</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ color: "#64748B", textAlign: "left" }}>
+                <th style={{ padding: "8px 10px" }}>Статус</th><th style={{ padding: "8px 10px" }}>Дата</th><th style={{ padding: "8px 10px" }}>Объект</th><th style={{ padding: "8px 10px" }}>Тип</th><th style={{ padding: "8px 10px" }}>Частота/проблема</th><th style={{ padding: "8px 10px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {latestTests.map((t, idx) => (
+                <tr key={idx} style={{ borderTop: "1px solid rgba(148,163,184,0.14)" }}>
+                  <td style={{ padding: "10px" }}><span style={styles.tag(t.status === "PASS" ? "pass" : t.status === "FAIL" ? "fail" : "warn")}>{t.status}</span></td>
+                  <td style={{ padding: "10px", color: "#CBD5E1" }}>{t.date}</td>
+                  <td style={{ padding: "10px", color: "#E2E8F0" }}>{t.object}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.type}</td>
+                  <td style={{ padding: "10px", color: "#94A3B8" }}>{t.issue}</td>
+                  <td style={{ padding: "10px" }}><button onClick={() => setTab("log")} style={{ borderRadius: 10, border: "1px solid rgba(37,99,235,0.5)", background: "rgba(37,99,235,0.14)", color: "#BFDBFE", fontSize: 12, padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Открыть</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ ...styles.card, marginBottom: 0 }}>
+          <div style={{ ...styles.sectionTitle, marginBottom: 12, marginTop: 0, color: "#CBD5E1" }}>Типовые ошибки</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+            {commonErrors.map((error, i) => (
+              <button key={i} onClick={onErrors} style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(20,30,60,0.6)", backdropFilter: "blur(20px)", padding: "14px", textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: "#E2E8F0", boxShadow: "0 0 24px rgba(80,120,255,0.1)" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 12, marginBottom: 10, display: "grid", placeItems: "center", background: "linear-gradient(135deg, rgba(37,99,235,0.9), rgba(124,58,237,0.8))", boxShadow: "0 0 18px rgba(37,99,235,0.34)" }}>{error.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 7, lineHeight: 1.4 }}>{error.title}</div>
+                <div style={{ color: "#94A3B8", fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>{error.reason}</div>
+                <span style={{ color: "#60A5FA", fontSize: 12, fontWeight: 600 }}>Подробнее →</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 // ─── инжекция тока CALCULATOR ────────────────────────────────────────────────────────
+
+// ─── dB CONVERTER ────────────────────────────────────────────────────────────
+function DbConverter() {
+  const [val, setVal] = useState("");
+  const [from, setFrom] = useState("dBuV");
+  const units = ["dBuV","dBm","dBuA","dBuV/m","V","W","A","V/m"];
+
+  const convert = (v, f) => {
+    const n = parseFloat(v);
+    if (isNaN(n)) return {};
+    const toV = {
+      dBuV: x => Math.pow(10,(x-120)/20),
+      V:    x => x,
+      dBm:  x => Math.sqrt(Math.pow(10,x/10)/1000*50),
+      W:    x => Math.sqrt(x*50),
+      dBuA: x => Math.pow(10,(x-120)/20),
+      A:    x => x,
+      "dBuV/m": x => Math.pow(10,(x-120)/20),
+      "V/m": x => x,
+    };
+    const fromV = {
+      dBuV: x => 20*Math.log10(x)+120,
+      V:    x => x,
+      dBm:  x => 10*Math.log10(x*x/50*1000),
+      W:    x => x*x/50,
+      dBuA: x => 20*Math.log10(x)+120,
+      A:    x => x,
+      "dBuV/m": x => 20*Math.log10(x)+120,
+      "V/m": x => x,
+    };
+    const vInV = toV[f] ? toV[f](n) : n;
+    const res = {};
+    units.forEach(u => {
+      try { const r = fromV[u](vInV); res[u] = isFinite(r) ? r : null; } catch(e) { res[u] = null; }
+    });
+    return res;
+  };
+
+  const results = convert(val, from);
+
+  const fmt = (v, u) => {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    if (["dBuV","dBm","dBuA","dBuV/m"].includes(u)) return v.toFixed(2) + " " + u;
+    if (Math.abs(v) < 1e-9) return (v*1e12).toFixed(2) + " п" + u.replace(/[A-Z]/g,'').toLowerCase();
+    if (Math.abs(v) < 1e-6) return (v*1e9).toFixed(2) + " н" + u.replace(/[A-Z]/g,'').toLowerCase();
+    if (Math.abs(v) < 1e-3) return (v*1e6).toFixed(2) + " мк" + u.replace(/[A-Z]/g,'').toLowerCase();
+    if (Math.abs(v) < 1)    return (v*1e3).toFixed(4) + " м" + u.replace(/[A-Z]/g,'').toLowerCase();
+    return v.toExponential(3) + " " + u;
+  };
+
+  return (
+    <div style={styles.content}>
+      <div style={{ fontSize:18, fontWeight:700, marginBottom:20, color:C.text }}>dB-конвертер</div>
+      <div style={{ ...styles.card, marginBottom:16 }}>
+        <div style={{ display:"flex", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+          <div style={{ flex:1, minWidth:160 }}>
+            <div style={{ fontSize:12, color:C.textSec, marginBottom:6 }}>Значение</div>
+            <input style={styles.input} value={val} onChange={e=>setVal(e.target.value)} placeholder="Введите число..." type="number"/>
+          </div>
+          <div style={{ flex:1, minWidth:140 }}>
+            <div style={{ fontSize:12, color:C.textSec, marginBottom:6 }}>Единица</div>
+            <select style={styles.input} value={from} onChange={e=>setFrom(e.target.value)}>
+              {units.map(u=><option key={u}>{u}</option>)}
+            </select>
+          </div>
+        </div>
+        {val && (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:10 }}>
+            {units.filter(u=>u!==from).map(u=>(
+              <div key={u} style={{ background:C.bg, borderRadius:8, padding:"12px 14px" }}>
+                <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>{u}</div>
+                <div style={{ fontSize:15, fontWeight:700, color:C.text }}>{fmt(results[u], u)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!val && <div style={{ color:C.textSec, fontSize:14 }}>Введите значение для конвертации</div>}
+      </div>
+    </div>
+  );
+}
+
 function BciCalc() {
   const [target, setTarget] = useState("");
   const [tUnit, setTUnit] = useState("dBuA");
@@ -1595,6 +2070,8 @@ function BciCalc() {
         <div style={styles.warn}>
           ⚠️ Расчёт ориентировочный. Итоговое значение зависит от калибровки тракта и реальной схемы испытания.
         </div>
+
+
       </div>
     </div>
   );
@@ -1678,6 +2155,8 @@ function CableLossCalc() {
             </table>
           </div>
         </div>
+
+
       </div>
     </div>
   );
@@ -1731,6 +2210,8 @@ function PowerGainCalc() {
           </Field>
         </div>
         {res && <ResultBox rows={res} lastNoLine />}
+
+
       </div>
     </div>
   );
@@ -1781,6 +2262,337 @@ function ResonanceCalc() {
         </Field>
         {res && <ResultBox rows={res} lastNoLine />}
         <div style={styles.warn}>Типичные velocity factor: коаксиал — 0.66, воздух — 1.0, FR4 — ~0.5</div>
+
+
+      </div>
+    </div>
+  );
+}
+
+
+function CalcHelp({ children }) {
+  return <div style={{ fontSize: 12, color: C.textSec, marginBottom: 12, lineHeight: 1.6 }}>{children}</div>;
+}
+
+function FormulaNote({ children }) {
+  return <div style={{ fontSize: 11, color: C.textSec, marginTop: 8, lineHeight: 1.6, fontFamily: "monospace" }}>{children}</div>;
+}
+
+function DbmPowerVoltageCalc() {
+  const [val, setVal] = useState("");
+  const [unit, setUnit] = useState("dBm");
+  const [impedance, setImpedance] = useState("50");
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    const r = parseNum(impedance);
+    if (isNaN(x) || isNaN(r) || r <= 0) return null;
+
+    let watts;
+    if (unit === "dBm") watts = Math.pow(10, x / 10) / 1000;
+    if (unit === "W") watts = x;
+    if (unit === "mW") watts = x / 1000;
+    if (unit === "Vrms") watts = (x * x) / r;
+    if (unit === "Vpp") watts = Math.pow(x / (2 * Math.sqrt(2)), 2) / r;
+    if (unit === "Vpeak") watts = Math.pow(x / Math.sqrt(2), 2) / r;
+    if (!isFinite(watts) || watts < 0) return null;
+
+    const vrms = Math.sqrt(watts * r);
+    const vpeak = vrms * Math.sqrt(2);
+    const vpp = 2 * vpeak;
+    return [
+      { label: "dBm", value: watts > 0 ? `${fmt(10 * Math.log10(watts * 1000), 3)} dBm` : "−∞ dBm" },
+      { label: "W", value: `${fmt(watts, 9)} W` },
+      { label: "mW", value: `${fmt(watts * 1000, 6)} mW` },
+      { label: "Vrms", value: `${fmt(vrms, 6)} V rms` },
+      { label: "Vpp", value: `${fmt(vpp, 6)} Vpp` },
+      { label: "Vpeak", value: `${fmt(vpeak, 6)} Vpeak` },
+    ];
+  }, [val, unit, impedance]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>dBm / W / V калькулятор</div>
+      <div style={styles.card}>
+        <CalcHelp>Пересчёт мощности и напряжения в согласованном ВЧ-тракте. По умолчанию используется импеданс 50 Ω.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение">
+            <input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="Например: 13" inputMode="decimal" />
+          </Field>
+          <Field label="Тип входа">
+            <select style={styles.select} value={unit} onChange={e => setUnit(e.target.value)}>
+              {[
+                ["dBm", "dBm"], ["W", "W"], ["mW", "mW"], ["Vrms", "Vrms"], ["Vpp", "Vpp"], ["Vpeak", "Vpeak"]
+              ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Импеданс (Ω)">
+          <input style={styles.input} value={impedance} onChange={e => setImpedance(e.target.value)} placeholder="50" inputMode="decimal" />
+        </Field>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите корректное значение и положительный импеданс.</div>}
+        <FormulaNote>P = Vrms² / R · Vpp = 2√2·Vrms · dBm = 10log10(P/1 mW)</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function VswrCalc() {
+  const [val, setVal] = useState("");
+  const [mode, setMode] = useState("vswr");
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    if (isNaN(x)) return null;
+    let gamma;
+    if (mode === "vswr") {
+      if (x < 1) return null;
+      gamma = (x - 1) / (x + 1);
+    } else if (mode === "gamma") {
+      if (x < 0 || x >= 1) return null;
+      gamma = x;
+    } else {
+      if (x < 0) return null;
+      gamma = Math.pow(10, -x / 20);
+    }
+    const vswr = gamma >= 1 ? Infinity : (1 + gamma) / (1 - gamma);
+    const returnLoss = gamma > 0 ? -20 * Math.log10(gamma) : Infinity;
+    const mismatchLoss = gamma < 1 ? -10 * Math.log10(1 - gamma * gamma) : Infinity;
+    const reflectedPct = gamma * gamma * 100;
+    return [
+      { label: "КСВ / VSWR", value: isFinite(vswr) ? fmt(vswr, 3) : "∞" },
+      { label: "Коэффициент отражения |Γ|", value: fmt(gamma, 5) },
+      { label: "Return Loss", value: isFinite(returnLoss) ? `${fmt(returnLoss, 3)} dB` : "∞ dB" },
+      { label: "Mismatch Loss", value: isFinite(mismatchLoss) ? `${fmt(mismatchLoss, 4)} dB` : "∞ dB" },
+      { label: "Отражённая мощность", value: `${fmt(reflectedPct, 3)} %` },
+    ];
+  }, [val, mode]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>VSWR / КСВ калькулятор</div>
+      <div style={styles.card}>
+        <CalcHelp>Оценка согласования ВЧ-тракта по КСВ, коэффициенту отражения или return loss.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение">
+            <input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="Например: 1.5" inputMode="decimal" />
+          </Field>
+          <Field label="Тип входа">
+            <select style={styles.select} value={mode} onChange={e => setMode(e.target.value)}>
+              <option value="vswr">VSWR / КСВ</option>
+              <option value="gamma">|Γ| коэффициент отражения</option>
+              <option value="rl">Return Loss, dB</option>
+            </select>
+          </Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Проверьте ввод: КСВ ≥ 1, 0 ≤ |Γ| &lt; 1, Return Loss ≥ 0 dB.</div>}
+        <FormulaNote>VSWR = (1+|Γ|)/(1−|Γ|) · RL = −20log10|Γ| · ML = −10log10(1−|Γ|²)</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function FsplCalc() {
+  const [freq, setFreq] = useState("");
+  const [freqUnit, setFreqUnit] = useState("MHz");
+  const [distance, setDistance] = useState("");
+  const [distUnit, setDistUnit] = useState("m");
+  const [txPower, setTxPower] = useState("");
+  const [txGain, setTxGain] = useState("");
+  const [rxGain, setRxGain] = useState("");
+
+  const res = useMemo(() => {
+    const fIn = parseNum(freq);
+    const dIn = parseNum(distance);
+    if (isNaN(fIn) || isNaN(dIn) || fIn <= 0 || dIn <= 0) return null;
+    const fHz = fIn * ({ Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 }[freqUnit] || 1);
+    const dM = dIn * (distUnit === "km" ? 1000 : 1);
+    const fspl = 20 * Math.log10(dM) + 20 * Math.log10(fHz) - 147.55;
+    const rows = [{ label: "FSPL", value: `${fmt(fspl, 3)} dB` }];
+    const p = parseNum(txPower);
+    if (!isNaN(p)) {
+      const gt = parseNum(txGain) || 0;
+      const gr = parseNum(rxGain) || 0;
+      rows.push({ label: "Оценка уровня на входе Rx", value: `${fmt(p + gt + gr - fspl, 3)} dBm` });
+    }
+    rows.push({ label: "Длина волны", value: `${fmt(299792458 / fHz, 6)} м` });
+    return rows;
+  }, [freq, freqUnit, distance, distUnit, txPower, txGain, rxGain]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Free Space Path Loss</div>
+      <div style={styles.card}>
+        <CalcHelp>Свободнопространственные потери для оценки радиолиний и лабораторных расстояний без учёта отражений и стенда.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Частота"><input style={styles.input} value={freq} onChange={e => setFreq(e.target.value)} placeholder="100" inputMode="decimal" /></Field>
+          <Field label="Единица частоты"><select style={styles.select} value={freqUnit} onChange={e => setFreqUnit(e.target.value)}>{["Hz","kHz","MHz","GHz"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        <div style={styles.row}>
+          <Field label="Расстояние"><input style={styles.input} value={distance} onChange={e => setDistance(e.target.value)} placeholder="3" inputMode="decimal" /></Field>
+          <Field label="Единица расстояния"><select style={styles.select} value={distUnit} onChange={e => setDistUnit(e.target.value)}><option value="m">m</option><option value="km">km</option></select></Field>
+        </div>
+        <div style={styles.row}>
+          <Field label="Мощность передатчика (dBm), опц."><input style={styles.input} value={txPower} onChange={e => setTxPower(e.target.value)} placeholder="Напр.: 10" inputMode="decimal" /></Field>
+          <Field label="Усиление Tx / Rx (dBi), опц."><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><input style={styles.input} value={txGain} onChange={e => setTxGain(e.target.value)} placeholder="Tx" inputMode="decimal" /><input style={styles.input} value={rxGain} onChange={e => setRxGain(e.target.value)} placeholder="Rx" inputMode="decimal" /></div></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите положительные частоту и расстояние.</div>}
+        <FormulaNote>FSPL(dB) = 20log10(d[m]) + 20log10(f[Hz]) − 147.55</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function FieldStrengthCalc() {
+  const [val, setVal] = useState("");
+  const [unit, setUnit] = useState("V/m");
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    if (isNaN(x)) return null;
+    let eVm;
+    if (unit === "V/m") eVm = x;
+    if (unit === "mV/m") eVm = x / 1000;
+    if (unit === "µV/m") eVm = x / 1e6;
+    if (unit === "dBµV/m") eVm = Math.pow(10, (x - 120) / 20);
+    if (unit === "W/m²") eVm = Math.sqrt(Math.max(x, 0) * 377);
+    if (unit === "mW/cm²") eVm = Math.sqrt(Math.max(x, 0) * 10 * 377);
+    if (!isFinite(eVm) || eVm < 0) return null;
+    const powerDensity = eVm * eVm / 377;
+    return [
+      { label: "V/m", value: `${fmt(eVm, 6)} V/m` },
+      { label: "dBµV/m", value: eVm > 0 ? `${fmt(20 * Math.log10(eVm) + 120, 3)} dBµV/m` : "−∞ dBµV/m" },
+      { label: "W/m²", value: `${fmt(powerDensity, 9)} W/m²` },
+      { label: "mW/cm²", value: `${fmt(powerDensity / 10, 9)} mW/cm²` },
+    ];
+  }, [val, unit]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Напряжённость электрического поля</div>
+      <div style={styles.card}>
+        <CalcHelp>Пересчёт E-поля и плотности потока мощности для дальней зоны в свободном пространстве.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение"><input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="10" inputMode="decimal" /></Field>
+          <Field label="Единицы"><select style={styles.select} value={unit} onChange={e => setUnit(e.target.value)}>{["V/m","mV/m","µV/m","dBµV/m","W/m²","mW/cm²"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите корректное неотрицательное значение.</div>}
+        <FormulaNote>S = E² / 377 Ω · dBµV/m = 20log10(E[V/m]) + 120</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function MagneticFieldCalc() {
+  const [val, setVal] = useState("");
+  const [unit, setUnit] = useState("A/m");
+  const MU0 = 4 * Math.PI * 1e-7;
+
+  const res = useMemo(() => {
+    const x = parseNum(val);
+    if (isNaN(x)) return null;
+    let h;
+    if (unit === "A/m") h = x;
+    if (unit === "mA/m") h = x / 1000;
+    if (unit === "µA/m") h = x / 1e6;
+    if (unit === "dBµA/m") h = Math.pow(10, (x - 120) / 20);
+    if (["T", "mT", "µT", "nT"].includes(unit)) {
+      const bT = x * ({ T: 1, mT: 1e-3, "µT": 1e-6, nT: 1e-9 }[unit] || 1);
+      h = bT / MU0;
+    }
+    if (!isFinite(h) || h < 0) return null;
+    const bT = MU0 * h;
+    return [
+      { label: "A/m", value: `${fmt(h, 6)} A/m` },
+      { label: "dBµA/m", value: h > 0 ? `${fmt(20 * Math.log10(h) + 120, 3)} dBµA/m` : "−∞ dBµA/m" },
+      { label: "µT", value: `${fmt(bT * 1e6, 6)} µT` },
+      { label: "mT", value: `${fmt(bT * 1e3, 9)} mT` },
+    ];
+  }, [val, unit]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Конвертер магнитного поля</div>
+      <div style={styles.card}>
+        <CalcHelp>Пересчёт H и B с приближением воздуха/свободного пространства: B = µ₀·H.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Значение"><input style={styles.input} value={val} onChange={e => setVal(e.target.value)} placeholder="1" inputMode="decimal" /></Field>
+          <Field label="Единицы"><select style={styles.select} value={unit} onChange={e => setUnit(e.target.value)}>{["A/m","mA/m","µA/m","dBµA/m","T","mT","µT","nT"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите корректное неотрицательное значение.</div>}
+        <div style={styles.warn}>Используется приближение для воздуха/свободного пространства; в материалах с другой магнитной проницаемостью результат отличается.</div>
+      </div>
+    </div>
+  );
+}
+
+function NearFarFieldCalc() {
+  const [freq, setFreq] = useState("");
+  const [freqUnit, setFreqUnit] = useState("MHz");
+  const [dimension, setDimension] = useState("");
+
+  const res = useMemo(() => {
+    const fIn = parseNum(freq);
+    const d = parseNum(dimension);
+    if (isNaN(fIn) || isNaN(d) || fIn <= 0 || d < 0) return null;
+    const fHz = fIn * ({ Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 }[freqUnit] || 1);
+    const lambda = 299792458 / fHz;
+    return [
+      { label: "Длина волны λ", value: `${fmt(lambda, 6)} м` },
+      { label: "Граница реактивной ближней зоны", value: `${fmt(lambda / (2 * Math.PI), 6)} м` },
+      { label: "Дальняя зона 2D²/λ", value: `${fmt((2 * d * d) / lambda, 6)} м` },
+    ];
+  }, [freq, freqUnit, dimension]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Near Field / Far Field</div>
+      <div style={styles.card}>
+        <CalcHelp>Оценка длины волны, ближней зоны и расстояния дальней зоны по максимальному размеру антенны.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Частота"><input style={styles.input} value={freq} onChange={e => setFreq(e.target.value)} placeholder="100" inputMode="decimal" /></Field>
+          <Field label="Единица частоты"><select style={styles.select} value={freqUnit} onChange={e => setFreqUnit(e.target.value)}>{["Hz","kHz","MHz","GHz"].map(u => <option key={u}>{u}</option>)}</select></Field>
+        </div>
+        <Field label="Наибольший размер антенны D (м)"><input style={styles.input} value={dimension} onChange={e => setDimension(e.target.value)} placeholder="1" inputMode="decimal" /></Field>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите положительную частоту и неотрицательный размер D.</div>}
+        <div style={styles.warn}>⚠️ Результаты являются инженерными оценками и зависят от типа антенны и конфигурации испытательного стенда.</div>
+        <FormulaNote>Reactive NF ≈ λ / 2π · Far field ≈ 2D² / λ</FormulaNote>
+      </div>
+    </div>
+  );
+}
+
+function AntennaFactorCalc() {
+  const [reading, setReading] = useState("");
+  const [af, setAf] = useState("");
+  const [cableLoss, setCableLoss] = useState("");
+  const [preampGain, setPreampGain] = useState("");
+
+  const res = useMemo(() => {
+    const r = parseNum(reading);
+    const a = parseNum(af);
+    const c = parseNum(cableLoss) || 0;
+    const p = parseNum(preampGain) || 0;
+    if (isNaN(r) || isNaN(a)) return null;
+    const corrected = r + a + c - p;
+    return [{ label: "Скорректированный уровень поля", value: `${fmt(corrected, 3)} dBµV/m` }];
+  }, [reading, af, cableLoss, preampGain]);
+
+  return (
+    <div>
+      <div style={styles.sectionTitle}>Antenna Factor / коррекция уровня</div>
+      <div style={styles.card}>
+        <CalcHelp>Коррекция показаний приёмника/анализатора с учётом антенного фактора, потерь кабеля и усиления предусилителя.</CalcHelp>
+        <div style={styles.row}>
+          <Field label="Показание приёмника (dBµV)"><input style={styles.input} value={reading} onChange={e => setReading(e.target.value)} placeholder="40" inputMode="decimal" /></Field>
+          <Field label="Antenna Factor (dB/m)"><input style={styles.input} value={af} onChange={e => setAf(e.target.value)} placeholder="18" inputMode="decimal" /></Field>
+        </div>
+        <div style={styles.row}>
+          <Field label="Потери кабеля (dB)"><input style={styles.input} value={cableLoss} onChange={e => setCableLoss(e.target.value)} placeholder="2" inputMode="decimal" /></Field>
+          <Field label="Усиление предусилителя (dB)"><input style={styles.input} value={preampGain} onChange={e => setPreampGain(e.target.value)} placeholder="20" inputMode="decimal" /></Field>
+        </div>
+        {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите показание приёмника и антенный фактор.</div>}
+        <FormulaNote>Ecorr = Reading + AF + Cable Loss − Preamp Gain</FormulaNote>
       </div>
     </div>
   );
@@ -1823,6 +2635,8 @@ function UnitConverter() {
           </Field>
         </div>
         {results && <ResultBox rows={results} lastNoLine />}
+
+
       </div>
     </div>
   );
@@ -1928,7 +2742,7 @@ function TimeConverter() {
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>БЫСТРЫЕ ЗНАЧЕНИЯ ЭМС</div>
       <div style={styles.card}>
         {[
-          { label: "Фронт ESD-разряда",          val: "0.7",  unit: "ns",  note: "ГОСТ РВ 20.57.306 п.25" },
+          { label: "Фронт ESD-разряда",          val: "0.7",  unit: "ns",  note: "Шаблон испытания 02 · Раздел 01" },
           { label: "Фронт EFT-импульса",          val: "5",    unit: "ns",  note: "IEC 61000-4-4" },
           { label: "Длительность EFT-импульса",   val: "50",   unit: "ns",  note: "IEC 61000-4-4" },
           { label: "Фронт Surge (напряжение)",     val: "1200", unit: "us",  note: "1,2/50 мкс" },
@@ -1953,6 +2767,8 @@ function TimeConverter() {
         <div style={{ fontSize: 11, color: C.textSec, marginTop: 8, fontStyle: "italic" }}>
           Нажмите на строку — значение подставится в конвертер
         </div>
+
+
       </div>
     </div>
   );
@@ -2021,10 +2837,10 @@ function CableLengthCalc() {
 
 // Антенны по диапазонам для п.20.5/21.5
 const ANTENNAS = [
-  { id: "il0210", name: "ИЛ-0210-2", range: "1–200 МГц", fMin: 1, fMax: 200 },
-  { id: "p6522", name: "П6-522", range: "60–3000 МГц", fMin: 60, fMax: 3000 },
-  { id: "p6160", name: "П6-160", range: "200–2800 МГц", fMin: 200, fMax: 2800 },
-  { id: "p6421m", name: "П6-421М", range: "370–6000 МГц", fMin: 370, fMax: 6000 },
+  { id: "il0210", name: "Антенна A", range: "1–200 МГц", fMin: 1, fMax: 200 },
+  { id: "p6522", name: "Антенна A", range: "60–3000 МГц", fMin: 60, fMax: 3000 },
+  { id: "p6160", name: "Антенна A", range: "200–2800 МГц", fMin: 200, fMax: 2800 },
+  { id: "p6421m", name: "Антенна A", range: "370–6000 МГц", fMin: 370, fMax: 6000 },
   { id: "amon61823", name: "АМОН61823NF", range: "6000–18000 МГц", fMin: 6000, fMax: 18000 },
 ];
 
@@ -2052,8 +2868,8 @@ const TEST_RANGES = {
 
 function CalibrationDotsCalc() {
   const [testId, setTestId]       = useState("p205");
-  const [fStartIn, setFStartIn]   = useState("20");
-  const [fEndIn, setFEndIn]       = useState("1000");
+  const [fStartIn, setFStartIn]   = useState("");
+  const [fEndIn, setFEndIn]       = useState("");
   const [stepN, setStepN]         = useState("1");       // показатель n в 10^(n/100)
   const [polarity, setPolarity]   = useState("Гор");
   const [antennaId, setAntennaId] = useState("p6522");
@@ -2341,7 +3157,7 @@ function CalibrationDotsCalc() {
 
       {points.length === 0 && fStartIn && fEndIn && (
         <div style={{ ...styles.card, textAlign: "center", color: C.textSec, fontSize: 13 }}>
-          Проверьте диапазон — начало должно быть меньше конца
+          Добавьте свои калибровочные точки
         </div>
       )}
     </div>
@@ -2349,40 +3165,338 @@ function CalibrationDotsCalc() {
 }
 
 function CalculatorsScreen({ calcId, setCalcId }) {
-  const tools = [
-    { id: "db", icon: "📊", title: "dB-конвертер", sub: "дБмкВ, дБм, дБмкА, дБмкВ/м" },
-    { id: "bci", icon: "⚡", title: "Расчёт инжекции тока", sub: "Уровень генератора, ток инжекции" },
-    { id: "cable", icon: "🔌", title: "Потери кабеля", sub: "RG-58, LMR-400, Custom..." },
-    { id: "cablelen", icon: "📏", title: "Длина кабеля по резонансу", sub: "λ/4, λ/2 и λ/1 по частоте" },
-    { id: "caldots", icon: "📋", title: "Таблица калибровочных точек", sub: "Шаг 1% по КТ-160G п.20.5, 20.4, 21.4, 21.5" },
-    { id: "powgain", icon: "📶", title: "Мощность и усиление", sub: "Вход → усилитель → выход" },
-    { id: "resonance", icon: "〰️", title: "Резонансная частота кабеля", sub: "По длине кабеля" },
-    { id: "time", icon: "⏱️", title: "Конвертер времени", sub: "нс, мкс, мс, с, мин, ч — с контекстом ЭМС" },
-    { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение..." },
+  const groups = [
+    {
+      title: "Базовые EMC",
+      caption: "Единицы, уровни и базовые пересчёты для ежедневной работы",
+      accent: "#38BDF8",
+      tools: [
+        { id: "db", icon: "📊", title: "dB-конвертер", sub: "dBµV, dBm, dBµA и dBµV/m" },
+        { id: "dbmwv", icon: "🔋", title: "dBm / W / V", sub: "Мощность и напряжение в 50 Ω тракте" },
+        { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение и мощность" },
+      ],
+    },
+    {
+      title: "Кабели и RF тракт",
+      caption: "Потери, согласование, резонансы и радиолинии",
+      accent: "#60A5FA",
+      tools: [
+        { id: "cable", icon: "🔌", title: "Потери кабеля", sub: "RG-58, LMR-400 и пользовательский кабель" },
+        { id: "resonance", icon: "〰️", title: "Резонанс кабеля", sub: "По длине кабеля и velocity factor" },
+        { id: "cablelen", icon: "📏", title: "Длина по резонансу", sub: "λ/4, λ/2 и λ/1 по заданной частоте" },
+        { id: "vswr", icon: "📡", title: "VSWR / КСВ", sub: "Return loss, mismatch loss и отражение" },
+        { id: "fspl", icon: "🛰️", title: "Free Space Path Loss", sub: "Потери в пространстве и уровень Rx" },
+      ],
+    },
+    {
+      title: "Поля и антенны",
+      caption: "Электрические и магнитные поля, зоны и антенные поправки",
+      accent: "#A78BFA",
+      tools: [
+        { id: "field", icon: "⚙️", title: "Напряжённость E-поля", sub: "V/m, dBµV/m, W/m² и mW/cm²" },
+        { id: "magfield", icon: "🧲", title: "Магнитное поле", sub: "A/m, dBµA/m, µT и mT" },
+        { id: "nearfar", icon: "📐", title: "Near / Far Field", sub: "λ, ближняя зона и граница 2D²/λ" },
+        { id: "antfactor", icon: "📶", title: "Antenna Factor", sub: "Reading + AF + cable loss − preamp gain" },
+      ],
+    },
+    {
+      title: "Испытания",
+      caption: "Расчёты для подготовки и проведения EMC/EMI проверок",
+      accent: "#F59E0B",
+      tools: [
+        { id: "bci", icon: "⚡", title: "Инжекция тока", sub: "Уровень генератора и ток инжекции" },
+        { id: "caldots", icon: "📋", title: "Калибровочные точки", sub: "Шаг 1% по разделам 20.4, 20.5, 21.4, 21.5" },
+      ],
+    },
+    {
+      title: "Дополнительно",
+      caption: "Сервисные инженерные конвертеры и вспомогательные расчёты",
+      accent: "#22C55E",
+      tools: [
+        { id: "powgain", icon: "📶", title: "Мощность и усиление", sub: "Вход → усилитель → выход" },
+        { id: "time", icon: "⏱️", title: "Конвертер времени", sub: "нс, мкс, мс, с, мин и часы" },
+      ],
+    },
   ];
 
   if (calcId === "db") return <><BackBtn onBack={() => setCalcId(null)} /><DbConverter /></>;
+  if (calcId === "dbmwv") return <><BackBtn onBack={() => setCalcId(null)} /><DbmPowerVoltageCalc /></>;
   if (calcId === "bci") return <><BackBtn onBack={() => setCalcId(null)} /><BciCalc /></>;
   if (calcId === "cable") return <><BackBtn onBack={() => setCalcId(null)} /><CableLossCalc /></>;
   if (calcId === "cablelen") return <><BackBtn onBack={() => setCalcId(null)} /><CableLengthCalc /></>;
   if (calcId === "caldots") return <><BackBtn onBack={() => setCalcId(null)} /><CalibrationDotsCalc /></>;
   if (calcId === "powgain") return <><BackBtn onBack={() => setCalcId(null)} /><PowerGainCalc /></>;
   if (calcId === "resonance") return <><BackBtn onBack={() => setCalcId(null)} /><ResonanceCalc /></>;
+  if (calcId === "vswr") return <><BackBtn onBack={() => setCalcId(null)} /><VswrCalc /></>;
+  if (calcId === "fspl") return <><BackBtn onBack={() => setCalcId(null)} /><FsplCalc /></>;
+  if (calcId === "field") return <><BackBtn onBack={() => setCalcId(null)} /><FieldStrengthCalc /></>;
+  if (calcId === "magfield") return <><BackBtn onBack={() => setCalcId(null)} /><MagneticFieldCalc /></>;
+  if (calcId === "nearfar") return <><BackBtn onBack={() => setCalcId(null)} /><NearFarFieldCalc /></>;
+  if (calcId === "antfactor") return <><BackBtn onBack={() => setCalcId(null)} /><AntennaFactorCalc /></>;
   if (calcId === "time") return <><BackBtn onBack={() => setCalcId(null)} /><TimeConverter /></>;
   if (calcId === "units") return <><BackBtn onBack={() => setCalcId(null)} /><UnitConverter /></>;
 
   return (
-    <div>
-      <div style={styles.sectionTitle}>Калькуляторы</div>
-      {tools.map(t => (
-        <button key={t.id} onClick={() => setCalcId(t.id)} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", width: "100%", textAlign: "left", margin: "0 0 10px 0" }}>
-          <span style={{ fontSize: 26, minWidth: 36 }}>{t.icon}</span>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{t.title}</div>
-            <div style={{ fontSize: 12, color: C.textSec, marginTop: 2 }}>{t.sub}</div>
+    <div className="calculators-page">
+      <style>{`
+        .calculators-page {
+          width: 100%;
+          max-width: 1480px;
+          margin: 0 auto;
+          padding: 6px clamp(0px, 1.2vw, 16px) 34px;
+        }
+        .calculators-hero {
+          position: relative;
+          overflow: hidden;
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 22px;
+          min-height: 128px;
+          margin-bottom: 30px;
+          padding: 28px 30px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(56,189,248,0.18), transparent 34%),
+            radial-gradient(circle at 92% 12%, rgba(124,58,237,0.22), transparent 36%),
+            linear-gradient(135deg, rgba(15,23,42,0.88), rgba(8,15,30,0.76));
+          box-shadow: 0 22px 70px rgba(2,6,23,0.48), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .calculators-hero::after {
+          content: "";
+          position: absolute;
+          inset: auto -18% -80% 38%;
+          height: 180px;
+          background: linear-gradient(90deg, transparent, rgba(56,189,248,0.14), rgba(124,58,237,0.1), transparent);
+          transform: rotate(-5deg);
+          pointer-events: none;
+        }
+        .calculators-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+          color: #7DD3FC;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 1.8px;
+          text-transform: uppercase;
+        }
+        .calculators-title {
+          margin: 0;
+          color: #F8FAFC;
+          font-size: clamp(28px, 3vw, 44px);
+          line-height: 1.04;
+          font-weight: 800;
+          letter-spacing: -0.04em;
+        }
+        .calculators-subtitle {
+          max-width: 620px;
+          margin-top: 12px;
+          color: #A8B6CC;
+          font-size: 15px;
+          line-height: 1.55;
+        }
+        .calculators-hero-meta {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(108px, 1fr));
+          gap: 10px;
+          z-index: 1;
+          min-width: 250px;
+        }
+        .calculators-meta-card {
+          border: 1px solid rgba(148,163,184,0.14);
+          border-radius: 18px;
+          padding: 14px 16px;
+          background: rgba(2,6,23,0.28);
+          backdrop-filter: blur(14px);
+        }
+        .calculators-meta-value { color: #F8FAFC; font-size: 22px; font-weight: 800; line-height: 1; }
+        .calculators-meta-label { color: #94A3B8; font-size: 11px; margin-top: 7px; letter-spacing: 0.4px; }
+        .calculator-section { margin-top: 34px; }
+        .calculator-section:first-of-type { margin-top: 0; }
+        .calculator-section-header {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 18px;
+          margin-bottom: 14px;
+          padding: 0 2px;
+        }
+        .calculator-section-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .calculator-section-mark {
+          width: 4px;
+          height: 34px;
+          border-radius: 999px;
+          background: var(--section-accent);
+          box-shadow: 0 0 22px color-mix(in srgb, var(--section-accent) 52%, transparent);
+          flex: 0 0 auto;
+        }
+        .calculator-section-title {
+          color: #E2E8F0;
+          font-size: 17px;
+          line-height: 1.2;
+          font-weight: 800;
+          letter-spacing: -0.01em;
+        }
+        .calculator-section-caption {
+          color: #94A3B8;
+          font-size: 12px;
+          line-height: 1.45;
+          margin-top: 4px;
+        }
+        .calculator-section-count {
+          color: #7DD3FC;
+          border: 1px solid rgba(125,211,252,0.2);
+          background: rgba(14,165,233,0.08);
+          border-radius: 999px;
+          padding: 5px 10px;
+          font-size: 11px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+        .calculator-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+        }
+        .calculator-card {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          display: grid;
+          grid-template-columns: 48px minmax(0, 1fr) 22px;
+          align-items: start;
+          gap: 14px;
+          width: 100%;
+          min-height: 132px;
+          padding: 18px;
+          border: 1px solid rgba(148,163,184,0.14);
+          border-radius: 22px;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+          background:
+            linear-gradient(150deg, rgba(15,23,42,0.86), rgba(7,12,24,0.78)),
+            radial-gradient(circle at 18% 0%, rgba(56,189,248,0.12), transparent 32%);
+          box-shadow: 0 16px 46px rgba(2,6,23,0.42), inset 0 1px 0 rgba(255,255,255,0.045);
+          font-family: inherit;
+          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .calculator-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          opacity: 0;
+          background: radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--section-accent) 22%, transparent), transparent 42%);
+          transition: opacity .18s ease;
+        }
+        .calculator-card:hover {
+          transform: translateY(-3px);
+          border-color: color-mix(in srgb, var(--section-accent) 52%, rgba(148,163,184,0.2));
+          box-shadow: 0 22px 58px rgba(2,6,23,0.56), 0 0 32px color-mix(in srgb, var(--section-accent) 16%, transparent), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .calculator-card:hover::before { opacity: 1; }
+        .calculator-icon-box {
+          display: grid;
+          place-items: center;
+          width: 48px;
+          height: 48px;
+          border: 1px solid color-mix(in srgb, var(--section-accent) 28%, rgba(148,163,184,0.16));
+          border-radius: 16px;
+          background: linear-gradient(145deg, color-mix(in srgb, var(--section-accent) 16%, rgba(15,23,42,0.8)), rgba(2,6,23,0.28));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 18px color-mix(in srgb, var(--section-accent) 12%, transparent);
+          font-size: 22px;
+          line-height: 1;
+        }
+        .calculator-card-title {
+          display: block;
+          color: #F8FAFC;
+          font-size: 15px;
+          font-weight: 800;
+          line-height: 1.28;
+          letter-spacing: -0.01em;
+        }
+        .calculator-card-desc {
+          display: block;
+          color: #94A3B8;
+          font-size: 12px;
+          line-height: 1.48;
+          margin-top: 7px;
+        }
+        .calculator-card-chevron {
+          align-self: center;
+          justify-self: end;
+          color: #64748B;
+          font-size: 24px;
+          line-height: 1;
+          transition: transform .18s ease, color .18s ease;
+        }
+        .calculator-card:hover .calculator-card-chevron { transform: translateX(3px); color: var(--section-accent); }
+        @media (max-width: 1320px) { .calculator-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 980px) {
+          .calculators-hero { align-items: stretch; flex-direction: column; padding: 24px; }
+          .calculators-hero-meta { min-width: 0; width: 100%; }
+          .calculator-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 640px) {
+          .calculators-page { padding: 2px 0 28px; }
+          .calculators-hero { border-radius: 22px; margin-bottom: 24px; padding: 22px 18px; }
+          .calculators-subtitle { font-size: 13px; }
+          .calculators-hero-meta { grid-template-columns: 1fr; }
+          .calculator-section { margin-top: 28px; }
+          .calculator-section-header { align-items: flex-start; flex-direction: column; gap: 10px; }
+          .calculator-grid { grid-template-columns: 1fr; gap: 12px; }
+          .calculator-card { min-height: 118px; padding: 16px; grid-template-columns: 44px minmax(0, 1fr) 18px; }
+          .calculator-icon-box { width: 44px; height: 44px; border-radius: 14px; }
+        }
+      `}</style>
+
+      <header className="calculators-hero">
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div className="calculators-kicker">EMC Toolkit · Engineering Suite</div>
+          <h1 className="calculators-title">Калькуляторы</h1>
+          <div className="calculators-subtitle">Быстрые инженерные расчёты и EMC/EMI инструменты для кабельных трактов, полей, антенн и испытательных сценариев.</div>
+        </div>
+        <div className="calculators-hero-meta" aria-label="Сводка калькуляторов">
+          <div className="calculators-meta-card">
+            <div className="calculators-meta-value">{groups.reduce((sum, group) => sum + group.tools.length, 0)}</div>
+            <div className="calculators-meta-label">инструментов</div>
           </div>
-          <span style={{ marginLeft: "auto", color: C.textSec }}>›</span>
-        </button>
+          <div className="calculators-meta-card">
+            <div className="calculators-meta-value">{groups.length}</div>
+            <div className="calculators-meta-label">секций</div>
+          </div>
+        </div>
+      </header>
+
+      {groups.map(group => (
+        <section key={group.title} className="calculator-section" style={{ "--section-accent": group.accent }}>
+          <div className="calculator-section-header">
+            <div className="calculator-section-title-wrap">
+              <div className="calculator-section-mark" />
+              <div>
+                <h2 className="calculator-section-title">{group.title}</h2>
+                <div className="calculator-section-caption">{group.caption}</div>
+              </div>
+            </div>
+            <div className="calculator-section-count">{group.tools.length} {group.tools.length === 1 ? "инструмент" : "инструмента"}</div>
+          </div>
+          <div className="calculator-grid">
+            {group.tools.map(t => (
+              <button key={t.id} onClick={() => setCalcId(t.id)} className="calculator-card">
+                <span className="calculator-icon-box" aria-hidden="true">{t.icon}</span>
+                <span>
+                  <span className="calculator-card-title">{t.title}</span>
+                  <span className="calculator-card-desc">{t.sub}</span>
+                </span>
+                <span className="calculator-card-chevron" aria-hidden="true">›</span>
+              </button>
+            ))}
+          </div>
+        </section>
       ))}
     </div>
   );
@@ -2401,80 +3515,21 @@ function BackBtn({ onBack }) {
 const PHASE_COLORS = { подготовка: "#E07B00", калибровка: "#1E5BE8", испытание: "#D93025", "испытание CE": "#D93025", "испытание RE": "#8B1DC7", завершение: "#1A9B5A" };
 const PHASE_LABELS = { подготовка: "ПОДГОТОВКА", калибровка: "КАЛИБРОВКА", испытание: "ИСПЫТАНИЕ", "испытание CE": "ИСПЫТАНИЕ CE", "испытание RE": "ИСПЫТАНИЕ RE", завершение: "ЗАВЕРШЕНИЕ" };
 
+const STEP_TEMPLATE = [
+  { phase: "подготовка", text: "Добавьте описание этапа" },
+  { phase: "калибровка", text: "Добавьте описание этапа" },
+  { phase: "испытание", text: "Добавьте описание этапа" },
+  { phase: "завершение", text: "Добавьте описание этапа" },
+];
+
 const STEPS_DATA = {
-  p15: [
-    { n:1, phase:"подготовка", text:"Подготовьте АРМ8: компас БГ-1, магнитометр МТМ-01, источник питания, катушку Гельмгольца. Проверьте свидетельства о поверке всего оборудования." },
-    { n:2, phase:"подготовка", text:"Установите катушку Гельмгольца на испытательном столе. Убедитесь что в зоне 1 м нет металлических предметов и посторонних магнитных полей." },
-    { n:3, phase:"подготовка", text:"Разместите Изделие в центре катушки согласно ПИ. Подключите монитор работоспособности. Сфотографируйте стенд — фото обязательно для протокола." },
-    { n:4, phase:"подготовка", text:"Установите степень жёсткости по ПИ. Рассчитайте ток катушки по формуле: I = H × d / (0.9 × N), где d — диаметр (м), N — число витков." },
-    { n:5, phase:"испытание", text:"Включите Изделие, дайте прогреться 5 минут. Зафиксируйте исходные параметры работоспособности в протоколе перед началом воздействия." },
-    { n:6, phase:"испытание", text:"Плавно увеличьте ток до расчётного значения. Контролируйте поле магнитометром МТМ-01. Время воздействия — согласно ПИ (обычно 1 минута на ось)." },
-    { n:7, phase:"испытание", text:"Во время воздействия непрерывно контролируйте работоспособность Изделия. Фиксируйте любые отклонения: время, характер, восстановление." },
-    { n:8, phase:"испытание", text:"Поверните Изделие на 90° и повторите воздействие. Проведите испытание по всем трём осям X, Y, Z если требует Программа испытаний." },
-    { n:9, phase:"завершение", text:"Плавно уменьшите ток до нуля. Проверьте работоспособность Изделия после воздействия — критерий I: работает во время и после." },
-    { n:10, phase:"завершение", text:"Отключите питание. Демонтируйте Изделие. Заполните протокол: уровень поля (А/м), результат по осям, критерий соответствия, подписи." },
-  ],
-  p204: [
-    { n:1, phase:"подготовка", text:"Подготовьте АРМ4: генератор CIT-100/A, усилитель РА-00140-54C (9 кГц–400 МГц, 230 Вт), инжектор IP-DR250, монитор тока МР-50, BCI-ACC-MIL." },
-    { n:2, phase:"подготовка", text:"Проверьте калибровку инжектора IP-DR250 и монитора МР-50. Убедитесь что свидетельства о поверке действующие." },
-    { n:3, phase:"подготовка", text:"Соберите стенд: Изделие на деревянном столе 2,5×0,9 м с металлической опорной плоскостью. Кабельный жгут располагается горизонтально, длина 1,7 м, высота над металлической плитой — 5 см." },
-    { n:4, phase:"подготовка", text:"Установите инжектор IP-DR250 на жгут в 0,15 м от Изделия. Монитор МР-50 — у нагрузки 50 Ом на конце жгута. Сфотографируйте стенд." },
-    { n:5, phase:"подготовка", text:"Подключите тракт: CIT-100/A → РА-00140-54C → ответвитель → IP-DR250. Нагрузка 50 Ом + МР-50 на конце жгута." },
-    { n:6, phase:"калибровка", text:"Калибровка без Изделия (метод замещения): установите требуемый ток инжекции по МР-50 на каждой частотной точке. Запишите уровни генератора в таблицу." },
-    { n:7, phase:"испытание", text:"Установите Изделие. Включите, прогрейте. Рабочий режим по ПИ. Включите AM 80% / 1 кГц на генераторе CIT-100/A." },
-    { n:8, phase:"испытание", text:"Свип 0,15–400 МГц. Шаг ≤1% от частоты. Время удержания ≥3 сек на точку. Контроль работоспособности непрерывно." },
-    { n:9, phase:"испытание", text:"При отклонении в работе Изделия: зафиксируйте частоту, уровень тока, характер нарушения, время восстановления. Это определяет критерий I или II." },
-    { n:10, phase:"завершение", text:"Заполните протокол: таблица калибровки, результаты свипа, частоты отклонений, критерий (I — работает / II — самовосстановление), заключение." },
-  ],
-  p205: [
-    { n:1, phase:"подготовка", text:"АРМ2 (20–1000 МГц): АКИП-3208 → коммутатор КА22-1S3-2N3 → усилители WA-00225-60C / WA-0810-60C. Антенны: П6-522 или ИЛ-0210-2. Пробник LSProbe 2.0 R." },
-    { n:2, phase:"подготовка", text:"Установите антенну П6-522 на мачту ТСМ-02-2 на расстоянии 1 м от центра Изделия. Горизонтальная поляризация — начальная позиция." },
-    { n:3, phase:"подготовка", text:"Разместите Изделие в безэховой камере на деревянном столе с металлической опорной плоскостью. Кабели контроля работоспособности выведите через ферритовые фильтры за пределы камеры." },
-    { n:4, phase:"подготовка", text:"Установите пробник поля LSProbe 2.0 R в точку где будет стоять Изделие. Управление пробником осуществляется по оптоволоконному кабелю — это исключает внесение помех. Сфотографируйте стенд." },
-    { n:5, phase:"калибровка", text:"Калибровка без Изделия: выставьте требуемую напряжённость поля (В/м) по LSProbe на каждой точке частотной сетки. Запишите мощности в таблицу (Горизонтальная поляризация)." },
-    { n:6, phase:"калибровка", text:"Поверните антенну — Вертикальная поляризация. Повторите калибровку. Заполните вторую таблицу калибровочных уровней." },
-    { n:7, phase:"испытание", text:"Уберите пробник, установите Изделие. Включите, прогрейте 5 мин. Подключите монитор работоспособности через фильтры." },
-    { n:8, phase:"испытание", text:"AM 80% / 1 кГц. Горизонтальная поляризация. Свип 20–1000 МГц, шаг ≤1%, удержание ≥3 сек. Непрерывный контроль Изделия." },
-    { n:9, phase:"испытание", text:"Переключите на вертикальную поляризацию. Повторите свип. Зафиксируйте все частоты отклонений с уровнями поля." },
-    { n:10, phase:"завершение", text:"Заполните протокол: таблицы калибровки Гор/Верт, результаты двух поляризаций, критерий I или II, фото стенда, заключение." },
-  ],
-  p25: [
-    { n:1, phase:"подготовка", text:"Подготовьте АРМ6: генератор ЭСР-30К, делитель РН-5000, мишень ИШ-2,0 ВЧ, осциллограф MSO8204 (2 ГГц, 10 ГВыб/с). Проверьте поверку." },
-    { n:2, phase:"подготовка", text:"Разместите Изделие на изолирующей подставке 10 см над опорной плоскостью заземления (металлический лист) на деревянном столе. Горизонтальная опорная металлическая плита — под столом горизонтально, вертикальная — сбоку вертикально." },
-    { n:3, phase:"подготовка", text:"Заземлите пистолет ЭСР-30К на опорную плоскость заземления кабелем длиной не более 2 м. Подключите осциллограф для контроля формы разряда через делитель РН-5000." },
-    { n:4, phase:"калибровка", text:"Откалибруйте форму разряда по мишени ИШ-2,0 ВЧ: фронт 0,7–1 нс, длительность 60 нс (контактный). Сохраните осциллограмму для протокола." },
-    { n:5, phase:"испытание", text:"Включите Изделие, прогрейте. Установите уровень напряжения по степени жёсткости. Начните с контактного разряда положительной полярности." },
-    { n:6, phase:"испытание", text:"Нанесите 10 положительных контактных разрядов в каждую точку (разъёмы, кнопки, металлические части корпуса). Интервал ≥1 сек между разрядами." },
-    { n:7, phase:"испытание", text:"Нанесите 10 отрицательных контактных разрядов в те же точки. После каждой серии проверяйте работоспособность Изделия." },
-    { n:8, phase:"испытание", text:"Воздушный разряд: наконечник не касается поверхности — медленно приближайте до пробоя. 10 положительных + 10 отрицательных в каждую доступную точку." },
-    { n:9, phase:"завершение", text:"После всех воздействий проверьте полную работоспособность. Изделие должно работать нормально — критерий I (или II — самовосстановление)." },
-    { n:10, phase:"завершение", text:"Заполните протокол: таблицу точек воздействия, уровни (кВ), тип разряда, полярность, результат, осциллограмму калибровки, заключение." },
-  ],
-  p21: [
-    { n:1, phase:"подготовка", text:"Подготовьте АРМ1: приёмник 9010F+9060 (или АСРВ-22С), ЛИСН NNBM 8126 A890 (CE), антенны П6-121М1 / П6-122М2 / П6-223 (RE). Поверка актуальна?" },
-    { n:2, phase:"подготовка", text:"Стенд измерения кондуктивных помех: эквивалент сети ЛИСН NNBM 8126 A890 включается между сетью питания и Изделием. Кабель от высокочастотного порта ЛИСН подключается к измерительному приёмнику. Изделие устанавливается на столе на высоте 0,8 м над металлической опорной плитой. Сигнальные кабели обматываются ферритовыми фильтрами." },
-    { n:3, phase:"подготовка", text:"RE-стенд: антенна П6-121М1 на расстоянии 1 м от Изделия на мачте ТСМ-02-2. Горизонтальная поляризация. Приёмник → антенна через кабель СВЧ." },
-    { n:4, phase:"испытание CE", text:"Включите Изделие в рабочий режим (максимальная нагрузка). Прогрев 10 мин. Свип CE: 0,15–30 МГц. Предварительный — детектор Peak, финальный — QP и Average." },
-    { n:5, phase:"испытание CE", text:"Повторите для каждой фазы питания (A, B, C) и нейтрали. Сравните с нормами. Запишите превышения (частота, измеренный уровень, норма, разница дБ)." },
-    { n:6, phase:"испытание RE", text:"RE 30–300 МГц: антенна П6-121М1, расстояние 1 м. Peak-скан. Поворот Изделия на 360° для поиска максимального излучения. Финальный — QP." },
-    { n:7, phase:"испытание RE", text:"Смените на вертикальную поляризацию. Повторите. Замените на П6-122М2 (300–6000 МГц) и П6-223 (0,8–18 ГГц) для расширенного диапазона." },
-    { n:8, phase:"завершение", text:"Сравните все результаты с нормами ГОСТ РВ 20.57.306 п.21 по степени жёсткости. Превышение = несоответствие." },
-    { n:9, phase:"завершение", text:"Заполните протокол: таблицы CE (частота/уровень/норма/запас) и RE, заключение о соответствии нормам, фото стенда, подписи." },
-  ],
-  p214: [
-    { n:1, phase:"подготовка", text:"Аналогично п.20.4 (АРМ4). Ключевое отличие: уровни до 10 В эквивалентной ЭДС — проверьте что усилитель РА-00140-54C обеспечивает нужную мощность." },
-    { n:2, phase:"подготовка", text:"Нагрузка 50 Ом обязательна на конце жгута. Монитор МР-50 — между инжектором и нагрузкой. Метод прямого замера тока (не замещения)." },
-    { n:3, phase:"калибровка", text:"Калибровка: выставьте требуемый ток по МР-50. Уровни п.21.4 выше чем п.20.4 — сверьтесь с ПИ на конкретные значения. Заполните таблицу." },
-    { n:4, phase:"испытание", text:"AM 80% / 1 кГц. Свип 0,15–400 МГц, шаг ≤1%, удержание ≥3 сек. Контроль непрерывно. Фиксируйте отклонения." },
-    { n:5, phase:"завершение", text:"Протокол: таблица калибровки, результаты, частоты отклонений, критерий I или II, заключение о соответствии нормам п.21.4." },
-  ],
-  p215: [
-    { n:1, phase:"подготовка", text:"АРМ2 (до 1 ГГц) или АРМ3 (до 18 ГГц). Уровни поля по п.21.5 выше — проверьте достаточность мощности усилителя для заданной напряжённости." },
-    { n:2, phase:"подготовка", text:"Стенд как п.20.5 в безэховой камере. Кабели мониторинга через ферриты. LSProbe 2.0 R для калибровки поля." },
-    { n:3, phase:"калибровка", text:"Калибровка Гор и Верт поляризаций по LSProbe. Уровни согласно ст.ж.: 1 В/м (ст.ж.1), 3 В/м (2), 10 В/м (3), 20 В/м (4). Заполните таблицы." },
-    { n:4, phase:"испытание", text:"AM 80% / 1 кГц. Свип 20–1000 МГц (или до 18 ГГц). Шаг ≤1%, удержание ≥3 сек. Обе поляризации." },
-    { n:5, phase:"завершение", text:"Протокол: таблицы калибровки, результаты двух поляризаций, частоты отклонений, критерий I или II, заключение." },
-  ],
+  p15: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
+  p204: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
+  p205: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
+  p25: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
+  p21: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
+  p214: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
+  p215: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
 };
 
 const TESTS_DATA = [
@@ -2491,8 +3546,8 @@ const TESTS_DATA = [
     setup: [
       "Источник питания (регулируемый AC/DC)",
       "Катушка Гельмгольца или индукционная катушка",
-      "Компас прецизионный БГ-1 (калиброванный, с поверкой)",
-      "Магнитометр портативный МТМ-01 (с поверкой)",
+      "Компас прецизионный Датчик поля A (калиброванный, с поверкой)",
+      "Магнитометр портативный Измеритель магнитного поля A (с поверкой)",
       "ИРИ (изделие — объект испытаний)",
       "Монитор работоспособности Изделия",
       "Опорная плоскость заземления",
@@ -2502,18 +3557,18 @@ const TESTS_DATA = [
     id: "p204",
     name: "РЧ-восприимчивость — помехи проводимости",
     short: "п.20.4",
-    standard: "ГОСТ РВ 20.57.306 п.20.4",
+    standard: "Шаблон испытания 01 · Раздел 01",
     range: "0,15 – 400 МГц",
     gost: true,
     desc: "Проверка устойчивости Изделия к радиочастотным помехам, распространяемым по цепям питания и сигнальным кабелям (кондуктивная восприимчивость). Воздействие производится через сеть связи/развязки (CDN) или токовыми клещами (инжекция тока).",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.20.4. Уровни воздействия по степеням жёсткости 1–4.",
+    normDoc: "Стандарт ЭМС A, Методика A, Раздел 01. Уровни воздействия по степеням 1–4.",
     criteria: "Изделие сохраняет работоспособность во время воздействия (критерий I) или самовосстанавливается (критерий II).",
     setup: [
-      "Генератор сигналов CIT-100/A (10 кГц – 1200 МГц, AM/IM)",
-      "Усилитель мощности РА-00140-54C (9 кГц – 400 МГц, 230 Вт)",
-      "Токовый инжектор IP-DR250 с калибровочным устройством",
-      "Монитор тока МР-50 (10 кГц – 400 МГц, диаметр 46 мм)",
-      "Комплект BCI-ACC-MIL (нагрузки 50 Ом, аттенюаторы, кабели СВЧ)",
+      "Генератор сигналов Генератор A (10 кГц – 1200 МГц, AM/IM)",
+      "Усилитель мощности Усилитель A (9 кГц – 400 МГц, 230 Вт)",
+      "Токовый инжектор Токосъёмник A с калибровочным устройством",
+      "Монитор тока Токосъёмник A (10 кГц – 400 МГц, диаметр 46 мм)",
+      "Комплект инжекции тока A (нагрузки 50 Ом, аттенюаторы, кабели СВЧ)",
       "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
       "Изделие в рабочем режиме",
       "Монитор работоспособности Изделия",
@@ -2524,23 +3579,23 @@ const TESTS_DATA = [
     id: "p205",
     name: "РЧ-восприимчивость — помехи излучению",
     short: "п.20.5",
-    standard: "ГОСТ РВ 20.57.306 п.20.5",
+    standard: "Шаблон испытания 01 · Раздел 02",
     range: "20 МГц – 1000 МГц",
     gost: true,
     desc: "Проверка устойчивости Изделия к воздействию радиочастотного электромагнитного поля (радиационная восприимчивость). Изделие облучается нормированным полем в безэховой камере или с использованием TEM-ячейки.",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.20.5. Напряжённость поля 1–20 В/м в зависимости от степени жёсткости.",
+    normDoc: "Стандарт ЭМС A, Методика A, Раздел 02. Напряжённость поля 1–20 В/м.",
     criteria: "Изделие сохраняет работоспособность во время облучения (критерий I) или самовосстанавливается (критерий II).",
     setup: [
-      "Генератор сигналов АКИП-3208 (9 кГц – 2,1 ГГц)",
-      "Усилитель мощности WA-00225-60C (2–250 МГц, 1000 Вт)",
-      "Усилитель мощности WA-0810-60C (80–1000 МГц, 1 кВт)",
-      "РЧ коммутатор КА22-1S3-2N3 (до 6 ГГц, 3 модуля SP3T)",
-      "Измеритель мощности NRP6AN (8 кГц – 6 ГГц, ±23 дБм)",
-      "Пробник поля LSProbe 2.0 R (9 кГц – 18 ГГц, 1-1000 В/м, оптоволоконный кабель)",
-      "Антенна рупорная П6-160 (200 МГц – 2,8 ГГц)",
-      "Антенна логопериодическая П6-522 (60–3000 МГц, 3 кВт)",
-      "Линия излучающая симметричная ИЛ-0210-2 (1–200 МГц, 2 кВт)",
-      "Мачта антенная ТСМ-02-2 с антенным адаптером",
+      "Генератор сигналов Генератор A (9 кГц – 2,1 ГГц)",
+      "Усилитель мощности Усилитель A (2–250 МГц, 1000 Вт)",
+      "Усилитель мощности Усилитель A (80–1000 МГц, 1 кВт)",
+      "РЧ коммутатор коммутатор A (до 6 ГГц, 3 модуля SP3T)",
+      "Измеритель мощности Измерительный приёмник A (8 кГц – 6 ГГц, ±23 дБм)",
+      "Пробник поля Измерительный приёмник B (9 кГц – 18 ГГц, 1-1000 В/м, оптоволоконный кабель)",
+      "Антенна рупорная Антенна A (200 МГц – 2,8 ГГц)",
+      "Антенна логопериодическая Антенна A (60–3000 МГц, 3 кВт)",
+      "Линия излучающая симметричная Антенна A (1–200 МГц, 2 кВт)",
+      "Мачта антенная Стенд A с антенным адаптером",
       "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
       "Изделие в рабочем режиме",
       "Монитор работоспособности Изделия",
@@ -2551,17 +3606,17 @@ const TESTS_DATA = [
     id: "p25",
     name: "Генератор электростатических разрядов",
     short: "п.25",
-    standard: "ГОСТ РВ 20.57.306 п.25",
+    standard: "Шаблон испытания 02 · Раздел 01",
     range: "Контактный / воздушный разряд",
     gost: true,
     desc: "Проверка устойчивости Изделия к воздействию электростатических разрядов (ЭСР). Моделируется разряд наэлектризованного человека или предмета на корпус и доступные части Изделия. Воздействие: контактный и воздушный разряды заданных уровней напряжения.",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.25. Уровни напряжения ±2, ±4, ±6, ±8 кВ (контактный) и до ±15 кВ (воздушный).",
+    normDoc: "Стандарт ЭМС A, Методика A, Раздел 03. Уровни напряжения по шаблону испытаний.",
     criteria: "Изделие сохраняет работоспособность во время воздействия и после него.",
     setup: [
-      "Генератор ЭСР ЭСР-30К (до 30 кВ, 150пФ/330 Ом, разрядные наконечники)",
+      "Генератор ЭСР Модуль питания A (до 30 кВ, 150пФ/330 Ом, разрядные наконечники)",
       "Делитель напряжения калибровочный РН-5000 (до 30 кВ)",
       "Калибровочная мишень ИШ-2,0 ВЧ (2 Ом, 30 кВ)",
-      "Осциллограф цифровой MSO8204 (4 кан., 2 ГГц, 10 ГВыб/с)",
+      "Осциллограф цифровой Контроллер Alpha (4 кан., 2 ГГц, 10 ГВыб/с)",
       "Стол испытательный деревянный 2,5×0,9×0,9 м (лиственница)",
       "Горизонтальная опорная металлическая плита (оцинкованная сталь 2 мм)",
       "Вертикальная пластина связи 0,5×0,5 м + кабель 2 м с резисторами 2×470 кОм",
@@ -2573,25 +3628,25 @@ const TESTS_DATA = [
     id: "p21",
     name: "Генерация радиочастотной энергии",
     short: "п.21",
-    standard: "ГОСТ РВ 20.57.306 п.21",
+    standard: "Шаблон испытания 01 · Раздел 03",
     range: "0,15 – 1000 МГц",
     gost: true,
     desc: "Измерение уровня радиочастотных помех, генерируемых Изделием и распространяемых по цепям питания (кондуктивные помехи) и излучаемых в пространство (радиационные помехи). Проверяется соответствие нормам допустимых значений помех.",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.21. Нормы по степеням жёсткости и видам помех.",
+    normDoc: "Стандарт ЭМС A, Методика A, Раздел 04. Нормы по степеням и видам помех.",
     criteria: "Уровни кондуктивных и радиационных помех не превышают допустимых значений для данной степени жёсткости.",
     setup: [
-      "Измерительный приёмник 9010F+9060 (10 кГц – 6000 МГц)",
-      "Анализатор спектра АСРВ-22С (9 кГц – 22 ГГц, -99,7 дБн/Гц)",
-      "ЛИСН NNBM 8126 A890 (70/100 А, 600В DC/270В AC, до 400 МГц)",
-      "ЛИСН NNBL 8226-2 (50 мкГн+5 Ом, 9 кГц–100 МГц, двухканальный)",
-      "Токосъёмник ТИ2-4 (9 кГц – 400 МГц)",
-      "Токосъёмник EZ-17 (9 кГц – 400 МГц, до 2А CW/100А имп.)",
-      "Пробник Я6-124 тип 1 (100 Гц – 1000 МГц)",
-      "Антенна штыревая активная П6-120М (9 кГц – 30 МГц)",
-      "Антенна биконическая П6-121М1 (30–300 МГц)",
-      "Антенна логопериодическая П6-122М2 (300–6000 МГц)",
-      "Антенна рупорная двухгребневая П6-223 (0,8–18 ГГц)",
-      "Мачта антенная ТСМ-02-2 с антенным адаптером",
+      "Измерительный приёмник Измерительный приёмник A (10 кГц – 6000 МГц)",
+      "Анализатор спектра Анализатор спектра A (9 кГц – 22 ГГц, -99,7 дБн/Гц)",
+      "ЛИСН ЛИСН A (70/100 А, 600В DC/270В AC, до 400 МГц)",
+      "ЛИСН ЛИСН B (50 мкГн+5 Ом, 9 кГц–100 МГц, двухканальный)",
+      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц)",
+      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц, до 2А CW/100А имп.)",
+      "Пробник Измерительный приёмник A (100 Гц – 1000 МГц)",
+      "Антенна штыревая активная Антенна A (9 кГц – 30 МГц)",
+      "Антенна биконическая Антенна A (30–300 МГц)",
+      "Антенна логопериодическая Антенна A (300–6000 МГц)",
+      "Антенна рупорная двухгребневая Антенна A (0,8–18 ГГц)",
+      "Мачта антенная Стенд A с антенным адаптером",
       "ПО Лаборант ЭМС",
       "Изделие в рабочем режиме",
     ]
@@ -2600,11 +3655,11 @@ const TESTS_DATA = [
     id: "p214",
     name: "РЧ-восприимчивость — помехи проводимости",
     short: "п.21.4",
-    standard: "ГОСТ РВ 20.57.306 п.21.4",
+    standard: "Шаблон испытания 01 · Раздел 03.4",
     range: "0,15 – 400 МГц",
     gost: true,
     desc: "Проверка устойчивости Изделия к радиочастотным кондуктивным помехам, наводимым на цепи питания и сигнальные кабели. Воздействие осуществляется через сеть связи/развязки (CDN) или методом токовой инжекции (инжекция тока) с модуляцией AM 80% / 1 кГц. Отличие от п.20.4 — иные уровни воздействия и область применения согласно программе испытаний.",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.21.4. Уровни воздействия: степени жёсткости 1–4 (до 10 В эквивалентной ЭДС). Метод: замещения или прямого замера тока.",
+    normDoc: "Стандарт ЭМС A, Методика A, Раздел 05. Уровни воздействия степени 1–4, метод замещения/прямого замера.",
     criteria: "Изделие сохраняет работоспособность во время воздействия (критерий I) или самовосстанавливается после его прекращения без вмешательства оператора (критерий II).",
     setup: [
       "Генератор сигналов (CW + AM 80% / 1 кГц)",
@@ -2623,11 +3678,11 @@ const TESTS_DATA = [
     id: "p215",
     name: "РЧ-восприимчивость — помехи излучению",
     short: "п.21.5",
-    standard: "ГОСТ РВ 20.57.306 п.21.5",
+    standard: "Шаблон испытания 01 · Раздел 03.5",
     range: "20 МГц – 1000 МГц",
     gost: true,
     desc: "Проверка устойчивости Изделия к воздействию радиочастотного электромагнитного поля (радиационная восприимчивость). Изделие облучается нормированным полем в безэховой (полубезэховой) камере или TEM-ячейке. Антенна и Изделие располагаются на одной оси, испытание проводится при горизонтальной и вертикальной поляризации. Отличие от п.20.5 — в иных уровнях поля и условиях применения.",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.21.5. Напряжённость поля: степени жёсткости 1–4 (1, 3, 10, 20 В/м). Модуляция AM 80% / 1 кГц, шаг свипа ≤1% от частоты, время удержания ≥3 с.",
+    normDoc: "Стандарт ЭМС A, Методика A, Раздел 06. Поле 1–20 В/м, AM 80% / 1 кГц, шаг ≤1%.",
     criteria: "Изделие сохраняет работоспособность во время облучения (критерий I) или самовосстанавливается после прекращения воздействия без вмешательства оператора (критерий II).",
     setup: [
       "Генератор сигналов (CW + AM 80% / 1 кГц)",
@@ -3079,7 +4134,7 @@ const PROTOCOL_FIELDS = {
     { key: "method",     label: "Метод воздействия",                 placeholder: "CDN / инжекция тока" },
     { key: "level",      label: "Уровень ЭДС / тока инжекции",       placeholder: "10 В / 100 мА" },
     { key: "modulation", label: "Модуляция",                         placeholder: "AM 80%, 1 кГц" },
-    { key: "genModel",   label: "Генератор / Усилитель",             placeholder: "Rohde & Schwarz SMA100B + 1W" },
+    { key: "genModel",   label: "Генератор / Усилитель",             placeholder: "Проект Alpha Генератор A + 1W" },
     { key: "dutMode",    label: "Режим работы Изделия",                  placeholder: "Рабочий режим 1" },
     { key: "critFreqs",  label: "Критичные частоты (при FAIL)",      placeholder: "27,12 МГц; 40,68 МГц" },
     { key: "verdict",    label: "Заключение (критерий I / II)",      placeholder: "Критерий I — Соответствует" },
@@ -3090,7 +4145,7 @@ const PROTOCOL_FIELDS = {
     { key: "fieldLevel", label: "Напряжённость поля, В/м",           placeholder: "10" },
     { key: "modulation", label: "Модуляция",                         placeholder: "AM 80%, 1 кГц" },
     { key: "antModel",   label: "Антенна",                           placeholder: "HL223 bilog 20–3000 МГц" },
-    { key: "chamber",    label: "Испытательная камера",              placeholder: "Безэховая камера КЭМ-3" },
+    { key: "chamber",    label: "Испытательная камера",              placeholder: "Безэховая камера Камера Alpha" },
     { key: "dutMode",    label: "Режим работы Изделия",                  placeholder: "Рабочий режим 1" },
     { key: "critFreqs",  label: "Критичные частоты (при FAIL)",      placeholder: "433 МГц" },
     { key: "verdict",    label: "Заключение (критерий I / II)",      placeholder: "Критерий I — Соответствует" },
@@ -3101,7 +4156,7 @@ const PROTOCOL_FIELDS = {
     { key: "method",     label: "Метод воздействия",                 placeholder: "CDN / инжекция тока" },
     { key: "level",      label: "Уровень ЭДС / тока",               placeholder: "10 В / 100 мА" },
     { key: "modulation", label: "Модуляция",                         placeholder: "AM 80%, 1 кГц" },
-    { key: "genModel",   label: "Генератор / Усилитель",             placeholder: "Rohde & Schwarz SMA100B" },
+    { key: "genModel",   label: "Генератор / Усилитель",             placeholder: "Проект Alpha Генератор A" },
     { key: "dutMode",    label: "Режим работы Изделия",                  placeholder: "Рабочий режим 1" },
     { key: "critFreqs",  label: "Критичные частоты (при FAIL)",      placeholder: "—" },
     { key: "verdict",    label: "Заключение (критерий I / II)",      placeholder: "Критерий I — Соответствует" },
@@ -3112,7 +4167,7 @@ const PROTOCOL_FIELDS = {
     { key: "fieldLevel", label: "Напряжённость поля, В/м",           placeholder: "10" },
     { key: "modulation", label: "Модуляция",                         placeholder: "AM 80%, 1 кГц" },
     { key: "antModel",   label: "Антенна",                           placeholder: "bilog HL223" },
-    { key: "chamber",    label: "Испытательная камера",              placeholder: "Безэховая камера КЭМ-3" },
+    { key: "chamber",    label: "Испытательная камера",              placeholder: "Безэховая камера Камера Alpha" },
     { key: "dutMode",    label: "Режим работы Изделия",                  placeholder: "Рабочий режим 1" },
     { key: "critFreqs",  label: "Критичные частоты (при FAIL)",      placeholder: "—" },
     { key: "verdict",    label: "Заключение (критерий I / II)",      placeholder: "Критерий I — Соответствует" },
@@ -3131,7 +4186,7 @@ const PROTOCOL_FIELDS = {
   p21: [
     { key: "freqRange",  label: "Диапазон измерений",                placeholder: "0,15 – 1000 МГц" },
     { key: "detectors",  label: "Детекторы",                         placeholder: "QP, Peak, Average" },
-    { key: "lisnModel",  label: "ЛИСН (эквивалент сети)",            placeholder: "Rohde & Schwarz ENV216" },
+    { key: "lisnModel",  label: "ЛИСН (эквивалент сети)",            placeholder: "Проект Alpha ЛИСН A" },
     { key: "antModel",   label: "Измерительная антенна",             placeholder: "HL562 bilog" },
     { key: "recvModel",  label: "Измерительный приёмник",            placeholder: "R&S ESRP3" },
     { key: "dutMode",    label: "Режим работы Изделия",                  placeholder: "Рабочий режим (максимальная нагрузка)" },
@@ -3189,8 +4244,8 @@ function ProtocolForm({ test, notes }) {
       ["Функционирование Изделия", "Работоспособность сохранена", form.verdict || "[указать]", vOk],
     ];
     if (id === "p21") return [
-      ["Кондуктивные помехи (макс.), дБмкВ", "Нормы ГОСТ РВ 20.57.306 п.21", form.maxEmission || "[вставить]", "—"],
-      ["Радиационные помехи (макс.), дБмкВ/м", "Нормы ГОСТ РВ 20.57.306 п.21", form.maxRad || "[вставить]", "—"],
+      ["Кондуктивные помехи (макс.), дБмкВ", "Нормы Шаблон испытания 01 · Раздел 03", form.maxEmission || "[вставить]", "—"],
+      ["Радиационные помехи (макс.), дБмкВ/м", "Нормы Шаблон испытания 01 · Раздел 03", form.maxRad || "[вставить]", "—"],
       ["Диапазон измерений", "0,15–1000 МГц", form.freqRange || "[вставить]", "—"],
       ["Заключение по эмиссии", "Соответствует нормам", form.verdict || "[указать]", vOk],
     ];
@@ -3592,15 +4647,15 @@ function TestDetail({ test, onBack }) {
   const innerTabs = [
     { id: "info", label: "Описание" },
     { id: "steps", label: "📋 Шаги" },
+    { id: "schema", label: "📐 Схема стенда" },
     { id: "before", label: "До" },
     { id: "during", label: "Во время" },
     { id: "after", label: "После" },
     { id: "notes", label: "Заметки" },
-
   ];
 
   return (
-    <div>
+    <PageContainer>
       <BackBtn onBack={onBack} />
       {/* Header card */}
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 14 }}>
@@ -3617,7 +4672,7 @@ function TestDetail({ test, onBack }) {
         </div>
       </div>
 
-      <InnerTabs tabs={innerTabs} active={tab} onSet={setTab} />
+      <InnerTabs tabs={innerTabs} active={tab} onSet={setTab} className="test-detail-tabs" />
 
       {tab === "steps" && <StepsTab testId={test.id} />}
       {tab === "info" && (
@@ -3716,6 +4771,7 @@ function TestDetail({ test, onBack }) {
           </div>
         </div>
       )}
+      {tab === "schema" && <SchemaEditor testId={test.id} setupItems={setupItems} />}
       {tab === "before" && <CheckList items={CHECKLIST_BEFORE} checks={checksBefore} setChecks={setChecksBefore} title="Чек-лист ДО испытания" />}
       {tab === "during" && <CheckList items={CHECKLIST_DURING} checks={checksDuring} setChecks={setChecksDuring} title="Чек-лист ВО ВРЕМЯ испытания" />}
       {tab === "after" && <CheckList items={CHECKLIST_AFTER} checks={checksAfter} setChecks={setChecksAfter} title="Чек-лист ПОСЛЕ испытания" />}
@@ -3726,37 +4782,335 @@ function TestDetail({ test, onBack }) {
         </div>
       )}
 
+    </PageContainer>
+  );
+}
+
+
+// ─── РЕДАКТОР СХЕМ СТЕНДА ────────────────────────────────────────────────────
+function SchemaEditor({ testId, setupItems }) {
+  const storageKey = `emc_schema_${testId}`;
+
+  const loadSchema = () => {
+    try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch(e) { return null; }
+  };
+
+  const defaultSchema = { nodes: [], edges: [] };
+  const saved = loadSchema();
+  const [nodes, setNodes] = useState(saved ? saved.nodes : []);
+  const [edges, setEdges] = useState(saved ? saved.edges : []);
+  const [dragging, setDragging] = useState(null); // { id, ox, oy }
+  const [connecting, setConnecting] = useState(null); // { fromId }
+  const [editingLabel, setEditingLabel] = useState(null); // { type:'node'|'edge', id, value }
+  const [selectedEdge, setSelectedEdge] = useState(null);
+  const [saved2, setSaved2] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const svgRef = React.useRef(null);
+
+  // Список оборудования из setupItems + стандартные блоки
+  const equipList = [
+    ...setupItems.map(s => s.replace(/^\d+\.\s*/, '').trim()),
+    'Изделие (ИРИ)', 'ОМПЗ', 'Осциллограф', 'Источник питания', 'Нагрузка', 'Фильтр'
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  const saveSchema = (n, e) => {
+    try { localStorage.setItem(storageKey, JSON.stringify({ nodes: n, edges: e })); } catch(ex) {}
+    setSaved2(true);
+    setTimeout(() => setSaved2(false), 2000);
+  };
+
+  const addNode = (label) => {
+    const id = Date.now().toString();
+    const n = [...nodes, { id, label, x: 80 + Math.random() * 400, y: 80 + Math.random() * 200 }];
+    setNodes(n);
+    saveSchema(n, edges);
+  };
+
+  const clearAll = () => { setNodes([]); setEdges([]); saveSchema([], []); setConnecting(null); };
+
+  // Drag handlers
+  const onNodeMouseDown = (e, id) => {
+    if (connecting) {
+      // Complete connection
+      if (connecting.fromId !== id) {
+        const exists = edges.find(e2 => (e2.from === connecting.fromId && e2.to === id) || (e2.from === id && e2.to === connecting.fromId));
+        if (!exists) {
+          const newEdge = { id: Date.now().toString(), from: connecting.fromId, to: id, label: '' };
+          const newEdges = [...edges, newEdge];
+          setEdges(newEdges);
+          saveSchema(nodes, newEdges);
+        }
+        setConnecting(null);
+      }
+      return;
+    }
+    e.stopPropagation();
+    const rect = svgRef.current.getBoundingClientRect();
+    setDragging({ id, ox: e.clientX - rect.left - nodes.find(n => n.id === id).x, oy: e.clientY - rect.top - nodes.find(n => n.id === id).y });
+  };
+
+  const onSvgMouseMove = (e) => {
+    if (!dragging) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = Math.max(60, Math.min(rect.width - 60, e.clientX - rect.left - dragging.ox));
+    const y = Math.max(30, Math.min(rect.height - 30, e.clientY - rect.top - dragging.oy));
+    const newNodes = nodes.map(n => n.id === dragging.id ? { ...n, x, y } : n);
+    setNodes(newNodes);
+  };
+
+  const onSvgMouseUp = () => {
+    if (dragging) { saveSchema(nodes, edges); setDragging(null); }
+  };
+
+  const deleteNode = (id) => {
+    const newNodes = nodes.filter(n => n.id !== id);
+    const newEdges = edges.filter(e => e.from !== id && e.to !== id);
+    setNodes(newNodes); setEdges(newEdges); saveSchema(newNodes, newEdges);
+  };
+
+  const deleteEdge = (id) => {
+    const newEdges = edges.filter(e => e.id !== id);
+    setEdges(newEdges); saveSchema(nodes, newEdges); setSelectedEdge(null);
+  };
+
+  const startEditLabel = (type, id, value) => setEditingLabel({ type, id, value });
+
+  const saveLabel = () => {
+    if (!editingLabel) return;
+    if (editingLabel.type === 'node') {
+      const newNodes = nodes.map(n => n.id === editingLabel.id ? { ...n, label: editingLabel.value } : n);
+      setNodes(newNodes); saveSchema(newNodes, edges);
+    } else {
+      const newEdges = edges.map(e => e.id === editingLabel.id ? { ...e, label: editingLabel.value } : e);
+      setEdges(newEdges); saveSchema(nodes, newEdges);
+    }
+    setEditingLabel(null);
+  };
+
+  // Edge midpoint for label
+  const getEdgeMid = (edge) => {
+    const from = nodes.find(n => n.id === edge.from);
+    const to = nodes.find(n => n.id === edge.to);
+    if (!from || !to) return { x: 0, y: 0 };
+    return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+  };
+
+  const NODE_W = 120, NODE_H = 44;
+  const SCHEMA_TEXT = '#1B2A41';
+  const SCHEMA_SUBTEXT = '#31445F';
+  const SCHEMA_BUTTON_BG = '#FFFFFF';
+  const SCHEMA_CANVAS_HEIGHT = 520;
+
+  return (
+    <div style={{ display: 'flex', gap: 0, height: '100%', flexDirection: 'column' }}>
+      {/* Тулбар */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', flexWrap: 'wrap', borderBottom: `1px solid ${C.border}`, marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Добавить блок:</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+          {equipList.slice(0, 8).map((eq, i) => (
+            <button key={i} onClick={() => addNode(eq)} style={{
+              padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.border}`,
+              background: SCHEMA_BUTTON_BG, color: SCHEMA_TEXT, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
+            }}>{eq.length > 20 ? eq.slice(0, 18) + '…' : eq}</button>
+          ))}
+          <button onClick={() => setShowAddCustom(!showAddCustom)} style={{
+            padding: '5px 12px', borderRadius: 8, border: `1px dashed ${C.accent}`,
+            background: C.accentLight, color: '#1747B7', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit'
+          }}>+ Свой блок</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center', minHeight: 24 }}>
+          <span style={{ fontSize: 12, color: C.accent, fontWeight: 600, visibility: connecting ? 'visible' : 'hidden', minWidth: 180 }}>🔗 Кликни на второй блок</span>
+          <button onClick={clearAll} style={{ padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.fail}`, background: 'transparent', color: C.fail, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>🗑 Очистить</button>
+          <span style={{ fontSize: 12, color: C.pass, fontWeight: 600, visibility: saved2 ? 'visible' : 'hidden', minWidth: 86 }}>✓ Сохранено</span>
+        </div>
+      </div>
+
+      {/* Добавить свой блок */}
+      {showAddCustom && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input value={customName} onChange={e => setCustomName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && customName.trim()) { addNode(customName.trim()); setCustomName(''); setShowAddCustom(false); }}}
+            placeholder="Название блока..." style={{ ...styles.input, flex: 1, fontSize: 13 }} />
+          <button onClick={() => { if (customName.trim()) { addNode(customName.trim()); setCustomName(''); setShowAddCustom(false); }}}
+            style={{ padding: '0 16px', borderRadius: 8, border: 'none', background: C.accent, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Добавить</button>
+        </div>
+      )}
+
+      {/* Подсказки */}
+      <div style={{ fontSize: 11, color: SCHEMA_SUBTEXT, marginBottom: 8, display: 'flex', gap: 16, minHeight: 18 }}>
+        <span>🖱 Перетаскивай блоки</span>
+        <span>🔗 Кнопка "Соединить" → клик на блоки</span>
+        <span>✏️ Двойной клик на блок/стрелку = редактировать</span>
+        <span>✕ Правый клик = удалить</span>
+      </div>
+
+      {/* SVG холст */}
+      <div style={{ height: SCHEMA_CANVAS_HEIGHT, minHeight: SCHEMA_CANVAS_HEIGHT, background: '#F8FAFC', borderRadius: 12, border: `1px solid ${C.border}`, position: 'relative', overflow: 'hidden' }}>
+        {nodes.length === 0 && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', color: SCHEMA_SUBTEXT }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>📐</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Добавьте блоки оборудования выше</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Затем соедините их стрелками</div>
+          </div>
+        )}
+        <svg
+          ref={svgRef}
+          width="100%" height="100%"
+          style={{ cursor: dragging ? 'grabbing' : connecting ? 'crosshair' : 'default', minHeight: SCHEMA_CANVAS_HEIGHT }}
+          onMouseMove={onSvgMouseMove}
+          onMouseUp={onSvgMouseUp}
+          onMouseLeave={onSvgMouseUp}
+        >
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#1E5BE8" />
+            </marker>
+            <marker id="arrow-sel" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#E07B00" />
+            </marker>
+          </defs>
+
+          {/* Рёбра */}
+          {edges.map(edge => {
+            const from = nodes.find(n => n.id === edge.from);
+            const to = nodes.find(n => n.id === edge.to);
+            if (!from || !to) return null;
+            const mid = getEdgeMid(edge);
+            const isSelected = selectedEdge === edge.id;
+            const dx = to.x - from.x, dy = to.y - from.y;
+            const len = Math.sqrt(dx*dx + dy*dy) || 1;
+            const ex = to.x - (dx/len) * (NODE_W/2 + 8);
+            const ey = to.y - (dy/len) * (NODE_H/2 + 8);
+            const sx = from.x + (dx/len) * (NODE_W/2 + 4);
+            const sy = from.y + (dy/len) * (NODE_H/2 + 4);
+            return (
+              <g key={edge.id}>
+                <line x1={sx} y1={sy} x2={ex} y2={ey}
+                  stroke={isSelected ? '#E07B00' : '#1E5BE8'} strokeWidth={isSelected ? 2.5 : 2}
+                  markerEnd={isSelected ? 'url(#arrow-sel)' : 'url(#arrow)'}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedEdge(isSelected ? null : edge.id)}
+                  onDoubleClick={() => startEditLabel('edge', edge.id, edge.label)}
+                />
+                {/* Подпись на стрелке */}
+                {edge.label && (
+                  <text x={mid.x} y={mid.y - 6} textAnchor="middle" fontSize="11" fill="#1E5BE8" fontWeight="600" style={{ pointerEvents: 'none' }}>{edge.label}</text>
+                )}
+                {/* Кнопка удаления ребра */}
+                {isSelected && (
+                  <g onClick={() => deleteEdge(edge.id)} style={{ cursor: 'pointer' }}>
+                    <circle cx={mid.x} cy={mid.y} r="10" fill="#FDECEA" stroke="#C0392B" strokeWidth="1.5" />
+                    <text x={mid.x} y={mid.y + 4} textAnchor="middle" fontSize="12" fill="#C0392B">✕</text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Узлы */}
+          {nodes.map(node => (
+            <g key={node.id}
+              onMouseDown={e => onNodeMouseDown(e, node.id)}
+              onDoubleClick={() => startEditLabel('node', node.id, node.label)}
+              onContextMenu={e => { e.preventDefault(); deleteNode(node.id); }}
+              style={{ cursor: connecting ? 'crosshair' : dragging?.id === node.id ? 'grabbing' : 'grab' }}
+            >
+              <rect
+                x={node.x - NODE_W/2} y={node.y - NODE_H/2}
+                width={NODE_W} height={NODE_H} rx="8"
+                fill="#fff" stroke={connecting?.fromId === node.id ? '#E07B00' : C.accent}
+                strokeWidth={connecting?.fromId === node.id ? 2.5 : 1.5}
+                style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.10))' }}
+              />
+              <text x={node.x} y={node.y + 5} textAnchor="middle" fontSize="12" fill={SCHEMA_TEXT} fontWeight="700"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                {node.label.length > 16 ? node.label.slice(0, 14) + '…' : node.label}
+              </text>
+              {/* Кнопка соединения */}
+              <g onClick={e => { e.stopPropagation(); if (connecting?.fromId === node.id) { setConnecting(null); } else { setConnecting({ fromId: node.id }); }}}
+                style={{ cursor: 'pointer' }}>
+                <circle cx={node.x + NODE_W/2 - 2} cy={node.y - NODE_H/2 + 2} r="9"
+                  fill={connecting?.fromId === node.id ? '#E07B00' : C.accentLight}
+                  stroke={connecting?.fromId === node.id ? '#E07B00' : C.accent} strokeWidth="1.5" />
+                <text x={node.x + NODE_W/2 - 2} y={node.y - NODE_H/2 + 6} textAnchor="middle" fontSize="11"
+                  fill={connecting?.fromId === node.id ? '#fff' : C.accent} style={{ pointerEvents: 'none' }}>⇒</text>
+              </g>
+            </g>
+          ))}
+        </svg>
+
+        {/* Легенда */}
+        {nodes.length > 0 && (
+          <div style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(255,255,255,0.9)', borderRadius: 8, padding: '6px 10px', fontSize: 10, color: C.textSec, border: `1px solid ${C.border}` }}>
+            ПКМ на блок = удалить • Клик на стрелку = выделить
+          </div>
+        )}
+      </div>
+
+      {/* Редактор подписи */}
+      {editingLabel && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: 320, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
+              {editingLabel.type === 'node' ? 'Название блока' : 'Подпись соединения'}
+            </div>
+            <input
+              autoFocus
+              value={editingLabel.value}
+              onChange={e => setEditingLabel({ ...editingLabel, value: e.target.value })}
+              onKeyDown={e => e.key === 'Enter' && saveLabel()}
+              style={{ ...styles.input, marginBottom: 12 }}
+              placeholder={editingLabel.type === 'node' ? 'Название...' : 'Например: AC, RG-58, кабель...'}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={saveLabel} style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: C.accent, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Сохранить</button>
+              <button onClick={() => setEditingLabel(null)} style={{ padding: '10px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function TestsScreen() {
   const [selected, setSelected] = useState(null);
+  const standardGroups = new Set(TESTS_DATA.map(t => (t.standard || "").split("·")[0].trim()).filter(Boolean));
   if (selected) return <TestDetail test={selected} onBack={() => setSelected(null)} />;
   return (
-    <div>
-      <div style={styles.sectionTitle}>Испытания по ГОСТ РВ 20.57.306</div>
-      {/* Header info */}
-      <div style={{ ...styles.card, borderLeft: "3px solid #C0392B", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 22 }}>🇷🇺</span>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>ГОСТ РВ 20.57.306-98</div>
-            <div style={{ fontSize: 11, color: C.textSec, marginTop: 2 }}>Испытания на стойкость к электромагнитным воздействиям</div>
-          </div>
-        </div>
+    <PageContainer>
+      <SectionHero
+        title="Испытания"
+        subtitle="Шаблоны EMC/EMI испытаний с кратким назначением, диапазонами и составом стенда — в едином инженерном стиле EMC Toolkit."
+        stats={[
+          { value: TESTS_DATA.length, label: "шаблонов" },
+          { value: standardGroups.size, label: "групп стандартов" },
+          { value: "ГОСТ РВ", label: "активный стандарт" },
+        ]}
+      />
+      <SectionHeader title="ГОСТ РВ 20.57.306" caption="Испытания на стойкость к электромагнитным воздействиям" count={`${TESTS_DATA.length} карточек`} accent="#F59E0B" />
+      <div className="premium-list">
+        {TESTS_DATA.map(t => (
+          <button key={t.id} onClick={() => setSelected(t)} className="premium-card premium-card-action" style={{ width: "100%", display: "grid", gridTemplateColumns: "64px minmax(0, 1fr) minmax(110px, 180px) 18px", alignItems: "center", gap: 16, padding: "18px 20px", borderLeft: "3px solid rgba(245,158,11,0.78)" }}>
+            <div className="premium-icon-box" style={{ color: "#FBBF24", fontSize: 13, fontWeight: 900, lineHeight: 1.15, textAlign: "center" }}>{t.short}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 5 }}>
+                <span className="premium-badge" style={{ color: "#FBBF24", borderColor: "rgba(251,191,36,0.22)", background: "rgba(245,158,11,0.08)" }}>{t.short}</span>
+                <span style={{ fontSize: 12, color: C.textSec, fontWeight: 800 }}>{t.standard}</span>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 850, color: C.text, letterSpacing: "-0.01em" }}>{t.name}</div>
+              <div style={{ fontSize: 12, color: C.textSec, marginTop: 6, lineHeight: 1.45 }}>{t.desc}</div>
+            </div>
+            <div style={{ justifySelf: "end", textAlign: "right" }}>
+              <div className="premium-badge">{t.range}</div>
+              <div style={{ fontSize: 11, color: C.textSec, marginTop: 8 }}>Диапазон / тип</div>
+            </div>
+            <div style={{ fontSize: 26, color: "#64748B" }}>›</div>
+          </button>
+        ))}
       </div>
-      {TESTS_DATA.map(t => (
-        <button key={t.id} onClick={() => setSelected(t)} style={{ ...styles.card, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", width: "100%", textAlign: "left", margin: "0 0 10px 0", borderLeft: "3px solid #C0392B" }}>
-          <div style={{ width: 50, height: 50, borderRadius: 10, background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#C0392B", minWidth: 50, textAlign: "center", lineHeight: 1.2 }}>{t.short}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{t.name}</div>
-            <div style={{ fontSize: 11, color: "#C0392B", fontWeight: 600, marginTop: 2 }}>{t.standard}</div>
-          </div>
-          <div style={{ fontSize: 10, color: C.textSec, textAlign: "right", maxWidth: 80, lineHeight: 1.3 }}>{t.range}</div>
-        </button>
-      ))}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -3792,7 +5146,8 @@ function StandardsTab() {
   const gostCount = STANDARDS.filter(s => s.gost).length;
   const iecCount = STANDARDS.filter(s => !s.gost).length;
   const filtered = useMemo(() => STANDARDS.filter(s => {
-    const matchQ = s.name.toLowerCase().includes(q.toLowerCase()) || s.desc.toLowerCase().includes(q.toLowerCase()) || s.type.toLowerCase().includes(q.toLowerCase());
+    const query = q.toLowerCase();
+    const matchQ = [s.name, s.desc, s.type, s.scope, s.notes].filter(Boolean).some(v => v.toLowerCase().includes(query));
     const matchO = origin === "all" || (origin === "gost" && s.gost) || (origin === "iec" && !s.gost);
     return matchQ && matchO;
   }), [q, origin]);
@@ -3823,9 +5178,11 @@ function StandardsTab() {
             </div>
             <span style={{ ...styles.tag("info"), whiteSpace: "nowrap", flexShrink: 0 }}>{s.category}</span>
           </div>
-          <div style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>{s.desc}</div>
-          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 2 }}>Тип воздействия: <b style={{ color: C.text }}>{s.type}</b></div>
-          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>Применение: {s.scope}</div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 3 }}>Номер стандарта: <b style={{ color: C.text }}>{s.name}</b></div>
+          <div style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>Назначение: {s.desc}</div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 2 }}>Связанный тип испытаний: <b style={{ color: C.text }}>{s.type}</b></div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 6 }}>Область применения: {s.scope}</div>
+          <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>Примечание: {s.notes || "Краткая справочная карточка без полного текста стандарта и без нормированных таблиц."}</div>
           <div style={{ fontSize: 11, background: C.warnLight, color: C.warn, padding: "6px 8px", borderRadius: 6 }}>
             ⚠️ Данные справочные. Актуальные требования уточняйте по действующей редакции стандарта.
           </div>
@@ -4014,7 +5371,7 @@ const DEPS_DATA = [
     yLabel: "Типовой ток", yUnit: "mA",
     xValues: [1, 10, 50, 100, 200, 400],
     datasets: [
-      { name: "Норма ISO 11452-4 (сигн. порт)", color: "#1E5BE8", values: [100, 100, 100, 100, 100, 100] },
+      { name: "Норма Стандарт ЭМС A (сигн. порт)", color: "#1E5BE8", values: [100, 100, 100, 100, 100, 100] },
       { name: "Реальный ток клещей", color: "#D93025", values: [30, 70, 95, 85, 60, 35] },
     ],
     trend: "bell",
@@ -4046,7 +5403,7 @@ const DEPS_DATA = [
       { name: "Ближняя зона (−60 dB/декаду)", color: "#D93025", values: [60, 40, 20, 0, -20, -40] },
     ],
     trend: "down",
-    explanation: "В дальней зоне (>λ/2π от антенны) поле убывает как 1/r — то есть −20 dB на декаду расстояния. Если удвоить расстояние — поле упадёт на 6 dB. В ближней зоне картина другая: электрическое поле убывает как 1/r³ (−60 dB/декаду), магнитное как 1/r². Именно поэтому расстояние 3 м vs 10 м при RE-измерении CISPR 25 даёт разницу ~10 dB в результате.",
+    explanation: "В дальней зоне (>λ/2π от антенны) поле убывает как 1/r — то есть −20 dB на декаду расстояния. Если удвоить расстояние — поле упадёт на 6 dB. В ближней зоне картина другая: электрическое поле убывает как 1/r³ (−60 dB/декаду), магнитное как 1/r². Именно поэтому расстояние 3 м vs 10 м при RE-измерении Стандарт ЭМС A даёт разницу ~10 dB в результате.",
     takeaway: "×2 расстояния → −6 dB поля (дальняя зона). 3 м vs 10 м = ~10 dB разницы в измерении",
   },
   {
@@ -4280,59 +5637,102 @@ function DependenciesTab() {
 }
 
 // ─── EQUIPMENT DATA ───────────────────────────────────────────────────────────
+
+const normalizeSpecs = (specs, fallback = "") => {
+  if (Array.isArray(specs)) {
+    return specs
+      .map((s) => ({
+        key: typeof s?.key === "string" ? s.key : String(s?.key ?? ""),
+        value: typeof s?.value === "string" ? s.value : String(s?.value ?? ""),
+      }))
+      .map((s) => ({ key: s.key.trim(), value: s.value.trim() }))
+      .filter((s) => s.key || s.value);
+  }
+  if (typeof specs === "string") return specs;
+  return fallback;
+};
+
+const normalizeEquipmentItem = (item, editPatch = {}) => {
+  const merged = { ...item, ...editPatch };
+  const specs = normalizeSpecs(merged.specs, "Добавьте технические характеристики");
+  return {
+    ...merged,
+    name: typeof merged.name === "string" ? merged.name : String(merged.name || ""),
+    type: typeof merged.type === "string" ? merged.type : String(merged.type || ""),
+    arm: typeof merged.arm === "string" ? merged.arm : String(merged.arm || ""),
+    desc: typeof merged.desc === "string" ? merged.desc : "",
+    photo: typeof merged.photo === "string" ? merged.photo : "",
+    specs,
+    antennaProfile: normalizeAntennaProfile(merged.antennaProfile),
+    deleted: Boolean(merged.deleted),
+  };
+};
+
+const formatSpecsShort = (specs) => {
+  if (Array.isArray(specs)) {
+    if (!specs.length) return "Добавьте технические характеристики";
+    return specs
+      .map((s) => [s.key, s.value].filter(Boolean).join(": "))
+      .filter(Boolean)
+      .join(" • ");
+  }
+  return typeof specs === "string" && specs.trim() ? specs : "Добавьте технические характеристики";
+};
+
 const EQUIPMENT_DATA = [
-  { id:"e1", photo:"9010F-9060", arm:"АРМ1", name:"9010F + 9060", type:"Измерительный приёмник", desc:"Измерительный приёмник с функцией БПФ, 10 кГц – 30 МГц с блоком расширения 30–6000 МГц. Соответствует CISPR 16-1-1 и MIL-STD-461. С поверкой.", specs:"10 кГц – 6 ГГц / Детекторы: QP, Peak, Average", icon:"📻" },
-  { id:"e2", photo:"ASRV-22S", arm:"АРМ1", name:"АСРВ-22С", type:"Анализатор спектра", desc:"Анализатор спектра реального времени, сетевой. Полоса 9 кГц – 22 ГГц, фазовый шум -99,7 дБн/Гц @ 10 кГц на 1 ГГц, DANL: -157 дБмВт/Гц на 100 кГц – 20 ГГц. С поверкой.", specs:"9 кГц – 22 ГГц / DANL -157 дБмВт/Гц", icon:"📊" },
-  { id:"e3", photo:"NNBM-8126-A890", arm:"АРМ1", name:"NNBM 8126 A890", type:"ЛИСН (эквивалент сети)", desc:"Эквивалент сети одноканальный, 70 (100) А, 600В DC / 270В AC, 890 Гц. Откалиброван до 400 МГц согласно КТ-160. Со съёмным конденсатором 10 мкФ в комплекте. С поверкой.", specs:"70/100 А, до 400 МГц, 600В DC", icon:"🔌" },
-  { id:"e4", photo:"NNBL-8226-2", arm:"АРМ1", name:"NNBL 8226-2", type:"ЛИСН двухканальный", desc:"Эквивалент сети двухканальный согласно MIL-STD-461, 9 кГц – 100 МГц, (50 мкГн + 5 Ом) || 50 Ом, 70 (100) А, со встраиваемым конденсатором 10 мкФ. С поверкой.", specs:"9 кГц – 100 МГц / 50 мкГн+5 Ом || 50 Ом", icon:"🔌" },
-  { id:"e5", photo:"TI2-4", arm:"АРМ1", name:"ТИ2-4", type:"Токосъёмник", desc:"Токосъёмник, 9 кГц – 400 МГц. С поверкой.", specs:"9 кГц – 400 МГц", icon:"🔧" },
-  { id:"e6", photo:"EZ-17", arm:"АРМ1", name:"EZ-17", type:"Токосъёмник", desc:"Токосъёмник, внутренний диаметр 32 мм, 9 кГц – 400 МГц, до 2А CW / 100А имп. С поверкой.", specs:"9 кГц – 400 МГц / Ø32 мм / 100А имп.", icon:"🔧" },
-  { id:"e7", photo:"Ya6-124", arm:"АРМ1", name:"Я6-124 тип 1", type:"Пробник напряжения", desc:"Пробник напряжения однопроводной для измерения помех в проводниковых линиях, 100 Гц – 1000 МГц. С поверкой.", specs:"100 Гц – 1000 МГц", icon:"🔍" },
-  { id:"e8", photo:"P6-120M", arm:"АРМ1", name:"П6-120М", type:"Антенна штыревая активная", desc:"Штыревая активная измерительная антенна, 9 кГц – 30 МГц. С поверкой.", specs:"9 кГц – 30 МГц", icon:"📡" },
-  { id:"e9", photo:"P6-121M1-N", arm:"АРМ1", name:"П6-121М1 (N)", type:"Антенна биконическая", desc:"Биконическая измерительная антенна, 30 – 300 МГц. С поверкой.", specs:"30 – 300 МГц", icon:"📡" },
-  { id:"e10", photo:"P6-223-N", arm:"АРМ1", name:"П6-122М2 (N)", type:"Антенна логопериодическая", desc:"Логопериодическая измерительная антенна, 300 – 6000 МГц. С поверкой.", specs:"300 – 6000 МГц", icon:"📡" },
-  { id:"e11", photo:"P6-223-N", arm:"АРМ1", name:"П6-223 (N)", type:"Антенна рупорная двухгребневая", desc:"Рупорная измерительная антенна, 0,8 – 18 ГГц. С поверкой.", specs:"0,8 – 18 ГГц", icon:"📡" },
-  { id:"e12", photo:"tsm-02-2", arm:"АРМ1", name:"ТСМ-02-2", type:"Мачта антенная", desc:"Телескопическая антенная мачта с антенным адаптером.", specs:"Телескопическая, с адаптером", icon:"🔧" },
-  { id:"e13", photo:"AKIP-3208", arm:"АРМ2/3", name:"АКИП-3208", type:"Генератор сигналов", desc:"Высокочастотный генератор сигналов, от 9 кГц до 2,1 ГГц, от -110 до +13 дБм, комплект для монтажа в стойку. С поверкой.", specs:"9 кГц – 2,1 ГГц / -110…+13 дБм", icon:"📻" },
-  { id:"e14", photo:"wa-00225", arm:"АРМ2", name:"WA-00225-60C", type:"Усилитель мощности", desc:"Усилитель мощности 2–250 МГц, 1000 Вт. Встроенный двунаправленный ответвитель.", specs:"2–250 МГц / 1000 Вт", icon:"⚡" },
-  { id:"e15", photo:"wa-0810", arm:"АРМ2", name:"WA-0810-60C", type:"Усилитель мощности", desc:"Усилитель мощности 80–1000 МГц, 1 кВт. Встроенный двунаправленный ответвитель.", specs:"80–1000 МГц / 1 кВт", icon:"⚡" },
-  { id:"e16", photo:"ka22-1s3", arm:"АРМ2/3", name:"КА22-1S3-2N3", type:"РЧ коммутатор", desc:"СВЧ коммутатор управляемый с 3-мя модулями SP3T до 6 ГГц. С комплектом кабельных сборок.", specs:"до 6 ГГц / 3×SP3T", icon:"🔧" },
-  { id:"e17", photo:"NRP6AN", arm:"АРМ2/3", name:"NRP6AN", type:"Измеритель мощности", desc:"Измеритель мощности СВЧ, 8 кГц – 6 ГГц, -70…+23 дБм, 200 мВт макс., порт LAN. С поверкой.", specs:"8 кГц – 6 ГГц / -70…+23 дБм", icon:"📊" },
-  { id:"e18", photo:"LSProbe-2R", arm:"АРМ2", name:"LSProbe 2.0 R", type:"Пробник поля", desc:"Высокоскоростной измеритель напряжённости ЭМП с питанием и управлением по оптоволоконному кабелю, диапазон частот 9 кГц – 18 ГГц, 1–1000 В/м, штатив, оптоволоконный кабель 15м. С поверкой.", specs:"9 кГц – 18 ГГц / 1–1000 В/м / оптоволоконный кабель", icon:"🔍" },
-  { id:"e19", photo:"P6-160", arm:"АРМ2", name:"П6-160", type:"Антенна рупорная излучающая", desc:"Рупорная излучающая антенна, 200 МГц – 2,8 ГГц, 7/16.", specs:"200 МГц – 2,8 ГГц", icon:"📡" },
-  { id:"e20", photo:"P6-522", arm:"АРМ2", name:"П6-522", type:"Антенна логопериодическая излучающая", desc:"Логопериодическая излучающая антенна, 60 – 3000 МГц, 3 кВт, порт 7/16.", specs:"60–3000 МГц / 3 кВт", icon:"📡" },
-  { id:"e21", photo:"il-0210", arm:"АРМ2", name:"ИЛ-0210-2", type:"Линия излучающая симметричная", desc:"Линия излучающая 1–200 (300) МГц, 2 кВт. С установочным штативом.", specs:"1–300 МГц / 2 кВт", icon:"📡" },
-  { id:"e22", photo:"AKIP-3211", arm:"АРМ3", name:"АКИП-3211 (F85, LP, PU)", type:"Генератор СВЧ", desc:"Генератор СВЧ сигналов, 9 кГц – 20 ГГц, АМ/ИМ, от -110…-130 до +7…+25 дБм. С поверкой.", specs:"9 кГц – 20 ГГц / до +25 дБм", icon:"📻" },
-  { id:"e23", photo:"wa-1060", arm:"АРМ3", name:"WA-1060-55C", type:"Усилитель мощности", desc:"Усилитель мощности 1–6 ГГц, 300 Вт тип. Встроенный двунаправленный ответвитель.", specs:"1–6 ГГц / 300 Вт", icon:"⚡" },
-  { id:"e24", photo:"wa-60180", arm:"АРМ3", name:"WA-60180-53C", type:"Усилитель мощности", desc:"Усилитель мощности 6–18 ГГц, 200 Вт тип. Встроенный двунаправленный ответвитель.", specs:"6–18 ГГц / 200 Вт", icon:"⚡" },
-  { id:"e25", photo:"NRP6AN-1", arm:"АРМ3", name:"NRP18AN", type:"Измеритель мощности", desc:"Измеритель мощности СВЧ, 8 кГц – 18 ГГц, -70…+23 дБм, 200 мВт макс., порт LAN. С поверкой.", specs:"8 кГц – 18 ГГц / -70…+23 дБм", icon:"📊" },
-  { id:"e26", photo:"ka22-3s4", arm:"АРМ3", name:"КА22-3S4", type:"РЧ коммутатор", desc:"СВЧ коммутатор управляемый с 3-мя модулями SP3T до 18 ГГц. С комплектом кабельных сборок.", specs:"до 18 ГГц / 3×SP3T", icon:"🔧" },
-  { id:"e27", photo:"P6-421M", arm:"АРМ3", name:"П6-421М", type:"Антенна рупорная излучающая", desc:"Рупорная излучающая антенна, 370 МГц – 6 ГГц.", specs:"370 МГц – 6 ГГц", icon:"📡" },
-  { id:"e28", photo:"amon61823", arm:"АРМ3", name:"АМОН61823NF", type:"Антенна рупорная широкополосная", desc:"Антенна рупорная широкополосная 6–18 ГГц, 23 дБи (тип.), порт N (розетка).", specs:"6–18 ГГц / 23 дБи", icon:"📡" },
-  { id:"e29", photo:"REVER400-9203", arm:"АРМ3", name:"РЕВЕР400-9203", type:"Реверберационная камера", desc:"Реверберационная камера, 400 МГц – 18 ГГц, тестовый объём 0,5 × 0,5 × 0,5 м.", specs:"400 МГц – 18 ГГц / 0,5³ м", icon:"🏠" },
-  { id:"e30", photo:"CIT-100A", arm:"АРМ4", name:"CIT-100/A", type:"Генератор помех инжекция тока", desc:"Базовый блок, включающий: генератор сигналов 10 кГц – 1200 МГц (АМ: 1 Гц – 100 кГц, 0–100%, шаг 1%; ИМ: 1 Гц – 100 кГц, 5–95%, шаг 1%), включая сигналы стандартных форм; встроенный двухканальный измеритель мощности; встроенный РЧ-вольтметр; ПО для дистанционного управления; комплект кабелей.", specs:"10 кГц – 1200 МГц / АМ+ИМ", icon:"📻" },
-  { id:"e31", photo:"ra-00140", arm:"АРМ4", name:"РА-00140-54C", type:"Усилитель мощности", desc:"Усилитель мощности 9 кГц – 400 МГц, 230 Вт. Двунаправленный ответвитель в комплекте.", specs:"9 кГц – 400 МГц / 230 Вт", icon:"⚡" },
-  { id:"e32", photo:"IP-DR250", arm:"АРМ4", name:"IP-DR250", type:"Токовый инжектор инжекция тока", desc:"Токовый инжектор с калибровочным устройством.", specs:"инжекция тока / с калибровкой", icon:"🔧" },
-  { id:"e33", photo:"mp-50", arm:"АРМ4", name:"МР-50", type:"Монитор тока (токосъёмник)", desc:"Токосъёмник для мониторинга инжектируемого тока, 10 кГц – 400 МГц, диаметр 46 мм.", specs:"10 кГц – 400 МГц / Ø46 мм", icon:"🔍" },
-  { id:"e34", photo:"bci-acc-mil", arm:"АРМ4", name:"BCI-ACC-MIL", type:"Комплект инжекция тока принадлежностей", desc:"Набор коаксиальных аттенюаторов, нагрузок и кабелей: нагрузка 50 Ом 5Вт, нагрузка 50 Ом 50Вт, аттенюатор 30 дБ 50Вт, аттенюатор 10 дБ 100Вт, кабель СВЧ 2 метра, 2 кабеля СВЧ 0,5м, кабель ВЧ 2м, кабель ВЧ 1м, кабель ВЧ 0,5м.", specs:"Аттенюаторы, нагрузки, кабели", icon:"🔧" },
-  { id:"e35", photo:"cws-1617", arm:"АРМ5", name:"CWS 1617", type:"Генератор импульсных помех", desc:"Генератор помех согласно КТ-160G (Раздел 17).", specs:"КТ-160G Раздел 17", icon:"⚡" },
-  { id:"e36", photo:"tpt-1200", arm:"АРМ5", name:"TPT.1200-1", type:"Трансформатор связи", desc:"Внешний трансформатор связи 10 мкс, 100 А согласно КТ-160G (Раздел 17).", specs:"10 мкс / 100 А", icon:"🔧" },
-  { id:"e37", photo:"ESR-30K", arm:"АРМ6", name:"ЭСР-30К", type:"Генератор ЭСР", desc:"Генератор ЭСР 30 кВ, включая встроенную разрядную цепь 150пФ/330 Ом, разрядные наконечники, кабель заземления, транспортировочный футляр.", specs:"до 30 кВ / 150пФ / 330 Ом", icon:"⚡" },
-  { id:"e38", photo:"RN-5000", arm:"АРМ6", name:"РН-5000", type:"Делитель напряжения калибровочный", desc:"Делитель напряжения калибровочный, до 30 кВ. С поверкой.", specs:"до 30 кВ / калибровочный", icon:"🔍" },
-  { id:"e39", photo:"ish-2", arm:"АРМ6", name:"ИШ-2,0 ВЧ", type:"Калибровочная мишень", desc:"Калибровочная мишень, 2 Ом, 30 кВ, кабель и аттенюатор в комплекте. С поверкой.", specs:"2 Ом / 30 кВ", icon:"🔍" },
-  { id:"e40", photo:"mso8204", arm:"АРМ6", name:"MSO8204", type:"Осциллограф цифровой запоминающий", desc:"Цифровой осциллограф, 4 канала, 2 ГГц, частота дискретизации 10 ГВыб/с на канал, 500 МВыб. С поверкой.", specs:"4 кан. / 2 ГГц / 10 ГВыб/с", icon:"📊" },
-  { id:"e41", photo:"ippg-15", arm:"АРМ7", name:"ИППГ 15", type:"Источник питания трёхфазный", desc:"Программируемый трёхфазный ИП, 15 кВА, 600В DC / 300В AC (ф-н) / 450В AC (ф-ф), 30 Аск/фазу непр. / 90А (1 фаза). DC/AC/AC+DC, DC 1(10) кГц, программное обеспечение для испытаний по КТ-160G (раздел 16) в комплекте.", specs:"15 кВА / 600В DC / 300В AC", icon:"🔌" },
-  { id:"e42", photo:"BG-1", arm:"АРМ8", name:"БГ-1", type:"Компас прецизионный", desc:"Компас прецизионный калиброванный. С поверкой.", specs:"Прецизионный / калиброванный", icon:"🧭" },
-  { id:"e43", photo:"MTM-01", arm:"АРМ8", name:"МТМ-01", type:"Магнитометр портативный", desc:"Магнитометр портативный. С поверкой.", specs:"Портативный", icon:"🧲" },
-  { id:"e44", photo:"igrv-vp3", arm:"АРМ9", name:"ИГРВ-ВП3", type:"Генератор импульсных воздействий", desc:"Генератор помех согласно ГОСТ РВ 6601-001-2008 ВП3 (п. 5.3).", specs:"ГОСТ РВ 6601-001-2008 ВП3", icon:"⚡" },
-  { id:"e45", photo:"igrv-vp4", arm:"АРМ9", name:"ИГРВ-ВП4", type:"Генератор затухающих синусоид", desc:"Генератор помех согласно ГОСТ РВ 6601-001-2008 ВП4 (п. 5.4).", specs:"ГОСТ РВ 6601-001-2008 ВП4", icon:"⚡" },
-  { id:"e46", photo:"iks-400", arm:"АРМ9", name:"ИКС-400", type:"Токовый инжектор с калибровкой", desc:"Токовый инжектор с калибровочным устройством. Аттенюатор 40 дБ, 10Вт; Калибровочная нагрузка 50 Ом, 50Вт; Комплект соединительных кабелей.", specs:"40 дБ аттенюатор / 50 Ом нагрузка", icon:"🔧" },
+  { id:"e1", photo:"", arm:"Станция A", name:"Оборудование 1", type:"Измерительное оборудование", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📻" },
+  { id:"e2", photo:"", arm:"Станция A", name:"Оборудование 2", type:"Анализатор", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📊" },
+  { id:"e3", photo:"", arm:"Станция B", name:"Оборудование 3", type:"Антенна", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📡", antennaProfile: emptyAntennaProfile() },
+  { id:"e4", photo:"", arm:"Станция B", name:"Оборудование 4", type:"Генератор", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"⚡" },
+  { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
 ];
 
-function EquipDetailCard({ e, onBack, getEquipSVG }) {
-  const [photoOk, setPhotoOk] = useState(true);
-  const photoPath = `equipment/${e.photo}.jpg.webp`;
-  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(e.name + " " + e.type)}&tbm=isch`;
+function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
+  const [showSpecsForm, setShowSpecsForm] = useState(false);
+  const [editName, setEditName] = useState(e.name || "");
+  const [specRows, setSpecRows] = useState(
+    Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]
+  );
+  const [editType, setEditType] = useState(e.type || "");
+  const [editDesc, setEditDesc] = useState(e.desc || "");
+  const [antennaProfile, setAntennaProfile] = useState(normalizeAntennaProfile(e.antennaProfile));
+
+  useEffect(() => {
+    setEditName(e.name || "");
+    setEditType(e.type || "");
+    setEditDesc(e.desc || "");
+    setAntennaProfile(normalizeAntennaProfile(e.antennaProfile));
+    setSpecRows(Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]);
+  }, [e]);
+
+  const saveSpecs = () => {
+    const normalized = normalizeSpecs(specRows, "");
+    onSaveChanges(e.id, { specs: normalized, type: editType, desc: editDesc, antennaProfile: normalizeAntennaProfile(antennaProfile) });
+    setShowSpecsForm(false);
+  };
+
+  const antennaRows = [
+    ["minFieldVm", "Минимальная напряжённость поля, В/м"],
+    ["maxFieldVm", "Максимальная напряжённость поля, В/м"],
+    ["frequencyRange", "Рабочий диапазон частот"],
+    ["polarization", "Поляризация"],
+    ["recommendedDistance", "Рекомендуемое расстояние"],
+    ["powerLimitations", "Ограничения по мощности/усилителю"],
+    ["applicableStandards", "Стандарты/режимы испытаний"],
+    ["engineerNotes", "Примечания инженера"],
+  ];
+
+  const updateAntennaProfile = (key, value) => setAntennaProfile((prev) => ({ ...prev, [key]: value }));
+
+  const onPhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onSaveChanges(e.id, { photo: String(reader.result || "") });
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
   return (
     <div>
       <button onClick={onBack} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>‹ Назад</button>
@@ -4344,8 +5744,13 @@ function EquipDetailCard({ e, onBack, getEquipSVG }) {
             {getEquipSVG(e.type)}
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{e.name}</div>
+            <input
+              style={{ ...styles.input, fontSize: 18, fontWeight: 800, marginBottom: 6, color: C.textOnLight }}
+              value={editName}
+              onChange={(ev) => setEditName(ev.target.value)}
+            />
             <div style={{ fontSize: 12, color: "#8A9BB8", marginBottom: 6 }}>{e.type}</div>
+            <button onClick={() => onSaveChanges(e.id, { name: editName })} style={{ ...styles.btn(), padding: "7px 12px", fontSize: 12, marginBottom: 6 }}>Сохранить</button>
             <div style={{ display: "inline-block", background: "rgba(30,91,232,0.2)", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "#4A9FFF", fontWeight: 600 }}>{e.arm}</div>
           </div>
         </div>
@@ -4354,79 +5759,159 @@ function EquipDetailCard({ e, onBack, getEquipSVG }) {
       {/* Характеристики */}
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ХАРАКТЕРИСТИКИ</div>
       <div style={{ ...styles.card, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>📐 {e.specs}</div>
-      </div>
-
-      {/* Описание */}
-      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ОПИСАНИЕ</div>
-      <div style={{ ...styles.card, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{e.desc}</div>
-      </div>
-
-      {/* Фото под описанием */}
-      {e.photo && (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ФОТО</div>
-          <div style={{ ...styles.card, padding: 8, textAlign: "center", minHeight: 80 }}>
-            <img
-              src={photoPath}
-              alt={e.name}
-              style={{ width: "100%", maxHeight: 240, objectFit: "contain", borderRadius: 8, display: "block" }}
-              onError={(ev) => { ev.target.style.display="none"; ev.target.nextSibling.style.display="block"; }}
-            />
-            <div style={{ display: "none", fontSize: 12, color: C.textSec, padding: 12 }}>
-              Фото не найдено. Путь: {photoPath}
+        {Array.isArray(e.specs) && e.specs.length ? (
+          e.specs.map((s, idx) => (
+            <div key={`${s.key}_${idx}`} style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>
+              <span style={{ fontWeight: 700 }}>{s.key || "Параметр"}:</span> {s.value || "—"}
+            </div>
+          ))
+        ) : (
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>📐 {formatSpecsShort(e.specs)}</div>
+        )}
+        <button onClick={() => setShowSpecsForm((v) => !v)} style={{ ...styles.btn(), marginTop: 8 }}>Добавить характеристики</button>
+        {showSpecsForm && (
+          <div style={{ marginTop: 10 }}>
+            <Field label="Тип"><input style={styles.input} value={editType} onChange={(ev) => setEditType(ev.target.value)} /></Field>
+            <Field label="Описание"><textarea style={{ ...styles.input, minHeight: 70 }} value={editDesc} onChange={(ev) => setEditDesc(ev.target.value)} /></Field>
+            {specRows.map((row, idx) => (
+              <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <input style={styles.input} placeholder="Параметр" value={row.key} onChange={(ev) => setSpecRows((prev) => prev.map((x, i) => i === idx ? { ...x, key: ev.target.value } : x))} />
+                <input style={styles.input} placeholder="Значение" value={row.value} onChange={(ev) => setSpecRows((prev) => prev.map((x, i) => i === idx ? { ...x, value: ev.target.value } : x))} />
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button onClick={() => setSpecRows((prev) => [...prev, { key: "", value: "" }])} style={styles.btn("secondary")}>+ Параметр</button>
+              <button onClick={saveSpecs} style={styles.btn()}>Сохранить</button>
             </div>
           </div>
-        </div>
+        )}
+      </div>
+
+      {isAntennaEquipment(e) && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ДИАПАЗОНЫ НАПРЯЖЁННОСТИ ПОЛЯ</div>
+          <div style={{ ...styles.card, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10, marginBottom: 10 }}>
+              {antennaRows.map(([key, label]) => (
+                <div key={key} style={{ background: "rgba(15,23,42,0.42)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 11, color: C.textSec, fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 13, color: antennaProfile[key] ? C.text : C.textSec, lineHeight: 1.45 }}>{antennaProfile[key] || "Не заполнено"}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.55, marginBottom: showSpecsForm ? 10 : 0 }}>
+              Поля оставлены пустыми до ручного заполнения инженером: реальные уровни В/м и ограничения усилителя нельзя подставлять без паспортных данных или протокола калибровки.
+            </div>
+            {showSpecsForm && (
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                {antennaRows.map(([key, label]) => (
+                  <Field key={key} label={label}>
+                    <input style={styles.input} value={antennaProfile[key] || ""} placeholder={key === "applicableStandards" ? "Например: RS103; IEC 61000-4-3" : "Заполнить по паспорту/методике"} onChange={(ev) => updateAntennaProfile(key, ev.target.value)} />
+                  </Field>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
-      {/* Кнопка Google */}
-      <a href={googleUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: C.accentLight, borderRadius: 10, padding: "11px", color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none", border: `1px solid #B8CFFE` }}>
-        🔎 Найти фото в Google
-      </a>
+      {/* Фото под описанием */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ФОТО</div>
+        <div style={{ ...styles.card, minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+          {e.photo ? (
+            <img src={e.photo} alt={e.name} style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 12 }} />
+          ) : (
+            <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 700 }}>Добавить фото оборудования</div>
+              <div>Фото оборудования не добавлено</div>
+            </div>
+          )}
+        </div>
+        <label style={{ ...styles.btn(), display: "inline-block" }}>
+          Добавить фото
+          <input type="file" accept="image/*" onChange={onPhotoChange} style={{ display: "none" }} />
+        </label>
+      </div>
+
+      <button onClick={() => onDelete(e.id)} style={{ ...styles.btn("fail"), width: "100%" }}>Удалить оборудование</button>
     </div>
   );
 }
 
-function EquipmentTab() {
+function EquipmentTab({ compact = false } = {}) {
  const [search, setSearch] = useState("");
 const [selected, setSelected] = useState(null);
-const [adminModal, setAdminModal] = useState(null);
-const [addForm, setAddForm] = useState(false);
-const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
+const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 const [customEquip, setCustomEquip] = useState(() => {
   try { return JSON.parse(localStorage.getItem("emc_custom_equip_v1") || "[]"); } catch(e) { return []; }
 });
-  const arms = ["Все", "АРМ1", "АРМ2/3", "АРМ4", "АРМ5", "АРМ6", "АРМ7", "АРМ8", "АРМ9"];
+const [equipmentEdits, setEquipmentEdits] = useState(() => {
+  try { return JSON.parse(localStorage.getItem("emc_equip_edits_v1") || "{}"); } catch(e) { return {}; }
+});
+  const arms = ["Все", "Станция A", "Станция B", "Станция C"];
   const [armFilter, setArmFilter] = useState("Все");
-const allEquip = [...EQUIPMENT_DATA, ...customEquip];
-
-const requestAdmin = (title, action) => setAdminModal({ title, action });
-
-const deleteCustom = (id) => {
-  requestAdmin("Удаление оборудования", () => {
-    const updated = customEquip.filter(e => e.id !== id);
-    setCustomEquip(updated);
-    try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
-    setAdminModal(null);
+const allEquip = [...EQUIPMENT_DATA, ...customEquip]
+  .map((item) => normalizeEquipmentItem(item, equipmentEdits[item.id] || {}))
+  .filter((item) => !item.deleted);
+const saveEquipmentChanges = (id, patch) => {
+  setEquipmentEdits((prev) => {
+    const updated = { ...prev, [id]: { ...(prev[id] || {}), ...patch } };
+    try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(updated)); } catch (e) {}
+    return updated;
   });
 };
 
-const addEquip = () => {
-  if (!newItem.name) return;
-  const item = { ...newItem, id: `custom_${Date.now()}` };
+const deleteEquipment = (id) => {
+    const isCustom = customEquip.some((x) => x.id === id);
+    if (isCustom) {
+      const updatedCustom = customEquip.filter((x) => x.id !== id);
+      setCustomEquip(updatedCustom);
+      try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updatedCustom)); } catch(e) {}
+      setEquipmentEdits((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+    } else {
+      setEquipmentEdits((prev) => {
+        const updated = { ...prev, [id]: { ...(prev[id] || {}), deleted: true } };
+        try { localStorage.setItem("emc_equip_edits_v1", JSON.stringify(updated)); } catch (e) {}
+        return updated;
+      });
+    }
+    setSelected(null);
+    setDeleteCandidateId(null);
+};
+
+const handleBackFromDetail = () => {
+  setDeleteCandidateId(null);
+  setSelected(null);
+};
+
+const createEquipment = () => {
+  const arm = armFilter !== "Все" ? armFilter : "Станция A";
+  const item = normalizeEquipmentItem({
+    id: `custom_${Date.now()}`,
+    name: "Новое оборудование",
+    type: "Тип оборудования",
+    arm,
+    desc: "",
+    specs: [],
+    photo: null,
+    icon: "🔧",
+  });
   const updated = [...customEquip, item];
   setCustomEquip(updated);
   try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
-  setAddForm(false);
-  setNewItem({ name:"", type:"", arm:"", specs:"", desc:"", icon:"🔧" });
-  setAdminModal(null);
+  setSelected(item.id);
 };
   const filtered = allEquip.filter(e => {
     const q = search.toLowerCase();
     const matchSearch = !q || e.name.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q);
-    const matchArm = armFilter === "Все" || e.arm === armFilter || (armFilter === "АРМ2/3" && (e.arm === "АРМ2" || e.arm === "АРМ3" || e.arm === "АРМ2/3"));
+    const matchArm = armFilter === "Все" || e.arm === armFilter;
     return matchSearch && matchArm;
   });
 
@@ -4483,39 +5968,70 @@ const addEquip = () => {
     );
   };
 
-  if (selected) {
-    const e = EQUIPMENT_DATA.find(x => x.id === selected);
-    return <EquipDetailCard e={e} onBack={() => setSelected(null)} getEquipSVG={getEquipSVG} />;
-  }
-
-  return (
-    <div>
-      <div style={styles.searchWrap}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>🔍</span>
-        <input style={{ ...styles.searchInput }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по названию или типу..." />
-      </div>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8, marginBottom: 12 }}>
-        {arms.map(a => (
-          <button key={a} onClick={() => setArmFilter(a)} style={{ padding: "5px 10px", borderRadius: 8, border: `1px solid ${armFilter === a ? C.accent : C.border}`, background: armFilter === a ? C.accentLight : C.bg, color: armFilter === a ? C.accent : C.textSec, fontSize: 11, fontWeight: armFilter === a ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{a}</button>
-        ))}
-      </div>
-      <div style={{ fontSize: 11, color: C.textSec, marginBottom: 10 }}>Найдено: {filtered.length} единиц оборудования</div>
-      {filtered.map(e => (
-        <div key={e.id} onClick={() => setSelected(e.id)} style={{ ...styles.card, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
-          <div style={{ fontSize: 24, minWidth: 32 }}>{e.icon}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{e.name}</div>
-            <div style={{ fontSize: 11, color: C.textSec, marginBottom: 2 }}>{e.type}</div>
-            <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{e.specs}</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-            <div style={{ fontSize: 10, background: C.accentLight, color: C.accent, borderRadius: 5, padding: "2px 7px", fontWeight: 700 }}>{e.arm}</div>
-            <div style={{ fontSize: 16, color: C.textSec }}>›</div>
-          </div>
+  const deleteConfirmModal = deleteCandidateId && (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+      <div style={{ ...styles.card, width:"100%", maxWidth:360, marginBottom:0 }}>
+        <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14 }}>Вы действительно хотите удалить это оборудование?</div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => deleteEquipment(deleteCandidateId)} style={{ ...styles.btn("fail"), flex:1 }}>Да</button>
+          <button onClick={() => setDeleteCandidateId(null)} style={{ ...styles.btn("secondary"), flex:1 }}>Нет</button>
         </div>
-      ))}
+      </div>
     </div>
   );
+
+  if (selected) {
+    const e = allEquip.find(x => x.id === selected);
+    if (!e) return <div style={{ fontSize: 13, color: C.textSec }}>Оборудование не найдено</div>;
+    return (
+      <>
+        <EquipDetailCard e={e} onBack={handleBackFromDetail} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={(id) => setDeleteCandidateId(id)} />
+        {deleteConfirmModal}
+      </>
+    );
+  }
+
+  const stationCount = new Set(allEquip.map(e => e.arm).filter(Boolean)).size;
+  const typeCount = new Set(allEquip.map(e => e.type).filter(Boolean)).size;
+
+  const content = (
+    <>
+      {!compact && (
+        <SectionHero
+          title="Оборудование"
+          subtitle="Каталог измерительных приборов, испытательных средств и стендовой оснастки с быстрыми фильтрами по станциям."
+          stats={[
+            { value: allEquip.length, label: "единиц" },
+            { value: stationCount, label: "станций" },
+            { value: typeCount, label: "типов" },
+          ]}
+        />
+      )}
+      <SectionHeader title="Парк оборудования" caption="Поиск, станции и карточки приборов без изменения данных и логики управления" count={`${filtered.length} найдено`} accent="#60A5FA" />
+      <PremiumSearch value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по названию, типу или описанию..." />
+      <PremiumPills items={arms.map(a => [a, a])} active={armFilter} onSet={setArmFilter} />
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <button onClick={createEquipment} style={{ ...styles.btn(), padding: "9px 14px", fontSize: 12, borderRadius: 12 }}>+ Добавить оборудование</button>
+      </div>
+      {deleteConfirmModal}
+      <div className="premium-list">
+        {filtered.map(e => (
+          <button key={e.id} onClick={() => setSelected(e.id)} className="premium-card premium-card-action" style={{ width: "100%", display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto 20px", alignItems: "center", gap: 14, padding: "16px 18px" }}>
+            <div className="premium-icon-box" style={{ fontSize: 24 }}>{e.icon}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 850, color: C.text, marginBottom: 4, letterSpacing: "-0.01em" }}>{e.name}</div>
+              <div style={{ fontSize: 12, color: C.textSec, marginBottom: 5 }}>{e.type}</div>
+              <div style={{ fontSize: 11, color: "#7DD3FC", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatSpecsShort(e.specs)}</div>
+            </div>
+            <div className="premium-badge">{e.arm}</div>
+            <div style={{ fontSize: 24, color: "#64748B" }}>›</div>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
+  return compact ? <div>{content}</div> : <PageContainer>{content}</PageContainer>;
 }
 
 
@@ -4761,6 +6277,100 @@ function QualBasisTab() {
 
       <div style={{ ...styles.card, background: C.warnLight, border: `1px solid #FACEAA`, marginTop: 4 }}>
         <div style={{ fontSize: 12, color: C.warn, lineHeight: 1.7 }}>⚠️ Конкретный состав и степени жёсткости испытаний определяются Программой испытаний (ПИ) на изделие. Данный раздел — справочный.</div>
+
+
+      </div>
+    </div>
+  );
+}
+
+const LEARNING_EQUIPMENT_SCHEMES = [
+  {
+    id: "antenna",
+    title: "Антенна",
+    caption: "Излучение, направление поля, поляризация и область воздействия",
+    points: ["E-поле формируется перед антенной и контролируется датчиком поля", "Горизонтальная/вертикальная поляризация задаётся разворотом антенны", "Рабочая зона должна быть подтверждена методикой калибровки"],
+  },
+  {
+    id: "current-injector",
+    title: "Инжектор тока",
+    caption: "Наведение ВЧ-помехи в кабель без разрыва цепи",
+    points: ["Клещи охватывают провод/жгут", "Стрелка показывает наведённый ток помехи", "Уровень ограничивается калибровкой, мощностью усилителя и нагревом"],
+  },
+  {
+    id: "attenuator",
+    title: "Аттенюатор",
+    caption: "Ослабление сигнала между входом и выходом",
+    points: ["Сигнал проходит от входа к выходу", "Ослабление задаётся в dB", "Проверяйте допустимую мощность и частотный диапазон конкретного аттенюатора"],
+  },
+];
+
+function LearningSchemeSvg({ id }) {
+  if (id === "current-injector") return (
+    <svg viewBox="0 0 420 220" width="100%" style={{ display:"block" }}>
+      <defs><marker id="arrow-current" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#38BDF8"/></marker></defs>
+      <rect x="24" y="24" width="372" height="172" rx="18" fill="#07111F" stroke="rgba(148,163,184,0.25)"/>
+      <line x1="48" y1="110" x2="372" y2="110" stroke="#E2E8F0" strokeWidth="10" strokeLinecap="round"/>
+      <text x="54" y="88" fill="#94A3B8" fontSize="13">кабель / жгут</text>
+      <circle cx="210" cy="110" r="56" fill="none" stroke="#2563EB" strokeWidth="16"/>
+      <circle cx="210" cy="110" r="34" fill="none" stroke="#22C55E" strokeWidth="5" strokeDasharray="8 7"/>
+      <path d="M122 72 C150 38, 254 38, 286 72" fill="none" stroke="#38BDF8" strokeWidth="4" markerEnd="url(#arrow-current)"/>
+      <path d="M112 140 C156 178, 266 178, 308 140" fill="none" stroke="#F59E0B" strokeWidth="4" markerEnd="url(#arrow-current)"/>
+      <text x="156" y="34" fill="#38BDF8" fontSize="13" fontWeight="700">наведённая ВЧ-помеха</text>
+      <text x="150" y="202" fill="#F59E0B" fontSize="13" fontWeight="700">направление тока</text>
+    </svg>
+  );
+  if (id === "attenuator") return (
+    <svg viewBox="0 0 420 220" width="100%" style={{ display:"block" }}>
+      <defs><marker id="arrow-att" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#60A5FA"/></marker></defs>
+      <rect x="24" y="24" width="372" height="172" rx="18" fill="#07111F" stroke="rgba(148,163,184,0.25)"/>
+      <line x1="48" y1="110" x2="132" y2="110" stroke="#60A5FA" strokeWidth="5" markerEnd="url(#arrow-att)"/>
+      <rect x="148" y="70" width="124" height="80" rx="14" fill="#0F172A" stroke="#7C3AED" strokeWidth="3"/>
+      <text x="210" y="104" textAnchor="middle" fill="#E2E8F0" fontSize="16" fontWeight="800">ATT</text>
+      <text x="210" y="126" textAnchor="middle" fill="#C4B5FD" fontSize="14">− dB</text>
+      <line x1="272" y1="110" x2="372" y2="110" stroke="#22C55E" strokeWidth="3" markerEnd="url(#arrow-att)"/>
+      <text x="50" y="82" fill="#93C5FD" fontSize="13" fontWeight="700">вход</text>
+      <text x="330" y="82" fill="#86EFAC" fontSize="13" fontWeight="700">выход</text>
+      <text x="110" y="174" fill="#94A3B8" fontSize="13">проверить мощность и частотный диапазон</text>
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 420 220" width="100%" style={{ display:"block" }}>
+      <defs><marker id="arrow-ant" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#38BDF8"/></marker></defs>
+      <rect x="24" y="24" width="372" height="172" rx="18" fill="#07111F" stroke="rgba(148,163,184,0.25)"/>
+      <line x1="92" y1="52" x2="92" y2="168" stroke="#60A5FA" strokeWidth="5"/>
+      <line x1="70" y1="92" x2="118" y2="68" stroke="#60A5FA" strokeWidth="4"/>
+      <line x1="70" y1="128" x2="118" y2="152" stroke="#60A5FA" strokeWidth="4"/>
+      {[0,1,2].map((i)=><path key={i} d={`M${135+i*38} 62 C${190+i*38} 92, ${190+i*38} 128, ${135+i*38} 158`} fill="none" stroke="#38BDF8" strokeWidth="3" opacity={0.95-i*0.22}/>) }
+      <path d="M122 110 L330 110" stroke="#F59E0B" strokeWidth="4" markerEnd="url(#arrow-ant)"/>
+      <rect x="282" y="72" width="62" height="72" rx="10" fill="rgba(34,197,94,0.12)" stroke="#22C55E" strokeDasharray="6 5"/>
+      <text x="286" y="64" fill="#86EFAC" fontSize="13" fontWeight="700">рабочая зона</text>
+      <text x="150" y="42" fill="#38BDF8" fontSize="13" fontWeight="700">волны / E-поле</text>
+      <text x="170" y="102" fill="#FBBF24" fontSize="13" fontWeight="700">направление поля</text>
+      <text x="50" y="190" fill="#94A3B8" fontSize="12">поляризация: горизонтальная / вертикальная поворотом антенны</text>
+    </svg>
+  );
+}
+
+function LearningEquipmentTab() {
+  const [activeId, setActiveId] = useState(LEARNING_EQUIPMENT_SCHEMES[0].id);
+  const active = LEARNING_EQUIPMENT_SCHEMES.find((x) => x.id === activeId) || LEARNING_EQUIPMENT_SCHEMES[0];
+  return (
+    <div>
+      <SectionHeader title="Как работает оборудование" caption="Инженерные SVG-схемы без тяжёлых 3D-библиотек; список можно расширять новыми типами оборудования" count={`${LEARNING_EQUIPMENT_SCHEMES.length} схемы`} accent="#22D3EE" />
+      <PremiumPills items={LEARNING_EQUIPMENT_SCHEMES.map((x) => [x.id, x.title])} active={activeId} onSet={setActiveId} />
+      <div style={{ ...styles.card, overflow: "hidden" }}>
+        <div style={{ fontSize: 18, fontWeight: 850, color: C.text, marginBottom: 4 }}>{active.title}</div>
+        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 12 }}>{active.caption}</div>
+        <div style={{ background: "#020617", border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 12 }}>
+          <LearningSchemeSvg id={active.id} />
+        </div>
+        {active.points.map((point, idx) => (
+          <div key={idx} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: idx < active.points.length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <span style={{ color: C.cyan, fontWeight: 900 }}>{idx + 1}</span>
+            <span style={{ fontSize: 13, color: C.text, lineHeight: 1.55 }}>{point}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -4770,6 +6380,7 @@ function ReferenceScreen({ refTab, setRefTab }) {
   const tabs = [
     { id: "abbr", label: "Сокращения" },
     { id: "equip", label: "Оборудование" },
+    { id: "learn", label: "🎓 Как работает" },
     { id: "norms", label: "📊 Нормы" },
     { id: "qual", label: "⭐ Базис T/M/P" },
     { id: "units", label: "Единицы" },
@@ -4780,20 +6391,34 @@ function ReferenceScreen({ refTab, setRefTab }) {
     { id: "formulas", label: "Формулы" },
   ];
   return (
-    <div>
-      <div style={styles.sectionTitle}>Справочник</div>
-      <InnerTabs tabs={tabs} active={refTab} onSet={setRefTab} />
-      {refTab === "abbr" && <AbbreviationsTab />}
-      {refTab === "equip" && <EquipmentTab />}
-      {refTab === "norms" && <NormsTab />}
-      {refTab === "qual" && <QualBasisTab />}
-      {refTab === "units" && <UnitsTab />}
-      {refTab === "deps" && <DependenciesTab />}
-      {refTab === "std" && <StandardsTab />}
-      {refTab === "noise" && <NoiseGuideTab />}
-      {refTab === "fail" && <FailAnalysisTab />}
-      {refTab === "formulas" && <FormulasTab />}
-    </div>
+    <PageContainer>
+      <SectionHero
+        title="Справочники"
+        subtitle="Единый центр инженерной информации: сокращения, нормы, стандарты, оборудование, зависимости, типовые помехи и формулы."
+        stats={[
+          { value: tabs.length, label: "разделов" },
+          { value: ABBREVIATIONS.length, label: "сокращений" },
+          { value: STANDARDS.length, label: "стандартов" },
+        ]}
+      />
+      <div className="reference-top-area">
+        <SectionHeader title="База знаний" caption="Выберите категорию и уточните данные через поиск внутри раздела" count="offline" accent="#A78BFA" />
+        <InnerTabs tabs={tabs} active={refTab} onSet={setRefTab} />
+      </div>
+      <div className="reference-content-slot">
+        {refTab === "abbr" && <AbbreviationsTab />}
+        {refTab === "equip" && <EquipmentTab compact />}
+        {refTab === "learn" && <LearningEquipmentTab />}
+        {refTab === "norms" && <NormsTab />}
+        {refTab === "qual" && <QualBasisTab />}
+        {refTab === "units" && <UnitsTab />}
+        {refTab === "deps" && <DependenciesTab />}
+        {refTab === "std" && <StandardsTab />}
+        {refTab === "noise" && <NoiseGuideTab />}
+        {refTab === "fail" && <FailAnalysisTab />}
+        {refTab === "formulas" && <FormulasTab />}
+      </div>
+    </PageContainer>
   );
 }
 
@@ -4802,29 +6427,36 @@ const RESULT_OPTIONS = ["PASS", "FAIL", "Предварительный", "Не 
 const TEST_TYPES = ["Conducted Emissions", "Radiated Emissions", "Conducted Immunity", "Radiated Immunity", "Инжекция тока", "ESD", "EFT/Burst", "Surge", "PFMF", "Voltage Dips"];
 
 const MOCK_LOG = [
-  { id: 1, date: "2025-06-10", project: "ECU Блок управления двигателем", testType: "Инжекция тока", standard: "ISO 11452-4", freqRange: "1–400 MHz", level: "100 мА (20 dBµA×10)", result: "PASS", notes: "AM 1 кГц, 80%. Жгут A.", fail: "", action: "", comment: "Все критерии выполнены" },
-  { id: 2, date: "2025-06-11", project: "ECU Блок управления двигателем", testType: "Radiated Emissions", standard: "CISPR 25", freqRange: "30–1000 MHz", level: "—", result: "FAIL", notes: "Горизонтальная поляризация", fail: "Пик 142 MHz, превышение 6 dB", action: "Добавить ферриты на CAN-шину", comment: "" },
-  { id: 3, date: "2025-06-15", project: "Зарядный модуль OBC", testType: "Conducted Emissions", standard: "CISPR 11", freqRange: "150 kHz–30 MHz", level: "—", result: "PASS", notes: "Испытание по классу A", fail: "", action: "", comment: "Запас >6 dB на всём диапазоне" },
+  { id: 1, date: "2025-06-10", project: "Проект Alpha", testType: "Инжекция тока", standard: "Стандарт ЭМС A", freqRange: "1–400 MHz", level: "100 мА (20 dBµA×10)", result: "PASS", notes: "AM 1 кГц, 80%. Жгут A.", fail: "", action: "", comment: "Все критерии выполнены" },
+  { id: 2, date: "2025-06-11", project: "Проект Alpha", testType: "Radiated Emissions", standard: "Стандарт ЭМС A", freqRange: "30–1000 MHz", level: "—", result: "FAIL", notes: "Горизонтальная поляризация", fail: "Пик 142 MHz, превышение 6 dB", action: "Добавить ферриты на CAN-шину", comment: "" },
+  { id: 3, date: "2025-06-15", project: "Модуль питания A", testType: "Conducted Emissions", standard: "Стандарт ЭМС A", freqRange: "150 kHz–30 MHz", level: "—", result: "PASS", notes: "Испытание по классу A", fail: "", action: "", comment: "Запас >6 dB на всём диапазоне" },
 ];
 
 function LogEntry({ entry, onEdit, onDelete }) {
+  const tone = entry.result === "PASS" ? "pass" : entry.result === "FAIL" ? "fail" : "info";
   return (
-    <div style={{ ...styles.card, marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{entry.project}</div>
-          <div style={{ fontSize: 12, color: C.textSec, marginTop: 1 }}>{entry.date} · {entry.testType}</div>
+    <div className="premium-card" style={{ marginBottom: 12, padding: "18px 20px", borderLeft: `3px solid ${entry.result === "PASS" ? C.pass : entry.result === "FAIL" ? C.fail : C.accent}` }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 14, alignItems: "start", marginBottom: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
+            <span style={{ fontSize: 16, fontWeight: 850, color: C.text }}>{entry.project || "Без проекта"}</span>
+            <span style={{ fontSize: 11, color: C.textSec, fontWeight: 800 }}>{entry.date}</span>
+          </div>
+          <div style={{ fontSize: 12, color: C.textSec }}>{entry.testType}</div>
         </div>
-        <span style={styles.tag(entry.result === "PASS" ? "pass" : entry.result === "FAIL" ? "fail" : "info")}>{entry.result}</span>
+        <span style={styles.tag(tone)}>{entry.result}</span>
       </div>
-      <div style={{ fontSize: 12, color: C.textSec, marginBottom: 2 }}>Стандарт: <b style={{ color: C.text }}>{entry.standard}</b></div>
-      <div style={{ fontSize: 12, color: C.textSec, marginBottom: 6 }}>Диапазон: {entry.freqRange}</div>
-      {entry.fail && <div style={{ fontSize: 12, background: C.failLight, color: C.fail, padding: "6px 8px", borderRadius: 6, marginBottom: 6 }}>❌ {entry.fail}</div>}
-      {entry.action && <div style={{ fontSize: 12, background: C.warnLight, color: C.warn, padding: "6px 8px", borderRadius: 6, marginBottom: 6 }}>🔧 {entry.action}</div>}
-      {entry.comment && <div style={{ fontSize: 12, color: C.textSec, marginBottom: 6 }}>💬 {entry.comment}</div>}
-      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button onClick={() => onEdit(entry)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "6px 14px" }}>Редактировать</button>
-        <button onClick={() => onDelete(entry.id)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "6px 14px", color: C.fail }}>Удалить</button>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 12 }}>
+        <div className="premium-meta-card" style={{ padding: "10px 12px" }}><div className="premium-meta-label" style={{ marginTop: 0 }}>Стандарт</div><div style={{ color: C.text, fontSize: 12, fontWeight: 800, marginTop: 5 }}>{entry.standard || "—"}</div></div>
+        <div className="premium-meta-card" style={{ padding: "10px 12px" }}><div className="premium-meta-label" style={{ marginTop: 0 }}>Диапазон</div><div style={{ color: C.text, fontSize: 12, fontWeight: 800, marginTop: 5 }}>{entry.freqRange || "—"}</div></div>
+        <div className="premium-meta-card" style={{ padding: "10px 12px" }}><div className="premium-meta-label" style={{ marginTop: 0 }}>Уровень</div><div style={{ color: C.text, fontSize: 12, fontWeight: 800, marginTop: 5 }}>{entry.level || "—"}</div></div>
+      </div>
+      {entry.fail && <div style={{ fontSize: 12, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#FCA5A5", padding: "9px 11px", borderRadius: 12, marginBottom: 8 }}>❌ {entry.fail}</div>}
+      {entry.action && <div style={{ fontSize: 12, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", color: "#FCD34D", padding: "9px 11px", borderRadius: 12, marginBottom: 8 }}>🔧 {entry.action}</div>}
+      {entry.comment && <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>💬 {entry.comment}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" }}>
+        <button onClick={() => onEdit(entry)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10 }}>Редактировать</button>
+        <button onClick={() => onDelete(entry.id)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10, color: C.fail }}>Удалить</button>
       </div>
     </div>
   );
@@ -4864,6 +6496,8 @@ function LogForm({ entry, onSave, onCancel }) {
         </>}
         <Field label="Итоговый комментарий"><textarea style={{ ...styles.input, minHeight: 70, resize: "vertical" }} value={form.comment} onChange={e => set("comment", e.target.value)} /></Field>
         <button onClick={() => onSave(form)} style={{ ...styles.btn("primary"), width: "100%", marginTop: 4 }}>Сохранить запись</button>
+
+
       </div>
     </div>
   );
@@ -4915,28 +6549,29 @@ function LogbookScreen() {
   if (adding) return <LogForm onSave={save} onCancel={() => setAdding(false)} />;
   if (editing) return <LogForm entry={editing} onSave={save} onCancel={() => setEditing(null)} />;
 
+  const passCount = entries.filter(e => e.result === "PASS").length;
+  const failCount = entries.filter(e => e.result === "FAIL").length;
+
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={styles.sectionTitle}>Журнал испытаний</div>
-        <button onClick={() => setAdding(true)} style={{ ...styles.btn("primary"), padding: "8px 14px", fontSize: 13 }}>+ Добавить</button>
+    <PageContainer>
+      <SectionHero
+        title="Журнал"
+        subtitle="История EMC испытаний с результатами, диапазонами, отказами и рекомендациями в чистом карточном представлении."
+        stats={[
+          { value: entries.length, label: "записей" },
+          { value: passCount, label: "PASS" },
+          { value: failCount, label: "FAIL" },
+        ]}
+      />
+      <SectionHeader title="Журнал испытаний" caption="Поиск по проектам и типам испытаний, быстрые PASS/FAIL фильтры" count={`${visible.length} отображается`} accent="#22C55E" />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button onClick={() => setAdding(true)} style={{ ...styles.btn("primary"), padding: "9px 14px", fontSize: 13, borderRadius: 12 }}>+ Добавить</button>
       </div>
-      <div style={styles.searchWrap}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.textSec, fontSize: 14 }}>🔍</span>
-        <input style={styles.searchInput} value={q} onChange={e => setQ(e.target.value)} placeholder="Поиск по проекту или типу испытания..." />
-      </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {[["all", "Все"], ["pass", "PASS"], ["fail", "FAIL"]].map(([v, l]) => (
-          <button key={v} onClick={() => setFilter(v)} style={{
-            padding: "6px 16px", borderRadius: 20, border: `1.5px solid ${filter === v ? C.accent : C.border}`,
-            background: filter === v ? C.accentLight : C.card, color: filter === v ? C.accent : C.textSec,
-            fontSize: 12, fontWeight: 600, cursor: "pointer"
-          }}>{l} {v !== "all" && <span style={{ ...styles.tag(v), fontSize: 10, marginLeft: 4 }}>{entries.filter(e => e.result === v.toUpperCase()).length}</span>}</button>
-        ))}
-      </div>
-      {visible.length === 0 && <div style={{ textAlign: "center", color: C.textSec, padding: 40 }}>Записей не найдено</div>}
+      <PremiumSearch value={q} onChange={e => setQ(e.target.value)} placeholder="Поиск по проекту или типу испытания..." />
+      <PremiumPills items={[["all", `Все (${entries.length})`], ["pass", `PASS (${passCount})`], ["fail", `FAIL (${failCount})`]]} active={filter} onSet={setFilter} />
+      {visible.length === 0 && <div className="premium-card" style={{ textAlign: "center", color: C.textSec, padding: 40 }}>Записей не найдено</div>}
       {visible.map(e => <LogEntry key={e.id} entry={e} onEdit={setEditing} onDelete={del} />)}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -4962,6 +6597,19 @@ function searchLocalKB(query) {
     .filter(i => i.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
+}
+
+
+
+function mentionsMikhail(query = "") {
+  const q = query.toLowerCase();
+  return q.includes("михаил") || q.includes("mikhail");
+}
+
+function isEmcRelatedQuery(query, kbResults = []) {
+  const q = (query || "").toLowerCase();
+  const emcWords = ["эмс", "emc", "rf", "радио", "помех", "испыт", "стандарт", "gost", "гост", "iec", "cispr", "инжек", "калибров", "усилител", "кабель", "esd", "eft", "surge", "частот", "экранир", "заземл"];
+  return kbResults.length > 0 || emcWords.some(w => q.includes(w));
 }
 
 function buildOfflineAnswer(query, results) {
@@ -4999,23 +6647,31 @@ function buildOfflineAnswer(query, results) {
   return answer;
 }
 
+
+function detectResponseLanguage(text = "") {
+  const cyr = (text.match(/[Ѐ-ӿ]/g) || []).length;
+  const lat = (text.match(/[A-Za-z]/g) || []).length;
+  return cyr >= lat ? "ru" : "en";
+}
+
 const AI_QUICK_QUESTIONS = [
-  "Нестабильный ток инжекции",
-  "Пик превышает норму RE",
-  "Калибровка п.20.5",
-  "Состав АРМ4",
-  "Критерий I и II",
-  "ЭСР не разряжается",
-  "Усилитель в защиту",
-  "Феррит на кабель",
+  { icon:"📈", title:"Пик превышает норму", desc:"Проверка превышений и резонансов", query:"Пик превышает норму" },
+  { icon:"📶", title:"Шумы в кабеле", desc:"Поиск причин наводок в жгуте", query:"Шумы в кабеле" },
+  { icon:"🧲", title:"Проблема с инжекцией", desc:"Нестабильный ток и позиция клещей", query:"Проблема с инжекцией" },
+  { icon:"🛡️", title:"Усилитель уходит в защиту", desc:"Диагностика тракта и нагрузки", query:"Усилитель уходит в защиту" },
+  { icon:"🧷", title:"Феррит на кабель", desc:"Где и как ставить ферриты", query:"Феррит на кабель" },
+  { icon:"📋", title:"Калибровка п.20.5", desc:"Шаги калибровки по методике", query:"Калибровка п.20.5" },
 ];
 
 function AiAssistantScreen({ onClose }) {
   const [messages, setMessages] = useState([
-    { role:"assistant", text:"Привет! Я ИИ-помощник EMC Pro.\n\nМогу отвечать на вопросы по испытаниям, оборудованию, типовым ошибкам и стандартам ГОСТ РВ 20.57.306.\n\n**Режимы работы:**\n• 🤖 **Ollama** — локальная нейронка на вашем ПК, без интернета\n• 📚 **База знаний** — встроенная база EMC Pro, мгновенно оффлайн\n\n🔒 Никакие данные не покидают ваш компьютер. Интернет-запросы не используются.\n\n📷 Можно прикрепить фото стенда, осциллограммы или спектра — для анализа нужна модель llava (ollama pull llava)." }
+    { role:"assistant", text:"Привет! Я ИИ-помощник EMC Pro.\n\nМогу отвечать на вопросы по испытаниям, оборудованию, типовым ошибкам и стандартам ГОСТ РВ 20.57.306.\n\nРежимы работы:\n• 🤖 Ollama — локальная нейронка на вашем ПК, без интернета\n• 📚 База знаний — встроенная база EMC Pro, мгновенно оффлайн\n\n🔒 Никакие данные не покидают ваш компьютер. Интернет-запросы не используются.\n\n📷 Можно прикрепить фото стенда, осциллограммы или спектра — для анализа нужна модель llava (ollama pull llava)." }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const abortRef = React.useRef(null);
   const [aiMode, setAiMode] = useState("ollama"); // ollama | local
   const [ollamaModel, setOllamaModel] = useState("llama3");
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
@@ -5053,51 +6709,145 @@ function AiAssistantScreen({ onClose }) {
     e.target.value = "";
   };
 
-  const tryOllama = async (userQuery, kbContext, imageBase64, imageType) => {
-    const systemPrompt = `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко и по делу на русском языке. Используй технические термины ЭМС. Стандарт: ГОСТ РВ 20.57.306.\n\nКонтекст из базы знаний:\n${kbContext}`;
+  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken, emcRelated = true, mikhailMode = false, responseLanguage = "ru") => {
+    const systemPrompt = responseLanguage === "en"
+      ? `You are an AI assistant for EMC (electromagnetic compatibility) engineers. Reply briefly, clearly, and fully in English only. Do not mix English with Russian in normal assistant phrases. Keep technical abbreviations unchanged when needed: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN, Ollama. Standard: GOST RV 20.57.306.
 
-    let userContent;
+For EMC problem questions (failures, exceeded limits, unstable behavior, protection trips, noise spikes), always use exactly this 5-part structure with numbered headings:
+1. Short problem assessment
+2. What to check
+3. Possible causes
+4. Next actions
+5. Additional data needed
+
+In "What to check", provide practical bench checks first (signal/input level, VSWR/matching, load and antenna condition, cable/connectors, grounding/shielding, overheating/power limit, switching/configuration errors, measurement path, repeatability and applicable standard limit).
+
+If the question is not about EMC/engineering, answer naturally with light dry humor and calm irony (no cringe), in the tone of an experienced engineer. Keep it short and smart. When appropriate, gently steer back to EMC. Avoid bureaucratic and robotic wording.
+
+Never use generic filler phrases such as "Ready to help", "What's on your mind?", or "How can I assist you today?".
+
+Knowledge base context:
+${kbContext}
+
+${mikhailMode ? "If Mikhail is mentioned, respond noticeably warmer, with respect for his experience and calm engineering confidence; light friendly irony is fine." : ""}`
+      : `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко, по делу и полностью на русском языке. Не смешивай русский и английский в обычных фразах. Технические аббревиатуры можно оставлять без изменений: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN, Ollama. Стандарт: ГОСТ РВ 20.57.306.
+
+Для вопросов про EMC-проблемы (отказы, превышение норм, нестабильная работа, уход в защиту, пики/шумы) всегда используй строго эту структуру из 5 пунктов с нумерованными заголовками:
+1. Краткая оценка проблемы
+2. Что проверить
+3. Возможные причины
+4. Что сделать дальше
+5. Какие данные уточнить
+
+В пункте «Что проверить» сначала давай практические проверки на стенде (уровень входа/сигнала, VSWR/согласование, нагрузка и антенна, кабель/разъёмы, заземление/экранирование, перегрев/лимит мощности, ошибки коммутации/режима, измерительный тракт, повторяемость измерения и лимит по стандарту).
+
+Если вопрос не связан с ЭМС/инженерией: ответь естественно, с лёгким сухим юмором и спокойной иронией (без кринжа), в тоне опытного инженера. Коротко и умно. При уместности мягко верни разговор к ЭМС. Избегай канцелярита и роботизированных формулировок.
+
+Никогда не используй шаблонные фразы вроде "Ready to help", "What's on your mind?", "How can I assist you today?".
+
+Контекст из базы знаний:
+${kbContext}
+
+${mikhailMode ? "Если в вопросе упоминается Михаил — отвечай заметно теплее, с уважением к его опыту и спокойной инженерной уверенностью; можно добавить лёгкую дружескую иронию без перегиба." : ""}`;
+
+    // Для изображений сохраняем chat API как fallback
     if (imageBase64) {
-      // Мультимодальный запрос с изображением
-      userContent = [
-        { type:"text", text: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания." },
-        { type:"image_url", image_url:{ url:`data:${imageType};base64,${imageBase64}` } }
-      ];
-    } else {
-      userContent = userQuery;
+      const body = {
+        model: ollamaModel,
+        messages: [
+          { role:"system", content: systemPrompt },
+          { role:"user", content: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.", images:[imageBase64] }
+        ],
+        stream: false
+      };
+      const resp = await fetch(`${ollamaUrl}/api/chat`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        signal: abortRef.current?.signal,
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
+      const data = await resp.json();
+      const text = data.message?.content || "Пустой ответ от Ollama";
+      onToken?.(text, true);
+      return { text, source:"🤖 Ollama (" + ollamaModel + ")" };
     }
 
     const body = {
       model: ollamaModel,
-      messages: [
-        { role:"system", content: systemPrompt },
-        { role:"user", content: userContent }
-      ],
-      stream: false
+      prompt: `${systemPrompt}
+
+Вопрос: ${userQuery}`,
+      stream: true
     };
 
-    // Если есть изображение — добавляем images для Ollama API (старый формат)
-    if (imageBase64) {
-      body.messages[1].images = [imageBase64];
-      // Для llava используем простой текст как content
-      body.messages[1].content = userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.";
-    }
-
-    const resp = await fetch(`${ollamaUrl}/api/chat`, {
+    const resp = await fetch(`${ollamaUrl}/api/generate`, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      signal: AbortSignal.timeout(60000), // Больше времени для обработки фото
+      signal: abortRef.current?.signal,
       body: JSON.stringify(body)
     });
-    if (!resp.ok) throw new Error(`Ollama: ${resp.status}`);
-    const data = await resp.json();
-    return { text: data.message?.content || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+    if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
+
+    const reader = resp.body?.getReader();
+    if (!reader) throw new Error("STREAM_UNAVAILABLE");
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let full = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const json = JSON.parse(line);
+        const token = json.response || "";
+        if (token) {
+          full += token;
+          onToken?.(full, false);
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      const json = JSON.parse(buffer);
+      const token = json.response || "";
+      if (token) {
+        full += token;
+        onToken?.(full, false);
+      }
+    }
+
+    return { text: full || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+  };
+
+  const stopGeneration = () => {
+    abortRef.current?.abort();
+    setLoading(false);
+    setThinkingStep("");
   };
 
   const send = async (queryOverride) => {
     const q = (queryOverride || input).trim();
     if ((!q && !attachedImage) || loading) return;
     setInput("");
+
+    if (q === "как сварить кофе для Михаила?") {
+      appendMsg({
+        role:"user",
+        text: q,
+        image: null
+      });
+      appendMsg({
+        role:"assistant",
+        text:"Для Михаила кофе лучше варить внимательно. Хорошие люди в инженерке встречаются редко. Рад, что довелось поработать вместе.",
+        source:"📚 База знаний EMC Pro"
+      });
+      return;
+    }
 
     // Формируем сообщение пользователя для чата
     const userMsg = {
@@ -5109,16 +6859,31 @@ function AiAssistantScreen({ onClose }) {
 
     const imgToSend = attachedImage;
     setAttachedImage(null);
+    abortRef.current = new AbortController();
     setLoading(true);
+    setThinkingStep("Анализирую EMC-сценарий...");
+    setStreamingText("");
 
     const kbResults = searchLocalKB(q);
     const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
+    const emcRelated = isEmcRelatedQuery(q, kbResults);
+    const mikhailMode = mentionsMikhail(q);
+    const responseLanguage = detectResponseLanguage(q);
 
     if (aiMode === "ollama") {
       try {
-        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type);
+        const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
+        let i = 0;
+        const timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
+        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial), emcRelated, mikhailMode, responseLanguage);
+        clearInterval(timer);
+        setStreamingText("");
         appendMsg({ role:"assistant", text: result.text, source: result.source });
       } catch(e) {
+        setStreamingText("");
+        if (e.name === "AbortError") {
+          appendMsg({ role:"assistant", text:"Генерация остановлена пользователем.", source:"🤖 Ollama (остановлено)" });
+        } else {
         const isImageErr = imgToSend && (e.message.includes("400") || e.message.includes("model"));
         appendMsg({
           role:"assistant",
@@ -5127,17 +6892,49 @@ function AiAssistantScreen({ onClose }) {
             : `❌ Ollama недоступна по адресу ${ollamaUrl}\n\nКак запустить:\n1. Скачайте ollama.ai и установите\n2. Откройте cmd: ollama pull ${ollamaModel}\n3. Ollama запустится автоматически на порту 11434\n\nПока Ollama не запущена — переключитесь в режим «База знаний» (⚙️).`,
           source:"⚠️ Ошибка"
         });
+        }
       }
     } else {
       if (imgToSend) {
         appendMsg({ role:"assistant", text:"📷 Анализ фотографий доступен только в режиме Ollama с моделью llava.\n\nУстановите Ollama и загрузите: ollama pull llava", source:"📚 База знаний EMC Pro" });
       } else {
-        const offlineAnswer = buildOfflineAnswer(q, kbResults);
-        appendMsg({ role:"assistant", text: offlineAnswer, source:"📚 База знаний EMC Pro" });
+        if (!emcRelated) {
+          const wittyBase = responseLanguage === "en"
+            ? `Not an EMC question, but still a solid one.
+
+Short version: first we live, then we calibrate. If noise, frequencies, or a stubborn amplifier show up, we switch back to engineering mode.`
+            : `Вопрос не по ЭМС, но звучит достойно.
+
+Если коротко: сначала живём, потом калибруемся. Если где-то рядом всплывут помехи, частоты или упрямый усилитель — продолжим уже по инженерной части.`;
+          const witty = mikhailMode
+            ? (responseLanguage === "en"
+              ? `With Mikhail, even questions like this are usually solved calmly and precisely — clearly a true professional.
+
+${wittyBase}`
+              : `С Михаилом даже такие вопросы обычно решаются спокойно и точно — видно, что человек знает своё дело.
+
+${wittyBase}`)
+            : wittyBase;
+          appendMsg({ role:"assistant", text: witty, source:"📚 База знаний EMC Pro" });
+        } else {
+          const offlineAnswer = buildOfflineAnswer(q, kbResults);
+          const withMikhailTone = mikhailMode
+            ? (responseLanguage === "en"
+              ? `With Mikhail, results are usually reliable — working with an engineer like that is always a pleasure.
+
+${offlineAnswer}`
+              : `С Михаилом за результат обычно переживать не приходится — с таким инженером работать одно удовольствие.
+
+${offlineAnswer}`)
+            : offlineAnswer;
+          appendMsg({ role:"assistant", text: withMikhailTone, source:"📚 База знаний EMC Pro" });
+        }
       }
     }
 
     setLoading(false);
+    setThinkingStep("");
+    abortRef.current = null;
   };
 
   const modeConfig = {
@@ -5147,32 +6944,34 @@ function AiAssistantScreen({ onClose }) {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
-      {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-        <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:15, fontWeight:800, color:C.text }}>🤖 ИИ-помощник ЭМС</div>
+      <div style={{ ...styles.card, marginBottom:10, padding:"18px", boxShadow:"0 0 52px rgba(80,120,255,0.2)", border:"1px solid rgba(120,160,255,0.2)" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1.2fr 0.8fr", gap:14, alignItems:"center" }}>
+          <div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>‹ Назад</button>
+              <div style={{ fontSize:20, fontWeight:800, color:C.text }}>EMC Wave Assistant</div>
+            </div>
+            <div style={{ fontSize:14, color:C.textSec, marginBottom:8 }}>Опишите проблему — помощник подскажет, что проверить</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+              <span style={{ width:9, height:9, borderRadius:"50%", background:C.pass, boxShadow:"0 0 14px rgba(16,185,129,0.7)" }} />
+              <span style={{ color:"#A7F3D0", fontWeight:700, fontSize:12 }}>Готов помочь</span>
+            </div>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ Настройки</button>
+          </div>
+          <div style={{ display:"flex", justifyContent:"center" }}><EMCAvatar size={170} /></div>
         </div>
-        <button onClick={() => setShowSettings(!showSettings)} style={{ fontSize:18, background:"none", border:"none", cursor:"pointer", color:showSettings?C.accent:C.textSec }}>⚙️</button>
       </div>
 
-      {/* Settings panel */}
       {showSettings && (
-        <div style={{ ...styles.card, marginBottom:10, padding:"12px 14px" }}>
+        <div style={{ ...styles.card, marginBottom:10, padding:"14px" }}>
           <div style={{ fontSize:11, fontWeight:800, color:C.textSec, letterSpacing:1, marginBottom:8 }}>РЕЖИМ РАБОТЫ</div>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
             {Object.entries(modeConfig).map(([k,cfg]) => (
-              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>
-                {cfg.label}
-              </button>
+              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>{cfg.label}</button>
             ))}
           </div>
           <div style={{ fontSize:12, color:C.textSec, marginBottom:10 }}>{modeConfig[aiMode].desc}</div>
-          <div style={{ background:"#0A3A1A", border:"1px solid #1A9B5A", borderRadius:8, padding:"8px 12px", marginBottom:10 }}>
-            <div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>
-              🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.
-            </div>
-          </div>
+          <div style={{ background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.35)", borderRadius:8, padding:"8px 12px", marginBottom:10 }}><div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.</div></div>
           {aiMode === "ollama" && (
             <div>
               <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>URL Ollama сервера</div>
@@ -5180,97 +6979,86 @@ function AiAssistantScreen({ onClose }) {
               <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>Модель</div>
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
                 {["llama3","llama3.2","llava","llava:13b","mistral","gemma2","moondream"].map(m => (
-                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>
-                    {m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}
-                  </button>
+                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>{m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}</button>
                 ))}
-              </div>
-              <div style={{ background:C.accentLight, borderRadius:6, padding:"8px 10px", fontSize:11, color:C.accent, lineHeight:1.7 }}>
-                <b>📷 Модели с поддержкой фото:</b><br/>
-                • <b>llava</b> — ~4 ГБ, анализ фото, стендов, графиков<br/>
-                • <b>moondream</b> — ~2 ГБ, лёгкая, быстрая<br/>
-                • <b>llava:13b</b> — ~8 ГБ, точнее, нужна видеокарта<br/><br/>
-                <b>Установка:</b> cmd → <code>ollama pull llava</code>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Quick buttons */}
-      <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:6, marginBottom:8, flexShrink:0 }}>
-        {AI_QUICK_QUESTIONS.map(q => (
-          <button key={q} onClick={() => send(q)} disabled={loading} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:C.bg, color:C.accent, fontSize:11, fontWeight:600, cursor:loading?"not-allowed":"pointer", whiteSpace:"nowrap", fontFamily:"inherit", flexShrink:0 }}>{q}</button>
-        ))}
+      <div style={{ ...styles.card, marginBottom:10 }}>
+        <div style={{ ...styles.sectionTitle, marginTop:0, marginBottom:10 }}>Быстрые сценарии</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:8 }}>
+          {AI_QUICK_QUESTIONS.map((q) => (
+            <button key={q.title} onClick={() => send(q.query)} disabled={loading} style={{ borderRadius:14, border:"1px solid rgba(255,255,255,0.06)", background:"rgba(20,30,60,0.6)", backdropFilter:"blur(20px)", textAlign:"left", padding:"10px", cursor:loading?"not-allowed":"pointer", fontFamily:"inherit", color:C.text, boxShadow:"0 0 22px rgba(80,120,255,0.1)", transition:"transform .18s ease" }} onMouseEnter={(e)=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={(e)=>e.currentTarget.style.transform="translateY(0)"}>
+              <div style={{ fontSize:16, marginBottom:4 }}>{q.icon}</div>
+              <div style={{ fontSize:12, fontWeight:700, marginBottom:4 }}>{q.title}</div>
+              <div style={{ fontSize:11, color:C.textSec }}>{q.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Messages */}
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, marginBottom:10 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"85%" }}>
-            {/* Превью прикреплённого фото */}
-            {m.image && (
-              <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}>
-                <img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:200, objectFit:"contain", display:"block", background:"#000" }} />
-              </div>
-            )}
-            <div style={{
-              background: m.role==="user" ? C.accent : C.card,
-              color: m.role==="user" ? "#fff" : C.text,
-              borderRadius: m.role==="user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-              padding:"10px 14px", fontSize:13, lineHeight:1.65,
-              border: m.role==="assistant" ? `1px solid ${C.border}` : "none",
-              whiteSpace:"pre-wrap",
-            }}>
-              {m.text}
+        {messages.length === 1 && !loading && (
+          <div style={{ ...styles.card, textAlign:"center", padding:"20px" }}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}><EMCAvatar size={120} /></div>
+            <div style={{ color:C.textSec, fontSize:13, lineHeight:1.7 }}>
+              • Проверь кабель и заземление<br/>• Сравни частоту с резонансом<br/>• Проверь усилитель
             </div>
-            {m.source && (
-              <div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>{m.source}</div>
-            )}
-          </div>
-        ))}
-        {loading && (
-          <div style={{ alignSelf:"flex-start", background:C.card, border:`1px solid ${C.border}`, borderRadius:"14px 14px 14px 4px", padding:"10px 14px", fontSize:13, color:C.textSec }}>
-            ⏳ {attachedImage ? "Анализирую изображение..." : "Ищу ответ..."}
           </div>
         )}
+
+        {messages.map((m, i) => (
+          <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"88%" }}>
+            {m.image && <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}><img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:220, objectFit:"contain", display:"block", background:"#000" }} /></div>}
+            <div style={{ background: m.role==="user" ? "linear-gradient(130deg, #2563EB, #7C3AED)" : "rgba(20,30,60,0.65)", color: "#F8FAFC", borderRadius: m.role==="user" ? "16px 16px 5px 16px" : "16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow: m.role==="user" ? "0 0 24px rgba(37,99,235,0.25)" : "0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>
+              {m.role === "assistant" ? (
+                <div>
+                  <div style={{ fontSize:11, color:"#93C5FD", marginBottom:6, fontWeight:700 }}>Проблема / Что проверить / Причина / Рекомендации / Следующий шаг</div>
+                  {m.text}
+                </div>
+              ) : m.text}
+            </div>
+            {m.source && <div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>{m.source}</div>}
+          </div>
+        ))}
+
+                {loading && streamingText && <div style={{ alignSelf:"flex-start", maxWidth:"88%" }}><div style={{ background:"rgba(20,30,60,0.65)", color:"#F8FAFC", borderRadius:"16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow:"0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>{streamingText}</div><div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>🤖 Ollama ({ollamaModel})</div></div>}
+
+{loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec, minWidth:280 }}>
+          <div style={{ marginBottom:6 }}>{thinkingStep || "Анализирую EMC-сценарий..."}</div>
+          <div style={{ position:"relative", height:4, borderRadius:999, background:"rgba(148,163,184,0.18)", overflow:"hidden" }}>
+            <div style={{ position:"absolute", inset:0, borderRadius:999, background:"linear-gradient(90deg, rgba(37,99,235,0.15), rgba(124,58,237,0.2), rgba(6,182,212,0.15))", backgroundSize:"220% 100%", animation:"emcOrbit 2.4s linear infinite" }} />
+            <div style={{ position:"absolute", top:0, left:"-18%", width:"28%", height:"100%", borderRadius:999, background:"rgba(191,219,254,0.45)", filter:"blur(0.5px)", animation:"emcOrbit 1.8s linear infinite" }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#60A5FA", boxShadow:"0 0 5px rgba(96,165,250,.45)" }} /><span style={{ fontSize:11 }}>AI печатает...</span></div>
+        </div>}
         <div ref={bottomRef} />
       </div>
 
-      {/* Превью прикреплённого фото над инпутом */}
       {attachedImage && (
-        <div style={{ display:"flex", alignItems:"center", gap:8, background:C.accentLight, border:`1px solid #B8CFFE`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(37,99,235,0.12)", border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
           <img src={attachedImage.preview} alt="preview" style={{ width:48, height:48, objectFit:"cover", borderRadius:6, border:`1px solid ${C.border}` }} />
-          <div style={{ flex:1, fontSize:12, color:C.accent }}>
-            <div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div>
-            <div style={{ color:C.textSec, fontSize:11 }}>Нажмите → чтобы отправить с вопросом</div>
-          </div>
+          <div style={{ flex:1, fontSize:12, color:"#BFDBFE" }}><div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div><div style={{ color:C.textSec, fontSize:11 }}>Нажмите отправить для анализа</div></div>
           <button onClick={() => setAttachedImage(null)} style={{ background:"none", border:"none", color:C.fail, fontSize:18, cursor:"pointer", padding:"0 4px" }}>✕</button>
         </div>
       )}
 
-      {/* Input */}
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileSelect} />
-      <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={loading}
-          title="Прикрепить фото (стенд, осциллограмма, спектр)"
-          style={{ padding:"0 14px", borderRadius:8, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:C.card, color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}
-        >📷</button>
-        <input
-          style={{ ...styles.input, flex:1, fontSize:13 }}
+      <div style={{ display:"flex", gap:8, flexShrink:0, alignItems:"stretch" }}>
+        <button onClick={() => fileInputRef.current?.click()} disabled={loading} title="Прикрепить фото" style={{ padding:"0 14px", borderRadius:12, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:"rgba(20,30,60,0.6)", color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}>📷</button>
+        <textarea
+          style={{ flex:1, minHeight:64, maxHeight:120, resize:"vertical", borderRadius:14, border:`1px solid ${C.border}`, background:"rgba(20,30,60,0.6)", color:C.text, padding:"12px 14px", fontSize:14, outline:"none", fontFamily:"inherit" }}
           value={input}
           onChange={e=>setInput(e.target.value)}
           onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
-          placeholder={attachedImage ? "Вопрос к фото (или просто →)..." : "Задайте вопрос по ЭМС..."}
+          placeholder={attachedImage ? "Вопрос к фото (или просто отправьте)..." : "Опишите проблему..."}
           disabled={loading}
         />
-        <button
-          onClick={() => send()}
-          disabled={(!input.trim() && !attachedImage) || loading}
-          style={{ padding:"0 18px", borderRadius:8, border:"none", background:(input.trim()||attachedImage)&&!loading?C.accent:C.border, color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:15, flexShrink:0 }}
-        >→</button>
+        {loading && <button onClick={stopGeneration} style={{ padding:"0 14px", borderRadius:12, border:"1px solid rgba(239,68,68,0.45)", background:"rgba(239,68,68,0.2)", color:"#FECACA", fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:12, flexShrink:0 }}>Стоп</button>}
+        <button onClick={() => send()} disabled={(!input.trim() && !attachedImage) || loading} style={{ padding:"0 20px", borderRadius:12, border:"1px solid rgba(37,99,235,0.5)", background:(input.trim()||attachedImage)&&!loading?"linear-gradient(130deg, #2563EB, #7C3AED)":"rgba(148,163,184,0.3)", color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:16, flexShrink:0, boxShadow:"0 0 24px rgba(37,99,235,0.28)" }}>→</button>
       </div>
     </div>
   );
@@ -5305,7 +7093,57 @@ class ErrorBoundary extends React.Component {
 }
 
 // ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onClose }) {
+function SettingsScreen({ onClose, language = "ru", setLanguage }) {
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  const [backups, setBackups] = useState(() => readBackupLog());
+  const [backupStatus, setBackupStatus] = useState("");
+  const latestBackup = backups[0];
+
+  const handleCreateBackup = () => {
+    const result = createUserDataBackup("manual");
+    setBackups(result.backups || readBackupLog());
+    setBackupStatus(result.ok ? "Резервная копия создана. Пользовательские данные сохранены локально." : `Ошибка: ${result.error}`);
+  };
+
+  const handleRestoreBackup = () => {
+    if (!latestBackup) { setBackupStatus("Нет доступных резервных копий."); return; }
+    const ok = window.confirm("Восстановить последнюю резервную копию? Текущие пользовательские данные будут заменены сохранёнными значениями.");
+    if (!ok) return;
+    const result = restoreUserDataBackup(latestBackup);
+    setBackupStatus(result.ok ? "Данные восстановлены. Перезапустите приложение, чтобы все разделы перечитали localStorage." : `Ошибка: ${result.error}`);
+  };
+
+  const handleExportBackup = () => {
+    const result = createUserDataBackup("manual-export");
+    setBackups(result.backups || readBackupLog());
+    if (!result.ok || !result.entry) { setBackupStatus(`Ошибка: ${result.error}`); return; }
+    const blob = new Blob([JSON.stringify(result.entry, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `emc-toolkit-backup-${result.entry.createdAt.slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setBackupStatus("Экспорт подготовлен: JSON-файл содержит локальную резервную копию пользовательских данных.");
+  };
+
+  const handleImportBackup = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const entry = JSON.parse(String(reader.result || "{}"));
+        const result = restoreUserDataBackup(entry);
+        setBackupStatus(result.ok ? "Импорт выполнен. Перезапустите приложение для перечитывания данных." : `Ошибка: ${result.error}`);
+      } catch (e) {
+        setBackupStatus("Ошибка: файл резервной копии не распознан.");
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  };
+
   return (
     <div style={{ padding: "0 0 20px" }}>
       <button onClick={onClose} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
@@ -5316,6 +7154,46 @@ function SettingsScreen({ onClose }) {
         <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Настройки</div>
         <div style={{ fontSize: 12, color: "#8A9BB8", marginTop: 4 }}>EMC Engineer Toolkit v2.0</div>
       </div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>{t("language")}</div>
+      <div style={styles.card}>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setLanguage?.("ru")} style={{ ...styles.btn(), flex:1, background: language === "ru" ? C.accentLight : "#EDF0F5" }}>Русский</button>
+          <button onClick={() => setLanguage?.("en")} style={{ ...styles.btn(), flex:1, background: language === "en" ? C.accentLight : "#EDF0F5" }}>English</button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>РЕЗЕРВНОЕ КОПИРОВАНИЕ ДАННЫХ</div>
+      <div style={styles.card}>
+        <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6, marginBottom: 12 }}>
+          Перед изменением версии данных приложение автоматически сохраняет копию всех пользовательских ключей localStorage с префиксом <b>emc_</b>: оборудование, правки карточек, журнал испытаний, поверку, схемы стендов и настройки разделов.
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <button onClick={handleCreateBackup} style={styles.btn()}>Создать резервную копию</button>
+          <button onClick={handleRestoreBackup} style={styles.btn("secondary")}>Восстановить из резервной копии</button>
+          <button onClick={handleExportBackup} style={styles.btn("secondary")}>Экспорт JSON</button>
+          <label style={{ ...styles.btn("secondary"), display: "inline-block" }}>
+            Импорт JSON
+            <input type="file" accept="application/json" onChange={handleImportBackup} style={{ display: "none" }} />
+          </label>
+        </div>
+        {backupStatus && <div style={{ ...styles.warn, color: backupStatus.startsWith("Ошибка") ? C.fail : C.warn }}>{backupStatus}</div>}
+        <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.6, marginTop: 10 }}>
+          Последняя копия: <b style={{ color: C.text }}>{latestBackup ? new Date(latestBackup.createdAt).toLocaleString() : "нет"}</b>
+          {latestBackup && <> · причина: <b style={{ color: C.text }}>{latestBackup.reason}</b> · ключей: <b style={{ color: C.text }}>{latestBackup.keys?.length || 0}</b></>}
+        </div>
+        {backups.length > 0 && (
+          <div style={{ marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ЖУРНАЛ РЕЗЕРВНЫХ КОПИЙ</div>
+            {backups.slice(0, 5).map((b) => (
+              <div key={b.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 12, color: C.text }}>{new Date(b.createdAt).toLocaleString()}</span>
+                <span style={{ fontSize: 12, color: C.textSec }}>{b.reason} · {b.keys?.length || 0} ключей</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>О ПРИЛОЖЕНИИ</div>
       <div style={styles.card}>
         {[
@@ -5352,6 +7230,8 @@ function SettingsScreen({ onClose }) {
           onClick={() => { try { localStorage.removeItem("emc_eula_v1"); } catch(e) {} window.location.reload(); }}>
           📋 Просмотреть лицензионное соглашение
         </div>
+
+
       </div>
     </div>
   );
@@ -5470,6 +7350,9 @@ function AdminModal({ title, onConfirm, onCancel }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const abortRef = React.useRef(null);
 
   const handle = async () => {
     setLoading(true);
@@ -5526,6 +7409,7 @@ function VerificationScreen({ onClose }) {
   });
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [deleteCandidateId, setDeleteCandidateId] = useState(null);
   const [adminModal, setAdminModal] = useState(null);
   const [addForm, setAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name:"", type:"", arm:"", certNum:"", certDate:"", nextDate:"" });
@@ -5570,10 +7454,10 @@ const addItem = () => {
   };
 
   const STATUS_CONFIG = {
-    ok:      { color:"#1A9B5A", bg:"#E6F7EE", label:"✓ Актуальна" },
-    soon:    { color:"#E07B00", bg:"#FFF4E5", label:"⚠ Истекает" },
-    expired: { color:"#D93025", bg:"#FDECEA", label:"✗ Просрочена" },
-    unknown: { color:"#8A9BB8", bg:"#F4F6F9", label:"— Не внесена" },
+    ok:      { color:"#34D399", bg:"rgba(16,185,129,0.12)", label:"✓ Актуальна" },
+    soon:    { color:"#FBBF24", bg:"rgba(245,158,11,0.12)", label:"⚠ Истекает" },
+    expired: { color:"#F87171", bg:"rgba(239,68,68,0.12)", label:"✗ Просрочена" },
+    unknown: { color:"#94A3B8", bg:"rgba(148,163,184,0.1)", label:"— Не внесена" },
   };
 
   const enriched = items.map(i => ({ ...i, status: getStatus(i.nextDate) }));
@@ -5617,25 +7501,34 @@ const addItem = () => {
   }
 
   return (
-    <div>
-<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-  <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
-  <button onClick={() => setAddForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
-</div>
-      {/* Summary */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+    <PageContainer>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"inherit" }}>‹ Назад</button>
+        <button onClick={() => setAddForm(true)} style={{ padding:"9px 16px", borderRadius:12, border:"none", background:C.accent, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ Добавить</button>
+      </div>
+      <SectionHero
+        title="Проверка оборудования"
+        subtitle="Дашборд поверок и калибровок: актуальные, истекающие, просроченные и не внесённые записи по лабораторному парку."
+        stats={[
+          { value: items.length, label: "позиций" },
+          { value: counts.ok, label: "актуальных" },
+          { value: counts.expired, label: "просрочено" },
+        ]}
+      />
+      <SectionHeader title="Статусы поверки" caption="KPI-карточки работают как фильтр списка оборудования" count={filter === "all" ? "все статусы" : STATUS_CONFIG[filter]?.label} accent="#F59E0B" />
+      <div className="premium-grid" style={{ marginBottom: 18 }}>
         {[
           { key:"ok", label:"Актуальных", count:counts.ok },
-          { key:"soon", label:"Истекает (30 дн)", count:counts.soon },
+          { key:"soon", label:"Истекает", count:counts.soon },
           { key:"expired", label:"Просрочено", count:counts.expired },
           { key:"unknown", label:"Не внесено", count:counts.unknown },
         ].map(s => {
           const sc = STATUS_CONFIG[s.key];
           return (
-            <div key={s.key} onClick={()=>setFilter(filter===s.key?"all":s.key)}
-              style={{ ...styles.card, textAlign:"center", cursor:"pointer", border:`2px solid ${filter===s.key?sc.color:C.border}`, background:filter===s.key?sc.bg:"transparent" }}>
-              <div style={{ fontSize:22, fontWeight:800, color:sc.color }}>{s.count}</div>
-              <div style={{ fontSize:11, color:C.textSec, marginTop:2 }}>{s.label}</div>
+            <div key={s.key} onClick={()=>setFilter(filter===s.key?"all":s.key)} className="premium-card premium-card-action"
+              style={{ textAlign:"left", cursor:"pointer", border:`1px solid ${filter===s.key?sc.color:"rgba(148,163,184,0.14)"}`, padding:"18px", background:filter===s.key?`linear-gradient(150deg, ${sc.bg}, rgba(7,12,24,0.78))`:undefined }}>
+              <div style={{ fontSize:28, fontWeight:900, color:sc.color, lineHeight:1 }}>{s.count}</div>
+              <div style={{ fontSize:12, color:C.textSec, marginTop:8, fontWeight:800 }}>{s.label}</div>
             </div>
           );
         })}
@@ -5647,7 +7540,7 @@ const addItem = () => {
     {[
       { label:"Наименование", key:"name", placeholder:"Название прибора" },
       { label:"Тип", key:"type", placeholder:"Измерительный приёмник" },
-      { label:"АРМ", key:"arm", placeholder:"АРМ1" },
+      { label:"АРМ", key:"arm", placeholder:"Станция A" },
       { label:"Номер свидетельства", key:"certNum", placeholder:"№ 12345/2025" },
       { label:"Дата поверки", key:"certDate", type:"date" },
       { label:"Следующая поверка", key:"nextDate", type:"date" },
@@ -5670,27 +7563,26 @@ const addItem = () => {
         const daysLeft = item.nextDate ? Math.floor((new Date(item.nextDate)-new Date())/86400000) : null;
         return (
           <div key={item.id} onClick={()=>setEditing({...item})}
-            style={{ ...styles.card, cursor:"pointer", borderLeft:`3px solid ${sc.color}`, marginBottom:8 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:2 }}>{item.name}</div>
-                <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>{item.arm} · {item.type}</div>
+            className="premium-card premium-card-action" style={{ cursor:"pointer", borderLeft:`3px solid ${sc.color}`, marginBottom:10, padding:"16px 18px" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr) auto", gap:14, alignItems:"center" }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:15, fontWeight:850, color:C.text, marginBottom:4 }}>{item.name}</div>
+                <div style={{ fontSize:12, color:C.textSec, marginBottom:6 }}>{item.arm} · {item.type}</div>
                 {item.certNum && <div style={{ fontSize:11, color:C.textSec }}>Св-во: {item.certNum}</div>}
-                {item.nextDate && <div style={{ fontSize:11, color:sc.color, fontWeight:600, marginTop:2 }}>
+                {item.nextDate && <div style={{ fontSize:12, color:sc.color, fontWeight:700, marginTop:2 }}>
                   До {item.nextDate.split("-").reverse().join(".")}
-                  {daysLeft !== null && daysLeft >= 0 && ` (${daysLeft} дн.)`}
-                  {daysLeft !== null && daysLeft < 0 && ` (просрочено ${Math.abs(daysLeft)} дн.)`}
+                  {daysLeft !== null && daysLeft >= 0 && ` · ${daysLeft} дн.`}
+                  {daysLeft !== null && daysLeft < 0 && ` · просрочено ${Math.abs(daysLeft)} дн.`}
                 </div>}
               </div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                <div style={{ background:sc.bg, color:sc.color, borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{sc.label}</div>
-                <div style={{ fontSize:16, color:C.textSec }}>›</div>
-<button
-  onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
-  style={{ fontSize:10, padding:"3px 8px", borderRadius:5, border:`1px solid ${C.fail}`,
-    background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit" }}>
-  Удалить
-</button>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div className="premium-badge" style={{ background:sc.bg, color:sc.color, borderColor:sc.bg }}>{sc.label}</div>
+                <div style={{ fontSize:22, color:C.textSec }}>›</div>
+                <button
+                  onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
+                  style={{ fontSize:11, padding:"6px 10px", borderRadius:10, border:`1px solid rgba(239,68,68,0.28)`, background:"rgba(239,68,68,0.08)", color:C.fail, cursor:"pointer", fontFamily:"inherit" }}>
+                  Удалить
+                </button>
               </div>
             </div>
           </div>
@@ -5703,53 +7595,83 @@ const addItem = () => {
     onCancel={() => setAdminModal(null)}
   />
 )}
-    </div>
+    </PageContainer>
   );
 }
 
 
 // ─── ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ ────────────────────────────────────────────
 function EulaScreen({ onAccept, onDecline }) {
+  const scrollRef = useRef(null);
   const [scrolled, setScrolled] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [isScrollable, setIsScrollable] = useState(true);
+  const licenseSections = useMemo(() => [
+    ["ЛИЦЕНЗИОННОЕ СОГЛАШЕНИЕ С КОНЕЧНЫМ ПОЛЬЗОВАТЕЛЕМ (EULA)", "ПО «ЭМС Инструментарий»\nВерсия 1.1"],
+    ["1. ОБЩИЕ ПОЛОЖЕНИЯ", `1.1. Настоящее Лицензионное соглашение с конечным пользователем (далее — «Соглашение») регулирует порядок использования программного обеспечения «ЭМС Инструментарий» (далее — «ПО») и заключается между правообладателем ПО и пользователем.\n\n1.2. Установка, запуск, копирование или иное использование ПО означает полное и безоговорочное принятие условий настоящего Соглашения.\n\n1.3. Если пользователь не согласен с условиями настоящего Соглашения, он обязан прекратить использование ПО и удалить его со всех устройств.`],
+    ["2. ПРЕДОСТАВЛЕНИЕ ЛИЦЕНЗИИ", `2.1. Правообладатель предоставляет пользователю неисключительную, непередаваемую, ограниченную лицензию на использование ПО на условиях настоящего Соглашения.\n\n2.2. Лицензия предоставляется исключительно для внутреннего использования по функциональному назначению ПО.\n\n2.3. Пользователь не приобретает никаких исключительных прав на ПО, кроме прямо предоставленных настоящим Соглашением.`],
+    ["3. ОГРАНИЧЕНИЯ ИСПОЛЬЗОВАНИЯ", `3.1. Пользователю запрещается:\n— декомпилировать, дизассемблировать, модифицировать или иным способом изменять ПО;\n— распространять, продавать, сдавать в аренду, сублицензировать или иным образом передавать ПО третьим лицам без письменного разрешения правообладателя;\n— удалять или изменять уведомления об авторских правах и иных правах правообладателя;\n— использовать ПО с нарушением требований применимого законодательства.\n\n3.2. Любое использование ПО за пределами предоставленных прав считается нарушением исключительных прав правообладателя.`],
+    ["4. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ", `4.1. ПО, включая исходный код, объектный код, структуру, интерфейсы, базы данных, алгоритмы, текстовые и графические материалы, является объектом интеллектуальной собственности и охраняется законодательством Российской Федерации и международными нормами права.\n\n4.2. Все права, прямо не предоставленные пользователю, сохраняются за правообладателем.`],
+    ["5. ДАННЫЕ И КОНФИДЕНЦИАЛЬНОСТЬ", `5.1. ПО может использовать данные, вводимые пользователем, исключительно для обеспечения своей функциональности.\n\n5.2. Пользователь самостоятельно несет ответственность за корректность вводимых данных, создание резервных копий и соблюдение внутренних требований информационной безопасности.\n\n5.3. Если иное прямо не указано в настройках или отдельной документации, ПО не обязано передавать пользовательские данные третьим лицам.`],
+    ["6. ОБНОВЛЕНИЯ И ИЗМЕНЕНИЯ", `6.1. Правообладатель вправе выпускать обновления, исправления и новые версии ПО.\n\n6.2. Для отдельных обновлений может требоваться принятие дополнительных условий.\n\n6.3. Правообладатель вправе изменять настоящее Соглашение. Новая редакция вступает в силу с момента ее размещения в ПО, если иное не указано дополнительно.`],
+    ["7. ОГРАНИЧЕНИЕ ОТВЕТСТВЕННОСТИ", `7.1. ПО предоставляется «как есть» (AS IS), без гарантий соответствия конкретным ожиданиям пользователя, непрерывной и безошибочной работы.\n\n7.2. Правообладатель не несет ответственности за любые прямые или косвенные убытки, включая упущенную выгоду, потерю данных, простой, возникшие в результате использования или невозможности использования ПО, за исключением случаев, прямо предусмотренных применимым законодательством.\n\n7.3. Пользователь использует результаты работы ПО на свой риск и обязан проверять критически важные результаты перед их практическим применением.`],
+    ["8. СРОК ДЕЙСТВИЯ И ПРЕКРАЩЕНИЕ", `8.1. Соглашение действует с момента начала использования ПО и в течение всего срока использования.\n\n8.2. Правообладатель вправе прекратить действие лицензии при нарушении пользователем условий настоящего Соглашения.\n\n8.3. При прекращении действия лицензии пользователь обязан прекратить использование ПО и удалить все имеющиеся копии.`],
+    ["9. ПРИМЕНИМОЕ ПРАВО", `9.1. К настоящему Соглашению применяется право Российской Федерации.\n\n9.2. Споры, возникающие из настоящего Соглашения, подлежат разрешению в порядке, установленном действующим законодательством Российской Федерации.`],
+    ["10. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ", `10.1. Недействительность одного из положений настоящего Соглашения не влечет недействительности остальных положений.\n\n10.2. Настоящее Соглашение представляет собой полное соглашение между пользователем и правообладателем относительно использования ПО «ЭМС Инструментарий».\n\n10.3. Продолжение использования ПО подтверждает, что пользователь ознакомился, понял и принял условия настоящего Соглашения в полном объеме.`],
+  ], []);
+  const checkScrollState = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const fitsWithoutScroll = el.scrollHeight <= el.clientHeight + 4;
+    setIsScrollable(!fitsWithoutScroll);
+    setScrolled(fitsWithoutScroll || el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
+  }, []);
+
+  useEffect(() => {
+    checkScrollState();
+    const frame = requestAnimationFrame(checkScrollState);
+    window.addEventListener("resize", checkScrollState);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", checkScrollState);
+    };
+  }, [checkScrollState, licenseSections]);
+
+  const canAccept = scrolled && checked;
   return (
     <div style={{ width:"100%", height:"100vh", background:"#0D1627", display:"flex", flexDirection:"column", fontFamily:"'Roboto','Arial',sans-serif", overflow:"hidden" }}>
       <div style={{ background:"#0A1220", padding:"48px 18px 14px", borderBottom:`1px solid #1E2A40`, textAlign:"center", flexShrink:0 }}>
         <div style={{ fontSize:20, marginBottom:6 }}>🛡️</div>
         <div style={{ fontSize:16, fontWeight:800, color:"#fff", marginBottom:3 }}>Лицензионное соглашение</div>
-        <div style={{ fontSize:10, color:"#4A7FD4", letterSpacing:2 }}>ВЕРСИЯ 1.0</div>
+        <div style={{ fontSize:10, color:"#4A7FD4", letterSpacing:2 }}>ВЕРСИЯ 1.1</div>
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"18px 18px 8px", WebkitOverflowScrolling:"touch" }}
-        onScroll={e => { const el=e.target; if(el.scrollTop+el.clientHeight>=el.scrollHeight-40) setScrolled(true); }}>
-        {[
-          ["1. ПРЕДМЕТ СОГЛАШЕНИЯ","Настоящее Соглашение является договором между Вами и правообладателем ПО «ЭМС Инструментарий». Устанавливая приложение, Вы принимаете все условия."],
-          ["2. ИСКЛЮЧИТЕЛЬНЫЕ ПРАВА","Приложение, включая базы данных, алгоритмы, методики расчётов и интерфейс, является объектом интеллектуальной собственности и защищено ГК РФ."],
-          ["3. ОГРАНИЧЕНИЯ","Запрещается передавать, продавать или распространять приложение третьим лицам без письменного разрешения правообладателя."],
-          ["4. ОТВЕТСТВЕННОСТЬ","Незаконное распространение влечёт ответственность по ст.1301 ГК РФ и ст.146 УК РФ."],
-          ["5. ДАННЫЕ","Приложение работает полностью в автономном режиме без подключения к интернету. Все данные пользователя хранятся исключительно на устройстве и не передаются третьим лицам."],
-          ["6. ОТКАЗ ОТ ГАРАНТИЙ","Результаты расчётов носят справочный характер и подлежат верификации согласно действующим нормативным документам."],
-        ].map(([t,tx]) => (
+      <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"18px 18px 8px", WebkitOverflowScrolling:"touch" }}
+        onScroll={checkScrollState}>
+        {licenseSections.map(([t,tx]) => (
           <div key={t} style={{ marginBottom:16 }}>
             <div style={{ fontSize:12, fontWeight:700, color:"#4A9FFF", marginBottom:5 }}>{t}</div>
-            <div style={{ fontSize:12, lineHeight:1.75, color:"#8A9BB8" }}>{tx}</div>
+            <div style={{ fontSize:12, lineHeight:1.75, color:"#8A9BB8", whiteSpace:"pre-wrap", overflowWrap:"anywhere", wordBreak:"break-word" }}>{tx}</div>
           </div>
         ))}
         {!scrolled && <div style={{ background:"rgba(30,91,232,0.1)", border:"1px solid rgba(30,91,232,0.25)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#4A9FFF", textAlign:"center" }}>↓ Прокрутите до конца</div>}
+        {scrolled && !isScrollable && <div style={{ background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.18)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#10B981", textAlign:"center" }}>Текст полностью отображён</div>}
         <div style={{ height:16 }}/>
       </div>
       <div style={{ padding:"12px 18px 36px", borderTop:"1px solid #1E2A40", background:"#0A1220", flexShrink:0 }}>
-        <div onClick={()=>scrolled&&setChecked(!checked)} style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:14, cursor:scrolled?"pointer":"default", opacity:scrolled?1:0.4 }}>
+        <div onClick={()=>scrolled&&setChecked(!checked)} role="checkbox" aria-checked={checked} aria-disabled={!scrolled} style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:14, cursor:scrolled?"pointer":"default", opacity:scrolled?1:0.4 }}>
           <div style={{ width:22, height:22, minWidth:22, borderRadius:5, marginTop:1, border:`2px solid ${checked?"#1E5BE8":"#2A3A5A"}`, background:checked?"#1E5BE8":"transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
             {checked && <span style={{ color:"#fff", fontSize:13, fontWeight:900 }}>✓</span>}
           </div>
           <div style={{ fontSize:12, color:"#8A9BB8", lineHeight:1.6 }}>Я ознакомился с условиями и принимаю Лицензионное соглашение.</div>
         </div>
-        <button onClick={()=>{ if(checked&&scrolled) onAccept(); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:checked&&scrolled?"linear-gradient(135deg,#1A3A6E,#1E5BE8)":"#1A2A40", color:checked&&scrolled?"#fff":"#2A3A5A", fontSize:15, fontWeight:800, cursor:checked&&scrolled?"pointer":"default", fontFamily:"inherit", marginBottom:10 }}>
+        <button onClick={()=>{ if(canAccept) onAccept(); }} disabled={!canAccept} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:canAccept?"linear-gradient(135deg,#1A3A6E,#1E5BE8)":"#1A2A40", color:canAccept?"#fff":"#2A3A5A", fontSize:15, fontWeight:800, cursor:canAccept?"pointer":"default", fontFamily:"inherit", marginBottom:10 }}>
           {!scrolled?"Прокрутите текст ↓":!checked?"Отметьте согласие":"✓ Принять и войти"}
         </button>
         <button onClick={onDecline} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid #1E2A40", background:"transparent", color:"#3A4A6A", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
           Отклонить и закрыть
         </button>
+
+
       </div>
     </div>
   );
@@ -5936,11 +7858,56 @@ function SplashScreen({ onDone }) {
 
       <div style={{ position: "absolute", bottom: 32, fontSize: 9, color: "#0E1E3A", letterSpacing: 2, zIndex: 1 }}>
         v2.0 · 2025
+
+
       </div>
     </div>
   );
 }
 
+
+
+function LicenseActivationScreen({ onActivate, language = "ru" }) {
+  const [key, setKey] = useState("");
+  const [error, setError] = useState(false);
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+
+  const submit = () => {
+    const normalized = key.trim().toUpperCase();
+    if (!isValidLicenseKey(normalized)) { setError(true); return; }
+    try { localStorage.setItem(LICENSE_STORAGE_KEY, normalized); } catch(e) {}
+    onActivate(normalized);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
+      <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26, boxShadow:"0 0 60px rgba(80,120,255,0.2)" }}>
+        <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:10 }}>{t("activateTitle")}</div>
+        <div style={{ color:C.textSec, marginBottom:16 }}>{t("activateSub")}</div>
+        <input value={key} onChange={(e)=>{ setKey(e.target.value); setError(false); }} placeholder="XXXX-XXXX-XXXX" style={{ ...styles.input, marginBottom:10 }} />
+        {error && <div style={{ color:C.fail, fontSize:12, marginBottom:8 }}>{t("activateErr")}</div>}
+        <button onClick={submit} style={{ ...styles.btn("primary"), width:"100%", marginBottom:10 }}>{t("activateBtn")}</button>
+        <div style={{ fontSize:11, color:C.textSec }}>{t("activateNote")}</div>
+      </div>
+    </div>
+  );
+}
+
+function LanguageSelectScreen({ onSelect, language = "ru" }) {
+  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  return (
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
+      <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26 }}>
+        <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:10 }}>{t("languageTitle")}</div>
+        <div style={{ color:C.textSec, marginBottom:16 }}>{t("languageSub")}</div>
+        <div style={{ display:"grid", gap:10 }}>
+          <button onClick={()=>onSelect("ru")} style={{ ...styles.btn(), width:"100%" }}>{t("russian")}</button>
+          <button onClick={()=>onSelect("en")} style={{ ...styles.btn(), width:"100%" }}>{t("english")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AppInner() {
   const [splash, setSplash] = useState(true);
@@ -5955,6 +7922,14 @@ function AppInner() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [appMode] = useState(FORCED_APP_MODE);
+  const [licenseKey, setLicenseKey] = useState(() => {
+    // temporary early-release bypass: keep licensing storage path but force an internal engineer token
+    const forcedKey = "ENGINEER-BYPASS-2026";
+    try { localStorage.setItem(LICENSE_STORAGE_KEY, forcedKey); } catch(e) {}
+    return forcedKey;
+  });
+  const [language, setLanguage] = useState(() => { try { return localStorage.getItem(LANGUAGE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
 
   // Android системная кнопка «Назад»
   useEffect(() => {
@@ -5973,6 +7948,9 @@ function AppInner() {
 
 
 
+  useEffect(() => { ensureAutomaticBackupForSchemaVersion(); }, []);
+  useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
+
   if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
   if (eula) return (
     <EulaScreen
@@ -5981,42 +7959,146 @@ function AppInner() {
     />
   );
 
+
+
+  // license activation screen intentionally bypassed for temporary release build
+  // ─── EMC upgrade: Ctrl+K командная палитра ───
+  const palette = useCommandPalette();
+  const paletteCommands = [
+    { id: "home", title: "Главная", section: "Разделы", keywords: "home main старт", action: () => handleTab("home") },
+    { id: "calc", title: "Калькуляторы", section: "Разделы", keywords: "расчёт db dbm vswr конвертер", action: () => handleTab("calc") },
+    { id: "tests", title: "Испытания", section: "Разделы", keywords: "гост методика стенд", action: () => handleTab("tests") },
+    { id: "ref", title: "Справочники", section: "Разделы", keywords: "нормы единицы стандарты сокращения", action: () => handleTab("ref") },
+    { id: "ai", title: "ИИ-помощник", section: "Разделы", keywords: "ollama чат вопрос помощь", action: () => handleTab("ai") },
+    { id: "log", title: "Журнал", section: "Разделы", keywords: "история записи pass fail", action: () => handleTab("log") },
+    { id: "spectrum", title: "Анализатор спектра", section: "Инструменты", keywords: "csv график лимит превышение спектр", action: () => handleTab("spectrum") },
+    { id: "protocol", title: "Протокол испытаний → PDF", section: "Инструменты", keywords: "отчёт печать pdf документ", action: () => handleTab("protocol") },
+    { id: "verify", title: "Поверка оборудования", section: "Разделы", keywords: "калибровка свидетельство", action: () => setVerifyOpen(true) },
+    { id: "quiz", title: "Тестирование (10 вопросов)", section: "Инструменты", keywords: "квиз обучение вопросы", action: () => setQuizOpen(true) },
+    { id: "errors", title: "Типовые ошибки", section: "Инструменты", keywords: "отказы причины помехи", action: () => setErrorsOpen(true) },
+  ];
+
+  if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
   const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
 
 
 
+  const sideNavItems = [
+    { id: "home",   label: "Главная",      svgPath: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10" },
+    { id: "calc",   label: "Калькуляторы", svgPath: "M4 6h16M4 10h16M4 14h16M4 18h16" },
+    { id: "tests",  label: "Испытания",    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+    { id: "ref",    label: "Справочники",  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+    { id: "equip",  label: "Оборудование", svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
+    { id: "verify", label: "Поверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
+    { id: "ai",     label: "ИИ-помощник",  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
+    { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+      { id: "spectrum", label: "Анализатор спектра", svgPath: "M3 3v18h18 M7 14l4-6 4 4 4-8" },
+    { id: "protocol", label: "Протоколы", svgPath: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+];
+
+  const topBarTitle = settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
+    sideNavItems.find(n => n.id === tab)?.label || "Главная";
+  const topBarSubtitle = !settingsOpen && !searchOpen && !verifyOpen && !errorsOpen && !quizOpen && tab === "calc"
+    ? "Быстрые инженерные расчёты и EMC/EMI инструменты"
+    : null;
+
   return (
-    <div style={styles.app}>
-      
-      <div style={styles.header}>
-        <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(145deg, #0D1F4E, #1E5BE8)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(74,159,255,0.4)" }}>
-          <svg width="22" height="22" viewBox="0 0 52 52">
-            <rect x="12" y="17" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
-            <rect x="12" y="24" width="14" height="3.5" rx="1.5" fill="#4A9FFF"/>
-            <rect x="12" y="31" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
-            <rect x="12" y="17" width="3.5" height="17.5" rx="1.5" fill="#4A9FFF"/>
-            <path d="M34 20 Q37 17.5 40 20 Q37 22.5 34 20" stroke="#1A9B5A" strokeWidth="2" fill="none" strokeLinecap="round"/>
-            <path d="M34 25.5 Q37 23 40 25.5 Q37 28 34 25.5" stroke="#1A9B5A" strokeWidth="2" fill="none" strokeLinecap="round"/>
-            <path d="M34 31 Q37 28.5 40 31 Q37 33.5 34 31" stroke="#E07B00" strokeWidth="2" fill="none" strokeLinecap="round"/>
-          </svg>
+    <div style={{ display: "flex", height: "100vh", background: "#050814", color: C.text, fontFamily: "'Roboto','Arial',sans-serif" }}>
+
+      {/* БОКОВАЯ НАВИГАЦИЯ */}
+      <div style={{
+        width: 214, background: "linear-gradient(180deg, #0B1220 0%, #0A1120 100%)", borderRight: "1px solid rgba(148,163,184,0.16)",
+        display: "flex", flexDirection: "column", flexShrink: 0
+      }}>
+        {/* Лого */}
+        <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(148,163,184,0.14)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(145deg, #0D1F4E, #1E5BE8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="20" height="20" viewBox="0 0 52 52">
+                <rect x="12" y="17" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
+                <rect x="12" y="24" width="14" height="3.5" rx="1.5" fill="#4A9FFF"/>
+                <rect x="12" y="31" width="18" height="3.5" rx="1.5" fill="#4A9FFF"/>
+                <rect x="12" y="17" width="3.5" height="17.5" rx="1.5" fill="#4A9FFF"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", lineHeight: 1.3, letterSpacing: -0.2 }}>Инструментарий<br/>инженера ЭМС</div>
+            </div>
+          </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={styles.headerTitle}>Инструментарий инженера ЭМС</div>
-          <div style={styles.headerSub}>ГОСТ РВ 20.57.306</div>
+
+        {/* Навигация */}
+        <div style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
+          {sideNavItems.map(n => {
+            const isActive = !quizOpen && !settingsOpen && !errorsOpen && !searchOpen && (
+              n.id === "verify" ? verifyOpen :
+              n.id === "equip" ? (tab === "ref" && refTab === "equip" && !verifyOpen) :
+              n.id === "ref" ? (tab === "ref" && refTab !== "equip" && !verifyOpen) :
+              (tab === n.id && !verifyOpen)
+            );
+            const handleClick = () => {
+              setQuizOpen(false); setSettingsOpen(false); setErrorsOpen(false); setSearchOpen(false);
+              if (n.id === "verify") { setVerifyOpen(true); }
+              else if (n.id === "equip") { setVerifyOpen(false); setRefTab("equip"); handleTab("ref"); }
+              else if (n.id === "ref") { setVerifyOpen(false); setRefTab("abbr"); handleTab("ref"); }
+              else { setVerifyOpen(false); handleTab(n.id); }
+            };
+            return (
+              <button key={n.id} onClick={handleClick} style={{
+                width: "100%", padding: "10px 14px", borderRadius: 10,
+                background: isActive ? "linear-gradient(135deg, rgba(37,99,235,0.42), rgba(124,58,237,0.32))" : "transparent",
+                color: isActive ? "#DBEAFE" : C.textSec,
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+                fontSize: 13, fontWeight: isActive ? 700 : 500,
+                marginBottom: 4, textAlign: "left",
+                border: isActive ? "1px solid rgba(96,165,250,0.7)" : "1px solid transparent",
+              }}>
+                <span style={{ width: 20, height: 20, display: "grid", placeItems: "center" }}><svg viewBox="0 0 24 24" fill="none" stroke={isActive ? "#DBEAFE" : "#94A3B8"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d={n.svgPath} /></svg></span>
+                <span>{n.label}</span>
+              </button>
+            );
+          })}
         </div>
-        <button
-          onClick={() => setSearchOpen(true)}
-          style={{ background: "none", border: "none", color: "#8A9BB8", fontSize: 20, cursor: "pointer", padding: "4px 6px" }}
-        >🔍</button>
-        <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          style={{ background: "none", border: "none", color: settingsOpen ? C.accent : "#8A9BB8", fontSize: 20, cursor: "pointer", padding: "4px 6px" }}
-        >⚙️</button>
+
+        {/* Статус + версия */}
+        <div style={{ padding: "14px", borderTop: "1px solid rgba(148,163,184,0.14)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A" }}></div>
+            <span style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>Офлайн режим</span>
+          </div>
+          <div style={{ fontSize: 11, color: "#94A3B8" }}>Все функции доступны</div>
+          <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>v2.0.0</div>
+        </div>
       </div>
+
+      {/* ОСНОВНОЙ КОНТЕНТ */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }} data-app-mode={appMode}>
+
+        {/* ВЕРХНЯЯ ПАНЕЛЬ */}
+        <div style={{
+          background: "rgba(11,18,32,0.86)", borderBottom: "1px solid rgba(148,163,184,0.16)",
+          padding: topBarSubtitle ? "0 28px" : "0 24px", minHeight: topBarSubtitle ? 72 : 56, display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: 18, flexShrink: 0, boxShadow: topBarSubtitle ? "0 14px 42px rgba(2,6,23,0.24)" : "none"
+        }}>
+          <div>
+            <div style={{ fontSize: topBarSubtitle ? 16 : 15, fontWeight: 700, color: C.text, letterSpacing: topBarSubtitle ? -0.2 : 0 }}>
+              {topBarTitle}
+            </div>
+            {topBarSubtitle && <div style={{ color: C.textSec, fontSize: 12, lineHeight: 1.45, marginTop: 3 }}>{topBarSubtitle}</div>}
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+            <button onClick={() => setSearchOpen(true)} style={{ background: "rgba(15,23,42,0.58)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "9px 13px", borderRadius: 12, fontFamily: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>🔍 Справка</button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} style={{ background: "rgba(15,23,42,0.58)", border: `1px solid ${C.border}`, color: C.textSec, fontSize: 14, cursor: "pointer", padding: "9px 14px", borderRadius: 12, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>⚙️ Настройки</button>
+          </div>
+        </div>
+
+        {/* КОНТЕНТ */}
+        <div style={{ flex: 1, overflowY: "auto", scrollbarGutter: "stable" }}>
+          <div style={{ height: "100%" }}>
       <div style={styles.content}>
         {settingsOpen
-          ? <SettingsScreen onClose={() => setSettingsOpen(false)} />
+          ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} />
           : searchOpen
           ? <GlobalSearch onClose={() => setSearchOpen(false)} setTab={handleTab} setCalcId={handleSetCalcId} onErrors={() => { setErrorsOpen(true); setSearchOpen(false); }} onVerify={() => { setVerifyOpen(true); setSearchOpen(false); }} onQuiz={() => { setQuizOpen(true); setSearchOpen(false); }} />
           : verifyOpen
@@ -6031,17 +8113,17 @@ function AppInner() {
               {tab === "tests" && <TestsScreen />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
               {tab === "log" && <LogbookScreen />}
+              {tab === "spectrum" && <SpectrumAnalyzer />}
+              {tab === "protocol" && <ProtocolGenerator />}
+              <CommandPalette {...palette} commands={paletteCommands} />
               {tab === "ai" && <AiAssistantScreen onClose={() => setTab("home")} />}
             </>
         }
       </div>
-      <div style={styles.nav}>
-        {NAV_ITEMS.map(n => (
-          <button key={n.id} style={styles.navBtn(tab === n.id && !quizOpen && !settingsOpen)} onClick={() => { setQuizOpen(false); setSettingsOpen(false); handleTab(n.id); }}>
-            <span style={{ fontSize: 19 }}>{n.icon}</span>
-            <span>{n.label}</span>
-          </button>
-        ))}
+      </div>
+        </div>
+
+
       </div>
     </div>
   );
