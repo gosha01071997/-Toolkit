@@ -7962,9 +7962,6 @@ function AppInner() {
 
 
   // license activation screen intentionally bypassed for temporary release build
-  if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
-  const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
-  const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
   // ─── EMC upgrade: Ctrl+K командная палитра ───
   const palette = useCommandPalette();
   const paletteCommands = [
@@ -7980,6 +7977,10 @@ function AppInner() {
     { id: "quiz", title: "Тестирование (10 вопросов)", section: "Инструменты", keywords: "квиз обучение вопросы", action: () => setQuizOpen(true) },
     { id: "errors", title: "Типовые ошибки", section: "Инструменты", keywords: "отказы причины помехи", action: () => setErrorsOpen(true) },
   ];
+
+  if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
+  const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
+  const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
 
 
 
