@@ -7951,15 +7951,8 @@ function AppInner() {
   useEffect(() => { ensureAutomaticBackupForSchemaVersion(); }, []);
   useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
 
-  if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
-  if (eula) return (
-    <EulaScreen
-      onAccept={() => { try { localStorage.setItem("emc_eula_v1","1"); } catch(e){} setEula(false); }}
-      onDecline={() => { document.body.innerHTML='<div style="background:#000;height:100vh;display:flex;align-items:center;justify-content:center;color:#333;font-family:sans-serif">Приложение закрыто</div>'; }}
-    />
-  );
-
-
+  const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
+  const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
 
   // license activation screen intentionally bypassed for temporary release build
   // ─── EMC upgrade: Ctrl+K командная палитра ───
@@ -7978,9 +7971,14 @@ function AppInner() {
     { id: "errors", title: "Типовые ошибки", section: "Инструменты", keywords: "отказы причины помехи", action: () => setErrorsOpen(true) },
   ];
 
+  if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
+  if (eula) return (
+    <EulaScreen
+      onAccept={() => { try { localStorage.setItem("emc_eula_v1","1"); } catch(e){} setEula(false); }}
+      onDecline={() => { document.body.innerHTML='<div style="background:#000;height:100vh;display:flex;align-items:center;justify-content:center;color:#333;font-family:sans-serif">Приложение закрыто</div>'; }}
+    />
+  );
   if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
-  const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
-  const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
 
 
 
