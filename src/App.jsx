@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
+import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
+import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
+import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -7962,6 +7965,21 @@ function AppInner() {
   if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
   const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
+  // ─── EMC upgrade: Ctrl+K командная палитра ───
+  const palette = useCommandPalette();
+  const paletteCommands = [
+    { id: "home", title: "Главная", section: "Разделы", keywords: "home main старт", action: () => handleTab("home") },
+    { id: "calc", title: "Калькуляторы", section: "Разделы", keywords: "расчёт db dbm vswr конвертер", action: () => handleTab("calc") },
+    { id: "tests", title: "Испытания", section: "Разделы", keywords: "гост методика стенд", action: () => handleTab("tests") },
+    { id: "ref", title: "Справочники", section: "Разделы", keywords: "нормы единицы стандарты сокращения", action: () => handleTab("ref") },
+    { id: "ai", title: "ИИ-помощник", section: "Разделы", keywords: "ollama чат вопрос помощь", action: () => handleTab("ai") },
+    { id: "log", title: "Журнал", section: "Разделы", keywords: "история записи pass fail", action: () => handleTab("log") },
+    { id: "spectrum", title: "Анализатор спектра", section: "Инструменты", keywords: "csv график лимит превышение спектр", action: () => handleTab("spectrum") },
+    { id: "protocol", title: "Протокол испытаний → PDF", section: "Инструменты", keywords: "отчёт печать pdf документ", action: () => handleTab("protocol") },
+    { id: "verify", title: "Поверка оборудования", section: "Разделы", keywords: "калибровка свидетельство", action: () => setVerifyOpen(true) },
+    { id: "quiz", title: "Тестирование (10 вопросов)", section: "Инструменты", keywords: "квиз обучение вопросы", action: () => setQuizOpen(true) },
+    { id: "errors", title: "Типовые ошибки", section: "Инструменты", keywords: "отказы причины помехи", action: () => setErrorsOpen(true) },
+  ];
 
 
 
@@ -7974,7 +7992,9 @@ function AppInner() {
     { id: "verify", label: "Поверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
     { id: "ai",     label: "ИИ-помощник",  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
     { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
-  ];
+      { id: "spectrum", label: "Анализатор спектра", svgPath: "M3 3v18h18 M7 14l4-6 4 4 4-8" },
+    { id: "protocol", label: "Протоколы", svgPath: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+];
 
   const topBarTitle = settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
     sideNavItems.find(n => n.id === tab)?.label || "Главная";
@@ -8092,6 +8112,9 @@ function AppInner() {
               {tab === "tests" && <TestsScreen />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
               {tab === "log" && <LogbookScreen />}
+              {tab === "spectrum" && <SpectrumAnalyzer />}
+              {tab === "protocol" && <ProtocolGenerator />}
+              <CommandPalette {...palette} commands={paletteCommands} />
               {tab === "ai" && <AiAssistantScreen onClose={() => setTab("home")} />}
             </>
         }
