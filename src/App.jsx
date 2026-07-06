@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
+import { AI_MODEL, AI_RUNTIME_ENDPOINT, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -6613,7 +6614,7 @@ function isEmcRelatedQuery(query, kbResults = []) {
 }
 
 function buildOfflineAnswer(query, results) {
-  if (!results.length) return "По вашему запросу ничего не найдено в базе знаний приложения.\n\nПопробуйте переформулировать вопрос или подключитесь к интернету для ответа через Claude AI.";
+  if (!results.length) return "По вашему запросу ничего не найдено в базе знаний приложения.\n\nПопробуйте переформулировать вопрос или уточнить параметры EMC-сценария.";
   const top = results[0];
   let answer = `**${top.title}** (${top.cat})\n\n`;
   if (top.type === "error") {
@@ -6665,53 +6666,24 @@ const AI_QUICK_QUESTIONS = [
 
 function AiAssistantScreen({ onClose }) {
   const [messages, setMessages] = useState([
-    { role:"assistant", text:"Привет! Я ИИ-помощник EMC Pro.\n\nМогу отвечать на вопросы по испытаниям, оборудованию, типовым ошибкам и стандартам ГОСТ РВ 20.57.306.\n\nРежимы работы:\n• 🤖 Ollama — локальная нейронка на вашем ПК, без интернета\n• 📚 База знаний — встроенная база EMC Pro, мгновенно оффлайн\n\n🔒 Никакие данные не покидают ваш компьютер. Интернет-запросы не используются.\n\n📷 Можно прикрепить фото стенда, осциллограммы или спектра — для анализа нужна модель llava (ollama pull llava)." }
+    { role:"assistant", text:"Привет! Я ИИ-помощник EMC Toolkit.\n\nОпишите EMC-сценарий, симптом отказа или вопрос по испытаниям — подскажу, что проверить дальше.\n\n🔒 Модуль работает локально и не отправляет данные в интернет." }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [thinkingStep, setThinkingStep] = useState("");
   const [streamingText, setStreamingText] = useState("");
   const abortRef = React.useRef(null);
-  const [aiMode, setAiMode] = useState("ollama"); // ollama | local
-  const [ollamaModel, setOllamaModel] = useState("llama3");
-  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
-  const [showSettings, setShowSettings] = useState(false);
-  const [attachedImage, setAttachedImage] = useState(null); // { base64, name, preview }
-  const fileInputRef = React.useRef(null);
   const bottomRef = React.useRef(null);
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior:"smooth" });
-  }, [messages]);
+  }, [messages, streamingText, loading]);
 
   const appendMsg = (msg) => setMessages(m => [...m, msg]);
 
-  // Обработка выбора файла
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      alert("Поддерживаются только изображения (JPG, PNG, WEBP)");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Файл слишком большой. Максимум 10 МБ.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      const base64 = dataUrl.split(",")[1];
-      setAttachedImage({ base64, name: file.name, preview: dataUrl, type: file.type });
-    };
-    reader.readAsDataURL(file);
-    // Сбрасываем input чтобы можно было выбрать тот же файл повторно
-    e.target.value = "";
-  };
-
-  const tryOllama = async (userQuery, kbContext, imageBase64, imageType, onToken, emcRelated = true, mikhailMode = false, responseLanguage = "ru") => {
+  const tryAiRuntime = async (userQuery, kbContext, onToken, mikhailMode = false, responseLanguage = "ru") => {
     const systemPrompt = responseLanguage === "en"
-      ? `You are an AI assistant for EMC (electromagnetic compatibility) engineers. Reply briefly, clearly, and fully in English only. Do not mix English with Russian in normal assistant phrases. Keep technical abbreviations unchanged when needed: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN, Ollama. Standard: GOST RV 20.57.306.
+      ? `You are an offline AI assistant for EMC (electromagnetic compatibility) engineers. Reply briefly, clearly, and fully in English only. Do not mix English with Russian in normal assistant phrases. Keep technical abbreviations unchanged when needed: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN. Standard: GOST RV 20.57.306.
 
 For EMC problem questions (failures, exceeded limits, unstable behavior, protection trips, noise spikes), always use exactly this 5-part structure with numbered headings:
 1. Short problem assessment
@@ -6730,7 +6702,7 @@ Knowledge base context:
 ${kbContext}
 
 ${mikhailMode ? "If Mikhail is mentioned, respond noticeably warmer, with respect for his experience and calm engineering confidence; light friendly irony is fine." : ""}`
-      : `Ты ИИ-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко, по делу и полностью на русском языке. Не смешивай русский и английский в обычных фразах. Технические аббревиатуры можно оставлять без изменений: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN, Ollama. Стандарт: ГОСТ РВ 20.57.306.
+      : `Ты офлайн AI-помощник для инженеров ЭМС (электромагнитная совместимость). Отвечай кратко, по делу и полностью на русском языке. Не смешивай русский и английский в обычных фразах. Технические аббревиатуры можно оставлять без изменений: EMC, BCI, RI, CE, RE, dBµV, dBm, LISN, CDN. Стандарт: ГОСТ РВ 20.57.306.
 
 Для вопросов про EMC-проблемы (отказы, превышение норм, нестабильная работа, уход в защиту, пики/шумы) всегда используй строго эту структуру из 5 пунктов с нумерованными заголовками:
 1. Краткая оценка проблемы
@@ -6750,47 +6722,22 @@ ${kbContext}
 
 ${mikhailMode ? "Если в вопросе упоминается Михаил — отвечай заметно теплее, с уважением к его опыту и спокойной инженерной уверенностью; можно добавить лёгкую дружескую иронию без перегиба." : ""}`;
 
-    // Для изображений сохраняем chat API как fallback
-    if (imageBase64) {
-      const body = {
-        model: ollamaModel,
-        messages: [
-          { role:"system", content: systemPrompt },
-          { role:"user", content: userQuery || "Опиши что видишь на этом изображении с точки зрения ЭМС-испытаний. Укажи возможные проблемы или замечания.", images:[imageBase64] }
-        ],
-        stream: false
-      };
-      const resp = await fetch(`${ollamaUrl}/api/chat`, {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        signal: abortRef.current?.signal,
-        body: JSON.stringify(body)
-      });
-      if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
-      const data = await resp.json();
-      const text = data.message?.content || "Пустой ответ от Ollama";
-      onToken?.(text, true);
-      return { text, source:"🤖 Ollama (" + ollamaModel + ")" };
-    }
-
     const body = {
-      model: ollamaModel,
-      prompt: `${systemPrompt}
-
-Вопрос: ${userQuery}`,
+      model: AI_MODEL,
+      prompt: `${systemPrompt}\n\nВопрос: ${userQuery}`,
       stream: true
     };
 
-    const resp = await fetch(`${ollamaUrl}/api/generate`, {
+    const resp = await fetch(`${AI_RUNTIME_ENDPOINT}/api/generate`, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
       signal: abortRef.current?.signal,
       body: JSON.stringify(body)
     });
-    if (!resp.ok) throw new Error("OLLAMA_UNAVAILABLE");
+    if (!resp.ok) throw new Error("AI_RUNTIME_UNAVAILABLE");
 
     const reader = resp.body?.getReader();
-    if (!reader) throw new Error("STREAM_UNAVAILABLE");
+    if (!reader) throw new Error("AI_STREAM_UNAVAILABLE");
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
     let full = "";
@@ -6807,7 +6754,7 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
         const token = json.response || "";
         if (token) {
           full += token;
-          onToken?.(full, false);
+          onToken?.(full);
         }
       }
     }
@@ -6817,11 +6764,11 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
       const token = json.response || "";
       if (token) {
         full += token;
-        onToken?.(full, false);
+        onToken?.(full);
       }
     }
 
-    return { text: full || "Пустой ответ от Ollama", source:"🤖 Ollama (" + ollamaModel + ")" };
+    return { text: full || "Пустой ответ AI-модуля", source:"AI-модуль" };
   };
 
   const stopGeneration = () => {
@@ -6832,33 +6779,16 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
 
   const send = async (queryOverride) => {
     const q = (queryOverride || input).trim();
-    if ((!q && !attachedImage) || loading) return;
+    if (!q || loading) return;
     setInput("");
 
     if (q === "как сварить кофе для Михаила?") {
-      appendMsg({
-        role:"user",
-        text: q,
-        image: null
-      });
-      appendMsg({
-        role:"assistant",
-        text:"Для Михаила кофе лучше варить внимательно. Хорошие люди в инженерке встречаются редко. Рад, что довелось поработать вместе.",
-        source:"📚 База знаний EMC Pro"
-      });
+      appendMsg({ role:"user", text: q });
+      appendMsg({ role:"assistant", text:"Для Михаила кофе лучше варить внимательно. Хорошие люди в инженерке встречаются редко. Рад, что довелось поработать вместе.", source:"AI-модуль" });
       return;
     }
 
-    // Формируем сообщение пользователя для чата
-    const userMsg = {
-      role:"user",
-      text: q || "📷 Анализ изображения",
-      image: attachedImage?.preview || null
-    };
-    setMessages(m => [...m, userMsg]);
-
-    const imgToSend = attachedImage;
-    setAttachedImage(null);
+    setMessages(m => [...m, { role:"user", text: q }]);
     abortRef.current = new AbortController();
     setLoading(true);
     setThinkingStep("Анализирую EMC-сценарий...");
@@ -6866,80 +6796,29 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
 
     const kbResults = searchLocalKB(q);
     const kbContext = kbResults.slice(0,3).map(r => `[${r.cat}] ${r.title}: ${r.text.slice(0,200)}`).join("\n");
-    const emcRelated = isEmcRelatedQuery(q, kbResults);
     const mikhailMode = mentionsMikhail(q);
     const responseLanguage = detectResponseLanguage(q);
 
-    if (aiMode === "ollama") {
-      try {
-        const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
-        let i = 0;
-        const timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
-        const result = await tryOllama(q, kbContext, imgToSend?.base64, imgToSend?.type, (partial) => setStreamingText(partial), emcRelated, mikhailMode, responseLanguage);
-        clearInterval(timer);
-        setStreamingText("");
-        appendMsg({ role:"assistant", text: result.text, source: result.source });
-      } catch(e) {
-        setStreamingText("");
-        if (e.name === "AbortError") {
-          appendMsg({ role:"assistant", text:"Генерация остановлена пользователем.", source:"🤖 Ollama (остановлено)" });
-        } else {
-        const isImageErr = imgToSend && (e.message.includes("400") || e.message.includes("model"));
-        appendMsg({
-          role:"assistant",
-          text: isImageErr
-            ? `❌ Модель "${ollamaModel}" не поддерживает изображения.\n\nДля анализа фото нужна мультимодальная модель:\n1. Откройте cmd\n2. Напишите: ollama pull llava\n3. В настройках ⚙️ выберите модель llava\n\nllava умеет анализировать фото стендов, осциллограмм, спектров.`
-            : `❌ Ollama недоступна по адресу ${ollamaUrl}\n\nКак запустить:\n1. Скачайте ollama.ai и установите\n2. Откройте cmd: ollama pull ${ollamaModel}\n3. Ollama запустится автоматически на порту 11434\n\nПока Ollama не запущена — переключитесь в режим «База знаний» (⚙️).`,
-          source:"⚠️ Ошибка"
-        });
-        }
-      }
-    } else {
-      if (imgToSend) {
-        appendMsg({ role:"assistant", text:"📷 Анализ фотографий доступен только в режиме Ollama с моделью llava.\n\nУстановите Ollama и загрузите: ollama pull llava", source:"📚 База знаний EMC Pro" });
+    let timer;
+    try {
+      const thinking = ["Анализирую EMC-сценарий...", "Проверяю типовые причины...", "Сравниваю с базой ошибок...", "Формирую рекомендации..."];
+      let i = 0;
+      timer = setInterval(() => { i = (i + 1) % thinking.length; setThinkingStep(thinking[i]); }, 1400);
+      const result = await tryAiRuntime(q, kbContext, (partial) => setStreamingText(partial), mikhailMode, responseLanguage);
+      appendMsg({ role:"assistant", text: result.text, source: result.source });
+    } catch(e) {
+      if (e.name === "AbortError") {
+        appendMsg({ role:"assistant", text:"Генерация остановлена пользователем.", source:"AI-модуль" });
       } else {
-        if (!emcRelated) {
-          const wittyBase = responseLanguage === "en"
-            ? `Not an EMC question, but still a solid one.
-
-Short version: first we live, then we calibrate. If noise, frequencies, or a stubborn amplifier show up, we switch back to engineering mode.`
-            : `Вопрос не по ЭМС, но звучит достойно.
-
-Если коротко: сначала живём, потом калибруемся. Если где-то рядом всплывут помехи, частоты или упрямый усилитель — продолжим уже по инженерной части.`;
-          const witty = mikhailMode
-            ? (responseLanguage === "en"
-              ? `With Mikhail, even questions like this are usually solved calmly and precisely — clearly a true professional.
-
-${wittyBase}`
-              : `С Михаилом даже такие вопросы обычно решаются спокойно и точно — видно, что человек знает своё дело.
-
-${wittyBase}`)
-            : wittyBase;
-          appendMsg({ role:"assistant", text: witty, source:"📚 База знаний EMC Pro" });
-        } else {
-          const offlineAnswer = buildOfflineAnswer(q, kbResults);
-          const withMikhailTone = mikhailMode
-            ? (responseLanguage === "en"
-              ? `With Mikhail, results are usually reliable — working with an engineer like that is always a pleasure.
-
-${offlineAnswer}`
-              : `С Михаилом за результат обычно переживать не приходится — с таким инженером работать одно удовольствие.
-
-${offlineAnswer}`)
-            : offlineAnswer;
-          appendMsg({ role:"assistant", text: withMikhailTone, source:"📚 База знаний EMC Pro" });
-        }
+        appendMsg({ role:"assistant", text:AI_UNAVAILABLE_MESSAGE, source:"Статус AI-модуля" });
       }
+    } finally {
+      if (timer) clearInterval(timer);
+      setStreamingText("");
+      setLoading(false);
+      setThinkingStep("");
+      abortRef.current = null;
     }
-
-    setLoading(false);
-    setThinkingStep("");
-    abortRef.current = null;
-  };
-
-  const modeConfig = {
-    ollama: { label:"🤖 Ollama", color:"#8B1DC7", desc:"Локальная нейронка — всё на вашем ПК, без интернета" },
-    local:  { label:"📚 База знаний", color:C.pass, desc:"Встроенная база EMC Pro — мгновенно, оффлайн" },
   };
 
   return (
@@ -6953,50 +6832,11 @@ ${offlineAnswer}`)
             </div>
             <div style={{ fontSize:14, color:C.textSec, marginBottom:8 }}>Опишите проблему — помощник подскажет, что проверить</div>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-              <span style={{ width:9, height:9, borderRadius:"50%", background:C.pass, boxShadow:"0 0 14px rgba(16,185,129,0.7)" }} />
-              <span style={{ color:"#A7F3D0", fontWeight:700, fontSize:12 }}>Готов помочь</span>
+              <span style={{ width:9, height:9, borderRadius:"50%", background:loading?C.warn:C.pass, boxShadow:loading?"0 0 14px rgba(245,158,11,0.7)":"0 0 14px rgba(16,185,129,0.7)" }} />
+              <span style={{ color:loading?"#FDE68A":"#A7F3D0", fontWeight:700, fontSize:12 }}>{loading ? (thinkingStep || "AI обрабатывает запрос") : "Готов помочь"}</span>
             </div>
-            <button onClick={() => setShowSettings(!showSettings)} style={{ background:"rgba(20,30,60,0.6)", border:`1px solid ${C.border}`, color:showSettings?C.accent:C.textSec, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit" }}>⚙️ Настройки</button>
           </div>
           <div style={{ display:"flex", justifyContent:"center" }}><EMCAvatar size={170} /></div>
-        </div>
-      </div>
-
-      {showSettings && (
-        <div style={{ ...styles.card, marginBottom:10, padding:"14px" }}>
-          <div style={{ fontSize:11, fontWeight:800, color:C.textSec, letterSpacing:1, marginBottom:8 }}>РЕЖИМ РАБОТЫ</div>
-          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-            {Object.entries(modeConfig).map(([k,cfg]) => (
-              <button key={k} onClick={() => setAiMode(k)} style={{ flex:1, padding:"8px", borderRadius:8, border:`1.5px solid ${aiMode===k?cfg.color:C.border}`, background:aiMode===k?cfg.color+"22":"transparent", color:aiMode===k?cfg.color:C.textSec, fontSize:12, fontWeight:aiMode===k?700:400, cursor:"pointer", fontFamily:"inherit" }}>{cfg.label}</button>
-            ))}
-          </div>
-          <div style={{ fontSize:12, color:C.textSec, marginBottom:10 }}>{modeConfig[aiMode].desc}</div>
-          <div style={{ background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.35)", borderRadius:8, padding:"8px 12px", marginBottom:10 }}><div style={{ fontSize:11, color:"#A8F0CC", lineHeight:1.6 }}>🔒 <b>Полная приватность:</b> все данные остаются на вашем ПК. Никаких запросов в интернет.</div></div>
-          {aiMode === "ollama" && (
-            <div>
-              <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>URL Ollama сервера</div>
-              <input style={{ ...styles.input, fontSize:12, marginBottom:8 }} value={ollamaUrl} onChange={e=>setOllamaUrl(e.target.value)} placeholder="http://localhost:11434" />
-              <div style={{ fontSize:11, color:C.textSec, marginBottom:4 }}>Модель</div>
-              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
-                {["llama3","llama3.2","llava","llava:13b","mistral","gemma2","moondream"].map(m => (
-                  <button key={m} onClick={() => setOllamaModel(m)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${ollamaModel===m?C.accent:C.border}`, background:ollamaModel===m?C.accentLight:"transparent", color:ollamaModel===m?C.accent:C.textSec, fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>{m}{(m==="llava"||m==="llava:13b"||m==="moondream")?" 📷":""}</button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{ ...styles.card, marginBottom:10 }}>
-        <div style={{ ...styles.sectionTitle, marginTop:0, marginBottom:10 }}>Быстрые сценарии</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:8 }}>
-          {AI_QUICK_QUESTIONS.map((q) => (
-            <button key={q.title} onClick={() => send(q.query)} disabled={loading} style={{ borderRadius:14, border:"1px solid rgba(255,255,255,0.06)", background:"rgba(20,30,60,0.6)", backdropFilter:"blur(20px)", textAlign:"left", padding:"10px", cursor:loading?"not-allowed":"pointer", fontFamily:"inherit", color:C.text, boxShadow:"0 0 22px rgba(80,120,255,0.1)", transition:"transform .18s ease" }} onMouseEnter={(e)=>e.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={(e)=>e.currentTarget.style.transform="translateY(0)"}>
-              <div style={{ fontSize:16, marginBottom:4 }}>{q.icon}</div>
-              <div style={{ fontSize:12, fontWeight:700, marginBottom:4 }}>{q.title}</div>
-              <div style={{ fontSize:11, color:C.textSec }}>{q.desc}</div>
-            </button>
-          ))}
         </div>
       </div>
 
@@ -7012,7 +6852,6 @@ ${offlineAnswer}`)
 
         {messages.map((m, i) => (
           <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"88%" }}>
-            {m.image && <div style={{ marginBottom:6, borderRadius:10, overflow:"hidden", border:`1px solid ${C.border}` }}><img src={m.image} alt="прикреплено" style={{ width:"100%", maxHeight:220, objectFit:"contain", display:"block", background:"#000" }} /></div>}
             <div style={{ background: m.role==="user" ? "linear-gradient(130deg, #2563EB, #7C3AED)" : "rgba(20,30,60,0.65)", color: "#F8FAFC", borderRadius: m.role==="user" ? "16px 16px 5px 16px" : "16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow: m.role==="user" ? "0 0 24px rgba(37,99,235,0.25)" : "0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>
               {m.role === "assistant" ? (
                 <div>
@@ -7025,9 +6864,9 @@ ${offlineAnswer}`)
           </div>
         ))}
 
-                {loading && streamingText && <div style={{ alignSelf:"flex-start", maxWidth:"88%" }}><div style={{ background:"rgba(20,30,60,0.65)", color:"#F8FAFC", borderRadius:"16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow:"0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>{streamingText}</div><div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>🤖 Ollama ({ollamaModel})</div></div>}
+        {loading && streamingText && <div style={{ alignSelf:"flex-start", maxWidth:"88%" }}><div style={{ background:"rgba(20,30,60,0.65)", color:"#F8FAFC", borderRadius:"16px 16px 16px 5px", padding:"12px 14px", fontSize:13, lineHeight:1.7, border:"1px solid rgba(255,255,255,0.06)", boxShadow:"0 0 24px rgba(80,120,255,0.12)", whiteSpace:"pre-wrap" }}>{streamingText}</div><div style={{ fontSize:10, color:C.textSec, marginTop:3, paddingLeft:4 }}>AI-модуль</div></div>}
 
-{loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec, minWidth:280 }}>
+        {loading && <div style={{ alignSelf:"flex-start", background:"rgba(20,30,60,0.65)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"16px 16px 16px 5px", padding:"10px 14px", fontSize:13, color:C.textSec, minWidth:280 }}>
           <div style={{ marginBottom:6 }}>{thinkingStep || "Анализирую EMC-сценарий..."}</div>
           <div style={{ position:"relative", height:4, borderRadius:999, background:"rgba(148,163,184,0.18)", overflow:"hidden" }}>
             <div style={{ position:"absolute", inset:0, borderRadius:999, background:"linear-gradient(90deg, rgba(37,99,235,0.15), rgba(124,58,237,0.2), rgba(6,182,212,0.15))", backgroundSize:"220% 100%", animation:"emcOrbit 2.4s linear infinite" }} />
@@ -7038,27 +6877,17 @@ ${offlineAnswer}`)
         <div ref={bottomRef} />
       </div>
 
-      {attachedImage && (
-        <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(37,99,235,0.12)", border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 10px", marginBottom:8, flexShrink:0 }}>
-          <img src={attachedImage.preview} alt="preview" style={{ width:48, height:48, objectFit:"cover", borderRadius:6, border:`1px solid ${C.border}` }} />
-          <div style={{ flex:1, fontSize:12, color:"#BFDBFE" }}><div style={{ fontWeight:700 }}>📷 {attachedImage.name}</div><div style={{ color:C.textSec, fontSize:11 }}>Нажмите отправить для анализа</div></div>
-          <button onClick={() => setAttachedImage(null)} style={{ background:"none", border:"none", color:C.fail, fontSize:18, cursor:"pointer", padding:"0 4px" }}>✕</button>
-        </div>
-      )}
-
-      <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileSelect} />
       <div style={{ display:"flex", gap:8, flexShrink:0, alignItems:"stretch" }}>
-        <button onClick={() => fileInputRef.current?.click()} disabled={loading} title="Прикрепить фото" style={{ padding:"0 14px", borderRadius:12, border:`1.5px solid ${attachedImage?C.accent:C.border}`, background:attachedImage?C.accentLight:"rgba(20,30,60,0.6)", color:attachedImage?C.accent:C.textSec, fontSize:18, cursor:loading?"not-allowed":"pointer", flexShrink:0 }}>📷</button>
         <textarea
           style={{ flex:1, minHeight:64, maxHeight:120, resize:"vertical", borderRadius:14, border:`1px solid ${C.border}`, background:"rgba(20,30,60,0.6)", color:C.text, padding:"12px 14px", fontSize:14, outline:"none", fontFamily:"inherit" }}
           value={input}
           onChange={e=>setInput(e.target.value)}
           onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
-          placeholder={attachedImage ? "Вопрос к фото (или просто отправьте)..." : "Опишите проблему..."}
+          placeholder="Опишите проблему..."
           disabled={loading}
         />
         {loading && <button onClick={stopGeneration} style={{ padding:"0 14px", borderRadius:12, border:"1px solid rgba(239,68,68,0.45)", background:"rgba(239,68,68,0.2)", color:"#FECACA", fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:12, flexShrink:0 }}>Стоп</button>}
-        <button onClick={() => send()} disabled={(!input.trim() && !attachedImage) || loading} style={{ padding:"0 20px", borderRadius:12, border:"1px solid rgba(37,99,235,0.5)", background:(input.trim()||attachedImage)&&!loading?"linear-gradient(130deg, #2563EB, #7C3AED)":"rgba(148,163,184,0.3)", color:"#fff", fontWeight:700, cursor:(input.trim()||attachedImage)&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:16, flexShrink:0, boxShadow:"0 0 24px rgba(37,99,235,0.28)" }}>→</button>
+        <button onClick={() => send()} disabled={!input.trim() || loading} style={{ padding:"0 20px", borderRadius:12, border:"1px solid rgba(37,99,235,0.5)", background:input.trim()&&!loading?"linear-gradient(130deg, #2563EB, #7C3AED)":"rgba(148,163,184,0.3)", color:"#fff", fontWeight:700, cursor:input.trim()&&!loading?"pointer":"not-allowed", fontFamily:"inherit", fontSize:16, flexShrink:0, boxShadow:"0 0 24px rgba(37,99,235,0.28)" }}>→</button>
       </div>
     </div>
   );
@@ -7962,7 +7791,7 @@ function AppInner() {
     { id: "calc", title: "Калькуляторы", section: "Разделы", keywords: "расчёт db dbm vswr конвертер", action: () => handleTab("calc") },
     { id: "tests", title: "Испытания", section: "Разделы", keywords: "гост методика стенд", action: () => handleTab("tests") },
     { id: "ref", title: "Справочники", section: "Разделы", keywords: "нормы единицы стандарты сокращения", action: () => handleTab("ref") },
-    { id: "ai", title: "ИИ-помощник", section: "Разделы", keywords: "ollama чат вопрос помощь", action: () => handleTab("ai") },
+    { id: "ai", title: "ИИ-помощник", section: "Разделы", keywords: "чат вопрос помощь ai ии", action: () => handleTab("ai") },
     { id: "log", title: "Журнал", section: "Разделы", keywords: "история записи pass fail", action: () => handleTab("log") },
     { id: "spectrum", title: "Анализатор спектра", section: "Инструменты", keywords: "csv график лимит превышение спектр", action: () => handleTab("spectrum") },
     { id: "protocol", title: "Протокол испытаний → PDF", section: "Инструменты", keywords: "отчёт печать pdf документ", action: () => handleTab("protocol") },

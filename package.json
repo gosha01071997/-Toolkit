@@ -18,9 +18,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.0.8",
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "vite": "^5.0.8"
   },
   "build": {
     "appId": "ru.emc.pro",
@@ -41,6 +41,15 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
-    "forceCodeSigning": false
+    "forceCodeSigning": false,
+    "extraResources": [
+      {
+        "from": "ai-runtime",
+        "to": "ai-runtime",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }
