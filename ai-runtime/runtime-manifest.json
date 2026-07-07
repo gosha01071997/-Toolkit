@@ -1,0 +1,16 @@
+{
+  "name": "EMC Toolkit Windows AI Pack",
+  "runtime": {
+    "type": "llama.cpp-server",
+    "win32": "bin/win32/emc-ai-runtime.exe"
+  },
+  "model": {
+    "name": "qwen2.5-7b",
+    "path": "models/qwen2.5-7b.gguf"
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 39281,
+    "ctxSize": 4096
+  }
+}
