@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
-import { AI_MODEL, AI_RUNTIME_ENDPOINT, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
+import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -6672,12 +6672,31 @@ function AiAssistantScreen({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [thinkingStep, setThinkingStep] = useState("");
   const [streamingText, setStreamingText] = useState("");
+  const [aiStatus, setAiStatus] = useState({ message: "Проверяю AI Pack...", installed: false, ready: false });
   const abortRef = React.useRef(null);
   const bottomRef = React.useRef(null);
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [messages, streamingText, loading]);
+
+  React.useEffect(() => {
+    let alive = true;
+    const loadStatus = async () => {
+      if (!window.emcAi?.status) {
+        if (alive) setAiStatus({ message: "AI Pack доступен только в Windows-приложении", installed: false, ready: false });
+        return;
+      }
+      try {
+        const status = await window.emcAi.status();
+        if (alive) setAiStatus(status);
+      } catch {
+        if (alive) setAiStatus({ message: "Не удалось проверить AI Pack", installed: false, ready: false });
+      }
+    };
+    loadStatus();
+    return () => { alive = false; };
+  }, []);
 
   const appendMsg = (msg) => setMessages(m => [...m, msg]);
 
@@ -6722,53 +6741,16 @@ ${kbContext}
 
 ${mikhailMode ? "Если в вопросе упоминается Михаил — отвечай заметно теплее, с уважением к его опыту и спокойной инженерной уверенностью; можно добавить лёгкую дружескую иронию без перегиба." : ""}`;
 
-    const body = {
-      model: AI_MODEL,
-      prompt: `${systemPrompt}\n\nВопрос: ${userQuery}`,
-      stream: true
-    };
+    if (!window.emcAi?.generate) throw new Error("AI_PACK_NOT_AVAILABLE");
 
-    const resp = await fetch(`${AI_RUNTIME_ENDPOINT}/api/generate`, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      signal: abortRef.current?.signal,
-      body: JSON.stringify(body)
-    });
-    if (!resp.ok) throw new Error("AI_RUNTIME_UNAVAILABLE");
+    const prompt = `${systemPrompt}\n\nМодель: ${AI_MODEL}\nВопрос: ${userQuery}`;
+    const result = await window.emcAi.generate(prompt);
+    const full = result?.text || "";
+    if (!full.trim()) throw new Error("AI_EMPTY_RESPONSE");
+    onToken?.(full);
+    if (result?.status) setAiStatus(result.status);
 
-    const reader = resp.body?.getReader();
-    if (!reader) throw new Error("AI_STREAM_UNAVAILABLE");
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let full = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const json = JSON.parse(line);
-        const token = json.response || "";
-        if (token) {
-          full += token;
-          onToken?.(full);
-        }
-      }
-    }
-
-    if (buffer.trim()) {
-      const json = JSON.parse(buffer);
-      const token = json.response || "";
-      if (token) {
-        full += token;
-        onToken?.(full);
-      }
-    }
-
-    return { text: full || "Пустой ответ AI-модуля", source:"AI-модуль" };
+    return { text: full, source:"AI-модуль" };
   };
 
   const stopGeneration = () => {
@@ -6782,11 +6764,6 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
     if (!q || loading) return;
     setInput("");
 
-    if (q === "как сварить кофе для Михаила?") {
-      appendMsg({ role:"user", text: q });
-      appendMsg({ role:"assistant", text:"Для Михаила кофе лучше варить внимательно. Хорошие люди в инженерке встречаются редко. Рад, что довелось поработать вместе.", source:"AI-модуль" });
-      return;
-    }
 
     setMessages(m => [...m, { role:"user", text: q }]);
     abortRef.current = new AbortController();
@@ -6810,7 +6787,7 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
       if (e.name === "AbortError") {
         appendMsg({ role:"assistant", text:"Генерация остановлена пользователем.", source:"AI-модуль" });
       } else {
-        appendMsg({ role:"assistant", text:AI_UNAVAILABLE_MESSAGE, source:"Статус AI-модуля" });
+        appendMsg({ role:"assistant", text:e?.message || AI_UNAVAILABLE_MESSAGE, source:"Статус AI-модуля" });
       }
     } finally {
       if (timer) clearInterval(timer);
@@ -6832,8 +6809,8 @@ ${mikhailMode ? "Если в вопросе упоминается Михаил 
             </div>
             <div style={{ fontSize:14, color:C.textSec, marginBottom:8 }}>Опишите проблему — помощник подскажет, что проверить</div>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-              <span style={{ width:9, height:9, borderRadius:"50%", background:loading?C.warn:C.pass, boxShadow:loading?"0 0 14px rgba(245,158,11,0.7)":"0 0 14px rgba(16,185,129,0.7)" }} />
-              <span style={{ color:loading?"#FDE68A":"#A7F3D0", fontWeight:700, fontSize:12 }}>{loading ? (thinkingStep || "AI обрабатывает запрос") : "Готов помочь"}</span>
+              <span style={{ width:9, height:9, borderRadius:"50%", background:loading?C.warn:(aiStatus.ready?C.pass:C.fail), boxShadow:loading?"0 0 14px rgba(245,158,11,0.7)":(aiStatus.ready?"0 0 14px rgba(16,185,129,0.7)":"0 0 14px rgba(239,68,68,0.55)") }} />
+              <span style={{ color:loading?"#FDE68A":(aiStatus.ready?"#A7F3D0":"#FCA5A5"), fontWeight:700, fontSize:12 }}>{loading ? (thinkingStep || "AI обрабатывает запрос") : aiStatus.message}</span>
             </div>
           </div>
           <div style={{ display:"flex", justifyContent:"center" }}><EMCAvatar size={170} /></div>
@@ -7179,10 +7156,6 @@ function AdminModal({ title, onConfirm, onCancel }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [thinkingStep, setThinkingStep] = useState("");
-  const [streamingText, setStreamingText] = useState("");
-  const abortRef = React.useRef(null);
-
   const handle = async () => {
     setLoading(true);
     const ok = await checkAdminCode(code);
