@@ -4,7 +4,8 @@ import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
 import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
-import { currentEdition, editionConfig, hasFeature, UPGRADE_MESSAGE } from "./config/editions";
+import { currentEdition, editionConfig, hasFeature, setActiveEdition, UPGRADE_MESSAGE } from "./config/editions";
+import { getActiveLicense, removeLicense, saveLicense } from "./license";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -271,15 +272,9 @@ function getCableLoss(type, freqMHz, lengthM) {
 }
 
 
-const LICENSE_STORAGE_KEY = "emc_toolkit_license";
 const FORCED_APP_MODE = "engineer"; // temporary release bypass
 const LANGUAGE_STORAGE_KEY = "emc_toolkit_language";
-const VALID_LICENSE_KEYS = ["EMC-PRO-2026", "BETA-KEY-001", "DEMO-KEY-002", "ENGINEER-KEY-003"];
-
-function isValidLicenseKey(key) {
-  const normalized = String(key || "").trim().toUpperCase();
-  return VALID_LICENSE_KEYS.includes(normalized);
-}
+const COMMUNITY_CHOICE_KEY = "emc_toolkit_community_choice_v1";
 
 const translations = {
   ru: {
@@ -6900,7 +6895,7 @@ class ErrorBoundary extends React.Component {
 }
 
 // ─── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onClose, language = "ru", setLanguage }) {
+function SettingsScreen({ onClose, language = "ru", setLanguage, activeLicense, onChangeLicense, onRemoveLicense }) {
   const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
   const [backups, setBackups] = useState(() => readBackupLog());
   const [backupStatus, setBackupStatus] = useState("");
@@ -6966,6 +6961,17 @@ function SettingsScreen({ onClose, language = "ru", setLanguage }) {
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={() => setLanguage?.("ru")} style={{ ...styles.btn(), flex:1, background: language === "ru" ? C.accentLight : "#EDF0F5" }}>Русский</button>
           <button onClick={() => setLanguage?.("en")} style={{ ...styles.btn(), flex:1, background: language === "en" ? C.accentLight : "#EDF0F5" }}>English</button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>ЛИЦЕНЗИЯ</div>
+      <div style={styles.card}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 10 }}>Текущая версия: {editionConfig.label}</div>
+        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 6 }}>ID лицензии: <b style={{ color: C.text }}>{activeLicense?.licenseId || "—"}</b></div>
+        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 14 }}>Статус: <b style={{ color: C.pass }}>{activeLicense ? "Активна" : "Community — лицензия не требуется"}</b></div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={onChangeLicense} style={styles.btn("primary")}>Сменить лицензию</button>
+          {activeLicense && <button onClick={onRemoveLicense} style={styles.btn("secondary")}>Удалить лицензию</button>}
         </div>
       </div>
 
@@ -7673,27 +7679,31 @@ function SplashScreen({ onDone }) {
 
 
 
-function LicenseActivationScreen({ onActivate, language = "ru" }) {
+function LicenseActivationScreen({ onActivate, onCommunity }) {
   const [key, setKey] = useState("");
-  const [error, setError] = useState(false);
-  const t = (k) => translations[language]?.[k] || translations.ru[k] || k;
+  const [error, setError] = useState("");
+  const [activating, setActivating] = useState(false);
 
-  const submit = () => {
-    const normalized = key.trim().toUpperCase();
-    if (!isValidLicenseKey(normalized)) { setError(true); return; }
-    try { localStorage.setItem(LICENSE_STORAGE_KEY, normalized); } catch(e) {}
-    onActivate(normalized);
+  const submit = async () => {
+    setActivating(true);
+    const result = await saveLicense(key);
+    setActivating(false);
+    if (!result.valid) { setError(result.error); return; }
+    onActivate(result.license);
   };
 
   return (
     <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
       <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26, boxShadow:"0 0 60px rgba(80,120,255,0.2)" }}>
-        <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:10 }}>{t("activateTitle")}</div>
-        <div style={{ color:C.textSec, marginBottom:16 }}>{t("activateSub")}</div>
-        <input value={key} onChange={(e)=>{ setKey(e.target.value); setError(false); }} placeholder="XXXX-XXXX-XXXX" style={{ ...styles.input, marginBottom:10 }} />
-        {error && <div style={{ color:C.fail, fontSize:12, marginBottom:8 }}>{t("activateErr")}</div>}
-        <button onClick={submit} style={{ ...styles.btn("primary"), width:"100%", marginBottom:10 }}>{t("activateBtn")}</button>
-        <div style={{ fontSize:11, color:C.textSec }}>{t("activateNote")}</div>
+        <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:16 }}>Выберите EMC Toolkit</div>
+        <div style={{ ...styles.card, marginBottom:10 }}><b>EMC Toolkit Community</b><div style={{ color:C.textSec, margin:"5px 0 10px" }}>Бесплатная версия</div><button onClick={onCommunity} style={{ ...styles.btn(), width:"100%" }}>Продолжить бесплатно</button></div>
+        <div style={{ ...styles.card, marginBottom:10 }}><b>EMC Toolkit Personal</b><div style={{ color:C.textSec, fontSize:12, marginTop:5 }}>Активируйте ключ Personal</div></div>
+        <div style={{ ...styles.card, marginBottom:14 }}><b>EMC Toolkit Pro</b><div style={{ color:C.textSec, fontSize:12, marginTop:5 }}>Активируйте ключ Pro</div></div>
+        <div style={{ color:C.textSec, marginBottom:8 }}>Введите лицензионный ключ</div>
+        <textarea value={key} onChange={(e)=>{ setKey(e.target.value); setError(""); }} rows={4} style={{ ...styles.input, marginBottom:10, resize:"vertical" }} />
+        {error && <div style={{ color:C.fail, fontSize:12, marginBottom:8 }}>{error}</div>}
+        <button disabled={activating || !key.trim()} onClick={submit} style={{ ...styles.btn("primary"), width:"100%", marginBottom:10 }}>{activating ? "Проверка…" : "Активировать"}</button>
+        <button onClick={onCommunity} style={{ ...styles.btn("secondary"), width:"100%" }}>Продолжить бесплатно</button>
       </div>
     </div>
   );
@@ -7730,12 +7740,9 @@ function AppInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [upgradeNotice, setUpgradeNotice] = useState("");
   const [appMode] = useState(FORCED_APP_MODE);
-  const [licenseKey, setLicenseKey] = useState(() => {
-    // temporary early-release bypass: keep licensing storage path but force an internal engineer token
-    const forcedKey = "ENGINEER-BYPASS-2026";
-    try { localStorage.setItem(LICENSE_STORAGE_KEY, forcedKey); } catch(e) {}
-    return forcedKey;
-  });
+  const [licenseReady, setLicenseReady] = useState(false);
+  const [showLicenseScreen, setShowLicenseScreen] = useState(false);
+  const [activeLicense, setActiveLicense] = useState(null);
   const [language, setLanguage] = useState(() => { try { return localStorage.getItem(LANGUAGE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
 
   // Android системная кнопка «Назад»
@@ -7756,6 +7763,13 @@ function AppInner() {
 
 
   useEffect(() => { ensureAutomaticBackupForSchemaVersion(); }, []);
+  useEffect(() => {
+    getActiveLicense().then((result) => {
+      if (result.valid) { setActiveEdition(result.license.edition); setActiveLicense(result.license); }
+      else { setActiveEdition("community"); setShowLicenseScreen(!localStorage.getItem(COMMUNITY_CHOICE_KEY)); }
+      setLicenseReady(true);
+    });
+  }, []);
   useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
 
   const routeFeatures = { tests: "tests", log: "tests", ai: "ai", spectrum: "tests", protocol: "protocols" };
@@ -7766,7 +7780,6 @@ function AppInner() {
   };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
 
-  // license activation screen intentionally bypassed for temporary release build
   // ─── EMC upgrade: Ctrl+K командная палитра ───
   const palette = useCommandPalette();
   const paletteCommands = [
@@ -7785,6 +7798,7 @@ function AppInner() {
     .filter(command => command.id !== "verify" || hasFeature("calibration"));
 
   if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
+  if (!licenseReady) return null;
   if (eula) return (
     <EulaScreen
       onAccept={() => { try { localStorage.setItem("emc_eula_v1","1"); } catch(e){} setEula(false); }}
@@ -7792,6 +7806,7 @@ function AppInner() {
     />
   );
   if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
+  if (showLicenseScreen) return <LicenseActivationScreen onActivate={(license) => { setActiveEdition(license.edition); setActiveLicense(license); setShowLicenseScreen(false); }} onCommunity={() => { localStorage.setItem(COMMUNITY_CHOICE_KEY, "1"); setActiveEdition("community"); setActiveLicense(null); setShowLicenseScreen(false); }} />;
 
 
 
@@ -7914,7 +7929,7 @@ function AppInner() {
       <div style={styles.content}>
         {upgradeNotice && <div style={{ ...styles.warn, marginTop: 0, marginBottom: 14, display: "flex", justifyContent: "space-between", gap: 12 }}><span>{upgradeNotice}</span><button onClick={() => setUpgradeNotice("")} style={{ border: 0, background: "none", color: C.warn, cursor: "pointer" }}>×</button></div>}
         {settingsOpen
-          ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} />
+          ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} activeLicense={activeLicense} onChangeLicense={() => setShowLicenseScreen(true)} onRemoveLicense={() => { removeLicense(); localStorage.removeItem(COMMUNITY_CHOICE_KEY); setActiveEdition("community"); setActiveLicense(null); setShowLicenseScreen(true); }} />
           : searchOpen
           ? <GlobalSearch onClose={() => setSearchOpen(false)} setTab={handleTab} setCalcId={handleSetCalcId} onErrors={() => { setErrorsOpen(true); setSearchOpen(false); }} onVerify={() => { setVerifyOpen(true); setSearchOpen(false); }} onQuiz={() => { setQuizOpen(true); setSearchOpen(false); }} />
           : verifyOpen && hasFeature("calibration")
