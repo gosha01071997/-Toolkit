@@ -17,3 +17,21 @@
 APK собирается **автоматически** при каждом обновлении файлов.
 
 Посмотреть сборку: вкладка **Actions** → выбери последний запуск → внизу раздел **Artifacts**.
+
+## Редакции
+
+Редакция задаётся только во время сборки переменной `VITE_APP_EDITION`; URL и
+`localStorage` не используются как источник прав. Обычная `npm run build`
+сохраняет прежнее поведение и собирает Pro.
+
+```bash
+npm run build:community # основная мобильная сборка (Capacitor / Android)
+npm run build:personal  # персональная Desktop-сборка
+npm run build:pro       # полная Desktop-сборка
+```
+
+Для установщиков Windows используйте `npm run electron:build:personal` или
+`npm run electron:build:pro`. Community, Personal, Pro и наследующая Pro
+конфигурация Lab описаны централизованно в `src/config/editions.js`. Подключение
+проверенного лицензионного ключа в будущем должно заменить только резолвер
+редакции; хранить лицензионные права в `localStorage` не следует.

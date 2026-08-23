@@ -8,9 +8,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:community": "VITE_APP_EDITION=community vite build",
+    "build:personal": "VITE_APP_EDITION=personal vite build",
+    "build:pro": "VITE_APP_EDITION=pro vite build",
     "preview": "vite preview",
     "electron": "electron .",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:personal": "npm run build:personal && electron-builder",
+    "electron:build:pro": "npm run build:pro && electron-builder"
   },
   "dependencies": {
     "react": "^18.2.0",

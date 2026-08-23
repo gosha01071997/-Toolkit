@@ -4,6 +4,7 @@ import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
 import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
+import { currentEdition, editionConfig, hasFeature, UPGRADE_MESSAGE } from "./config/editions";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -6390,7 +6391,7 @@ function ReferenceScreen({ refTab, setRefTab }) {
     { id: "noise", label: "Помехи" },
     { id: "fail", label: "🔧 Отказы" },
     { id: "formulas", label: "Формулы" },
-  ];
+  ].filter(tab => tab.id !== "equip" || hasFeature("equipment"));
   return (
     <PageContainer>
       <SectionHero
@@ -6968,7 +6969,7 @@ function SettingsScreen({ onClose, language = "ru", setLanguage }) {
         </div>
       </div>
 
-      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>РЕЗЕРВНОЕ КОПИРОВАНИЕ ДАННЫХ</div>
+      {hasFeature("importExport") && <><div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>РЕЗЕРВНОЕ КОПИРОВАНИЕ ДАННЫХ</div>
       <div style={styles.card}>
         <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6, marginBottom: 12 }}>
           Перед изменением версии данных приложение автоматически сохраняет копию всех пользовательских ключей localStorage с префиксом <b>emc_</b>: оборудование, правки карточек, журнал испытаний, поверку, схемы стендов и настройки разделов.
@@ -6998,11 +6999,12 @@ function SettingsScreen({ onClose, language = "ru", setLanguage }) {
             ))}
           </div>
         )}
-      </div>
+      </div></>}
 
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>О ПРИЛОЖЕНИИ</div>
       <div style={styles.card}>
         {[
+          ["Редакция", editionConfig.label],
           ["Версия", "2.0.0"],
           ["Стандарт", "ГОСТ РВ 20.57.306-98"],
           ["Разработчик", "Кондратьев Г.Д."],
@@ -7014,6 +7016,8 @@ function SettingsScreen({ onClose, language = "ru", setLanguage }) {
             <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{v}</span>
           </div>
         ))}
+        {currentEdition === "community" && <div style={{ ...styles.warn, marginBottom: 0 }}>Нужны журнал испытаний, оборудование, поверки и протоколы? Доступно в EMC Toolkit для Windows.</div>}
+        {currentEdition === "personal" && <div style={{ ...styles.warn, marginBottom: 0 }}>Расширенные возможности лаборатории доступны в EMC Toolkit Pro.</div>}
       </div>
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>ПОДДЕРЖКА</div>
       <div style={styles.card}>
@@ -7724,6 +7728,7 @@ function AppInner() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [upgradeNotice, setUpgradeNotice] = useState("");
   const [appMode] = useState(FORCED_APP_MODE);
   const [licenseKey, setLicenseKey] = useState(() => {
     // temporary early-release bypass: keep licensing storage path but force an internal engineer token
@@ -7753,7 +7758,12 @@ function AppInner() {
   useEffect(() => { ensureAutomaticBackupForSchemaVersion(); }, []);
   useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
 
-  const handleTab = (t) => { setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false); };
+  const routeFeatures = { tests: "tests", log: "tests", ai: "ai", spectrum: "tests", protocol: "protocols" };
+  const handleTab = (t) => {
+    const feature = routeFeatures[t];
+    if (feature && !hasFeature(feature)) { setUpgradeNotice(UPGRADE_MESSAGE); return; }
+    setUpgradeNotice(""); setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false);
+  };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
 
   // license activation screen intentionally bypassed for temporary release build
@@ -7771,7 +7781,8 @@ function AppInner() {
     { id: "verify", title: "Поверка оборудования", section: "Разделы", keywords: "калибровка свидетельство", action: () => setVerifyOpen(true) },
     { id: "quiz", title: "Тестирование (10 вопросов)", section: "Инструменты", keywords: "квиз обучение вопросы", action: () => setQuizOpen(true) },
     { id: "errors", title: "Типовые ошибки", section: "Инструменты", keywords: "отказы причины помехи", action: () => setErrorsOpen(true) },
-  ];
+  ].filter(command => !routeFeatures[command.id] || hasFeature(routeFeatures[command.id]))
+    .filter(command => command.id !== "verify" || hasFeature("calibration"));
 
   if (splash) return <SplashScreen onDone={() => setSplash(false)} />;
   if (eula) return (
@@ -7795,7 +7806,11 @@ function AppInner() {
     { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
       { id: "spectrum", label: "Анализатор спектра", svgPath: "M3 3v18h18 M7 14l4-6 4 4 4-8" },
     { id: "protocol", label: "Протоколы", svgPath: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-];
+].filter(item => {
+  if (item.id === "equip") return hasFeature("equipment");
+  if (item.id === "verify") return hasFeature("calibration");
+  return !routeFeatures[item.id] || hasFeature(routeFeatures[item.id]);
+});
 
   const topBarTitle = settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
     sideNavItems.find(n => n.id === tab)?.label || "Главная";
@@ -7867,7 +7882,7 @@ function AppInner() {
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A" }}></div>
             <span style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>Офлайн режим</span>
           </div>
-          <div style={{ fontSize: 11, color: "#94A3B8" }}>Все функции доступны</div>
+          <div style={{ fontSize: 11, color: "#94A3B8" }}>{editionConfig.label}</div>
           <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>v2.0.0</div>
         </div>
       </div>
@@ -7897,11 +7912,12 @@ function AppInner() {
         <div style={{ flex: 1, overflowY: "auto", scrollbarGutter: "stable" }}>
           <div style={{ height: "100%" }}>
       <div style={styles.content}>
+        {upgradeNotice && <div style={{ ...styles.warn, marginTop: 0, marginBottom: 14, display: "flex", justifyContent: "space-between", gap: 12 }}><span>{upgradeNotice}</span><button onClick={() => setUpgradeNotice("")} style={{ border: 0, background: "none", color: C.warn, cursor: "pointer" }}>×</button></div>}
         {settingsOpen
           ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} />
           : searchOpen
           ? <GlobalSearch onClose={() => setSearchOpen(false)} setTab={handleTab} setCalcId={handleSetCalcId} onErrors={() => { setErrorsOpen(true); setSearchOpen(false); }} onVerify={() => { setVerifyOpen(true); setSearchOpen(false); }} onQuiz={() => { setQuizOpen(true); setSearchOpen(false); }} />
-          : verifyOpen
+          : verifyOpen && hasFeature("calibration")
           ? <VerificationScreen onClose={() => setVerifyOpen(false)} />
           : errorsOpen
           ? <ErrorsScreen onClose={() => setErrorsOpen(false)} />
@@ -7910,13 +7926,13 @@ function AppInner() {
           : <>
               {tab === "home" && <HomeScreen setTab={handleTab} setCalcId={handleSetCalcId} onQuiz={() => setQuizOpen(true)} onErrors={() => setErrorsOpen(true)} onVerify={() => setVerifyOpen(true)} />}
               {tab === "calc" && <CalculatorsScreen calcId={calcId} setCalcId={setCalcId} />}
-              {tab === "tests" && <TestsScreen />}
+              {tab === "tests" && hasFeature("tests") && <TestsScreen />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
-              {tab === "log" && <LogbookScreen />}
-              {tab === "spectrum" && <SpectrumAnalyzer />}
-              {tab === "protocol" && <ProtocolGenerator />}
+              {tab === "log" && hasFeature("tests") && <LogbookScreen />}
+              {tab === "spectrum" && hasFeature("tests") && <SpectrumAnalyzer />}
+              {tab === "protocol" && hasFeature("protocols") && <ProtocolGenerator />}
               <CommandPalette {...palette} commands={paletteCommands} />
-              {tab === "ai" && <AiAssistantScreen onClose={() => setTab("home")} />}
+              {tab === "ai" && hasFeature("ai") && <AiAssistantScreen onClose={() => setTab("home")} />}
             </>
         }
       </div>
