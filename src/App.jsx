@@ -4,7 +4,8 @@ import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
 import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
-import { currentEdition, editionConfig, hasFeature, setActiveEdition, UPGRADE_MESSAGE } from "./config/editions";
+import { SUPPORT_URL } from "./config/support";
+import { currentEdition, editionConfig, hasFeature, setActiveEdition } from "./config/editions";
 import { getActiveLicense, removeLicense, saveLicense } from "./license";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
@@ -7679,10 +7680,11 @@ function SplashScreen({ onDone }) {
 
 
 
-function LicenseActivationScreen({ onActivate, onCommunity }) {
+function LicenseActivationScreen({ onActivate, onCommunity, activationOnly = false, onBack }) {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [activating, setActivating] = useState(false);
+  const [showActivation, setShowActivation] = useState(activationOnly);
 
   const submit = async () => {
     setActivating(true);
@@ -7695,18 +7697,43 @@ function LicenseActivationScreen({ onActivate, onCommunity }) {
   return (
     <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at 70% 20%, rgba(37,99,235,0.18), transparent 35%), #050814", padding:20 }}>
       <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26, boxShadow:"0 0 60px rgba(80,120,255,0.2)" }}>
-        <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:16 }}>Выберите EMC Toolkit</div>
-        <div style={{ ...styles.card, marginBottom:10 }}><b>EMC Toolkit Community</b><div style={{ color:C.textSec, margin:"5px 0 10px" }}>Бесплатная версия</div><button onClick={onCommunity} style={{ ...styles.btn(), width:"100%" }}>Продолжить бесплатно</button></div>
-        <div style={{ ...styles.card, marginBottom:10 }}><b>EMC Toolkit Personal</b><div style={{ color:C.textSec, fontSize:12, marginTop:5 }}>Активируйте ключ Personal</div></div>
-        <div style={{ ...styles.card, marginBottom:14 }}><b>EMC Toolkit Pro</b><div style={{ color:C.textSec, fontSize:12, marginTop:5 }}>Активируйте ключ Pro</div></div>
-        <div style={{ color:C.textSec, marginBottom:8 }}>Введите лицензионный ключ</div>
-        <textarea value={key} onChange={(e)=>{ setKey(e.target.value); setError(""); }} rows={4} style={{ ...styles.input, marginBottom:10, resize:"vertical" }} />
-        {error && <div style={{ color:C.fail, fontSize:12, marginBottom:8 }}>{error}</div>}
-        <button disabled={activating || !key.trim()} onClick={submit} style={{ ...styles.btn("primary"), width:"100%", marginBottom:10 }}>{activating ? "Проверка…" : "Активировать"}</button>
-        <button onClick={onCommunity} style={{ ...styles.btn("secondary"), width:"100%" }}>Продолжить бесплатно</button>
+        {!showActivation ? <>
+          <div style={{ fontSize:26, fontWeight:800, color:C.text, marginBottom:16 }}>Выберите EMC Toolkit</div>
+          <div style={{ ...styles.card, marginBottom:12 }}>
+            <b>EMC Toolkit Community</b>
+            <div style={{ color:C.text, fontSize:14, marginTop:8 }}>Бесплатная версия для инженеров ЭМС</div>
+            <div style={{ color:C.textSec, fontSize:12, lineHeight:1.55, margin:"7px 0 12px" }}>Калькуляторы, справочники, база знаний и основные инструменты — без регистрации и ограничений по времени.</div>
+            <button onClick={onCommunity} style={{ ...styles.btn(), width:"100%" }}>Продолжить бесплатно</button>
+          </div>
+          <div style={{ ...styles.card, marginBottom:14 }}>
+            <b>EMC Toolkit Pro</b>
+            <div style={{ color:C.text, fontSize:14, marginTop:8 }}>Расширенная версия для тех, кто хочет поддержать развитие проекта</div>
+            <div style={{ color:C.textSec, fontSize:12, lineHeight:1.55, margin:"7px 0 12px" }}>Поддержите развитие проекта от 300 ₽ и получите бессрочный Pro-ключ.</div>
+            <button onClick={() => setShowActivation(true)} style={{ ...styles.btn("primary"), width:"100%" }}>Активировать Pro</button>
+          </div>
+          <a href={SUPPORT_URL} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", color:C.accent, fontSize:13 }}>Поддержать проект</a>
+        </> : <>
+          <div style={{ fontSize:24, fontWeight:800, color:C.text, marginBottom:16 }}>Введите лицензионный ключ</div>
+          <textarea autoFocus value={key} onChange={(e)=>{ setKey(e.target.value); setError(""); }} rows={4} style={{ ...styles.input, marginBottom:10, resize:"vertical" }} />
+          {error && <div style={{ color:C.fail, fontSize:12, marginBottom:8 }}>{error}</div>}
+          <button disabled={activating || !key.trim()} onClick={submit} style={{ ...styles.btn("primary"), width:"100%", marginBottom:10 }}>{activating ? "Проверка…" : "Активировать"}</button>
+          <button onClick={() => activationOnly && onBack ? onBack() : setShowActivation(false)} style={{ ...styles.btn("secondary"), width:"100%" }}>Вернуться</button>
+        </>}
       </div>
     </div>
   );
+}
+
+function ProUpgradeModal({ onClose, onActivate }) {
+  return <div role="dialog" aria-modal="true" style={{ position:"fixed", inset:0, zIndex:1000, display:"grid", placeItems:"center", padding:20, background:"rgba(2,6,23,0.78)" }}>
+    <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26, boxShadow:"0 24px 80px rgba(0,0,0,0.45)" }}>
+      <div style={{ fontSize:22, fontWeight:800, marginBottom:12 }}>Доступно в EMC Toolkit Pro</div>
+      <div style={{ color:C.textSec, lineHeight:1.65, marginBottom:18 }}>Этот модуль входит в расширенную версию EMC Toolkit Pro. Если бесплатная версия оказалась полезной, вы можете поддержать развитие проекта от 300 ₽ и получить бессрочный Pro-ключ.</div>
+      <a href={SUPPORT_URL} target="_blank" rel="noreferrer" style={{ ...styles.btn("primary"), display:"block", boxSizing:"border-box", width:"100%", textAlign:"center", textDecoration:"none", marginBottom:10 }}>Поддержать проект</a>
+      <button onClick={onActivate} style={{ ...styles.btn(), width:"100%", marginBottom:10 }}>У меня уже есть ключ</button>
+      <button onClick={onClose} style={{ ...styles.btn("secondary"), width:"100%" }}>Закрыть</button>
+    </div>
+  </div>;
 }
 
 function LanguageSelectScreen({ onSelect, language = "ru" }) {
@@ -7742,6 +7769,7 @@ function AppInner() {
   const [appMode] = useState(FORCED_APP_MODE);
   const [licenseReady, setLicenseReady] = useState(false);
   const [showLicenseScreen, setShowLicenseScreen] = useState(false);
+  const [licenseActivationOnly, setLicenseActivationOnly] = useState(false);
   const [activeLicense, setActiveLicense] = useState(null);
   const [language, setLanguage] = useState(() => { try { return localStorage.getItem(LANGUAGE_STORAGE_KEY) || ""; } catch(e) { return ""; } });
 
@@ -7772,10 +7800,10 @@ function AppInner() {
   }, []);
   useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
 
-  const routeFeatures = { tests: "tests", log: "tests", ai: "ai", spectrum: "tests", protocol: "protocols" };
+  const routeFeatures = { tests: "tests", equip: "equipment", verify: "calibration", log: "tests", ai: "ai", spectrum: "tests", protocol: "protocols" };
   const handleTab = (t) => {
     const feature = routeFeatures[t];
-    if (feature && !hasFeature(feature)) { setUpgradeNotice(UPGRADE_MESSAGE); return; }
+    if (feature && !hasFeature(feature)) { setUpgradeNotice("pro"); return; }
     setUpgradeNotice(""); setTab(t); if (t !== "calc") setCalcId(null); setSettingsOpen(false); setErrorsOpen(false); setVerifyOpen(false); setSearchOpen(false);
   };
   const handleSetCalcId = (id) => { setCalcId(id); setTab("calc"); };
@@ -7806,7 +7834,7 @@ function AppInner() {
     />
   );
   if (!language) return <LanguageSelectScreen onSelect={setLanguage} language="ru" />;
-  if (showLicenseScreen) return <LicenseActivationScreen onActivate={(license) => { setActiveEdition(license.edition); setActiveLicense(license); setShowLicenseScreen(false); }} onCommunity={() => { localStorage.setItem(COMMUNITY_CHOICE_KEY, "1"); setActiveEdition("community"); setActiveLicense(null); setShowLicenseScreen(false); }} />;
+  if (showLicenseScreen) return <LicenseActivationScreen activationOnly={licenseActivationOnly} onBack={() => { setLicenseActivationOnly(false); setShowLicenseScreen(false); }} onActivate={(license) => { setActiveEdition(license.edition); setActiveLicense(license); setLicenseActivationOnly(false); setShowLicenseScreen(false); }} onCommunity={() => { localStorage.setItem(COMMUNITY_CHOICE_KEY, "1"); setActiveEdition("community"); setActiveLicense(null); setShowLicenseScreen(false); }} />;
 
 
 
@@ -7816,16 +7844,12 @@ function AppInner() {
     { id: "tests",  label: "Испытания",    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
     { id: "ref",    label: "Справочники",  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
     { id: "equip",  label: "Оборудование", svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
-    { id: "verify", label: "Поверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
+    { id: "verify", label: "Проверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
     { id: "ai",     label: "ИИ-помощник",  svgPath: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" },
-    { id: "log",    label: "Журнал",       svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+    { id: "log",    label: "Расширенный журнал", svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
       { id: "spectrum", label: "Анализатор спектра", svgPath: "M3 3v18h18 M7 14l4-6 4 4 4-8" },
     { id: "protocol", label: "Протоколы", svgPath: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-].filter(item => {
-  if (item.id === "equip") return hasFeature("equipment");
-  if (item.id === "verify") return hasFeature("calibration");
-  return !routeFeatures[item.id] || hasFeature(routeFeatures[item.id]);
-});
+];
 
   const topBarTitle = settingsOpen ? "⚙️ Настройки" : searchOpen ? "🔍 Поиск" : verifyOpen ? "✅ Проверки" : errorsOpen ? "🔥 Ошибки" : quizOpen ? "🧠 Тестирование" :
     sideNavItems.find(n => n.id === tab)?.label || "Главная";
@@ -7861,6 +7885,7 @@ function AppInner() {
         {/* Навигация */}
         <div style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
           {sideNavItems.map(n => {
+            const isLocked = Boolean(routeFeatures[n.id] && !hasFeature(routeFeatures[n.id]));
             const isActive = !quizOpen && !settingsOpen && !errorsOpen && !searchOpen && (
               n.id === "verify" ? verifyOpen :
               n.id === "equip" ? (tab === "ref" && refTab === "equip" && !verifyOpen) :
@@ -7869,6 +7894,7 @@ function AppInner() {
             );
             const handleClick = () => {
               setQuizOpen(false); setSettingsOpen(false); setErrorsOpen(false); setSearchOpen(false);
+              if (isLocked) { setUpgradeNotice("pro"); return; }
               if (n.id === "verify") { setVerifyOpen(true); }
               else if (n.id === "equip") { setVerifyOpen(false); setRefTab("equip"); handleTab("ref"); }
               else if (n.id === "ref") { setVerifyOpen(false); setRefTab("abbr"); handleTab("ref"); }
@@ -7885,7 +7911,8 @@ function AppInner() {
                 border: isActive ? "1px solid rgba(96,165,250,0.7)" : "1px solid transparent",
               }}>
                 <span style={{ width: 20, height: 20, display: "grid", placeItems: "center" }}><svg viewBox="0 0 24 24" fill="none" stroke={isActive ? "#DBEAFE" : "#94A3B8"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d={n.svgPath} /></svg></span>
-                <span>{n.label}</span>
+                <span style={{ flex:1 }}>{n.label}</span>
+                {isLocked && <span aria-label="Доступно только в Pro">🔒</span>}
               </button>
             );
           })}
@@ -7927,7 +7954,7 @@ function AppInner() {
         <div style={{ flex: 1, overflowY: "auto", scrollbarGutter: "stable" }}>
           <div style={{ height: "100%" }}>
       <div style={styles.content}>
-        {upgradeNotice && <div style={{ ...styles.warn, marginTop: 0, marginBottom: 14, display: "flex", justifyContent: "space-between", gap: 12 }}><span>{upgradeNotice}</span><button onClick={() => setUpgradeNotice("")} style={{ border: 0, background: "none", color: C.warn, cursor: "pointer" }}>×</button></div>}
+        {upgradeNotice && upgradeNotice !== "pro" && <div style={{ ...styles.warn, marginTop: 0, marginBottom: 14, display: "flex", justifyContent: "space-between", gap: 12 }}><span>{upgradeNotice}</span><button onClick={() => setUpgradeNotice("")} style={{ border: 0, background: "none", color: C.warn, cursor: "pointer" }}>×</button></div>}
         {settingsOpen
           ? <SettingsScreen onClose={() => setSettingsOpen(false)} language={language} setLanguage={setLanguage} activeLicense={activeLicense} onChangeLicense={() => setShowLicenseScreen(true)} onRemoveLicense={() => { removeLicense(); localStorage.removeItem(COMMUNITY_CHOICE_KEY); setActiveEdition("community"); setActiveLicense(null); setShowLicenseScreen(true); }} />
           : searchOpen
@@ -7956,6 +7983,7 @@ function AppInner() {
 
 
       </div>
+      {upgradeNotice === "pro" && <ProUpgradeModal onClose={() => setUpgradeNotice("")} onActivate={() => { setUpgradeNotice(""); setLicenseActivationOnly(true); setShowLicenseScreen(true); }} />}
     </div>
   );
 }
