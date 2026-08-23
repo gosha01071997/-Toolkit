@@ -51,13 +51,19 @@ export const EDITION_CONFIG = Object.freeze({
   [EDITIONS.LAB]: { label: "EMC Toolkit Lab", features: Object.freeze({ ...PRO_FEATURES, corporate: true }) },
 });
 
-const requestedEdition = String(import.meta.env.VITE_APP_EDITION || EDITIONS.PRO).toLowerCase();
-
-// The edition is compiled into the bundle. URL parameters and localStorage are
-// deliberately ignored; a future license provider can replace this resolver.
-export const currentEdition = EDITION_CONFIG[requestedEdition] ? requestedEdition : EDITIONS.PRO;
-export const editionConfig = EDITION_CONFIG[currentEdition];
+// Build scripts remain compatible, but commercial editions are unlocked only by
+// setActiveEdition after cryptographic license verification. A Community build can
+// never be elevated by a key intended for another distributable.
+const requestedEdition = String(import.meta.env.VITE_APP_EDITION || "all").toLowerCase();
+export const maximumEdition = requestedEdition === EDITIONS.COMMUNITY ? EDITIONS.COMMUNITY : "all";
+export let currentEdition = EDITIONS.COMMUNITY;
+export let editionConfig = EDITION_CONFIG[currentEdition];
+export const setActiveEdition = (edition) => {
+  const allowed = EDITION_CONFIG[edition] && (maximumEdition === "all" || edition === EDITIONS.COMMUNITY);
+  currentEdition = allowed ? edition : EDITIONS.COMMUNITY;
+  editionConfig = EDITION_CONFIG[currentEdition];
+  return currentEdition;
+};
 export const hasFeature = (feature) => editionConfig.features[feature] === true;
 
 export const UPGRADE_MESSAGE = "Эта функция доступна в полной версии EMC Toolkit для Windows.";
-

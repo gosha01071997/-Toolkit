@@ -15,7 +15,8 @@
     "electron": "electron .",
     "electron:build": "npm run build && electron-builder",
     "electron:build:personal": "npm run build:personal && electron-builder",
-    "electron:build:pro": "npm run build:pro && electron-builder"
+    "electron:build:pro": "npm run build:pro && electron-builder",
+    "test:license": "node --test test/license.test.cjs"
   },
   "dependencies": {
     "react": "^18.2.0",

@@ -2,3 +2,9 @@ node_modules/
 dist/
 release/
 .env.local
+
+# License-generator secrets (never commit or package these files)
+tools/license-generator/private-key.pem
+tools/license-generator/*.secret
+tools/license-generator/.env*
+tools/license-generator/generated/
