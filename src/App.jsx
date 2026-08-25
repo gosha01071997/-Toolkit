@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
+import { AntennaEngineeringCalc, NormativeLimitsCalc, ReverberationChamberCalc, ShieldingCalc } from "./features/engineering/EngineeringCalculators";
 import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
 import { SUPPORT_URL } from "./config/support";
 import { currentEdition, editionConfig, hasFeature, setActiveEdition } from "./config/editions";
@@ -2592,6 +2593,7 @@ function AntennaFactorCalc() {
         {res ? <ResultBox rows={res} lastNoLine /> : <div style={styles.warn}>Введите показание приёмника и антенный фактор.</div>}
         <FormulaNote>Ecorr = Reading + AF + Cable Loss − Preamp Gain</FormulaNote>
       </div>
+      <div style={{ marginTop: 20 }}><AntennaEngineeringCalc /></div>
     </div>
   );
 }
@@ -3195,6 +3197,7 @@ function CalculatorsScreen({ calcId, setCalcId }) {
         { id: "magfield", icon: "🧲", title: "Магнитное поле", sub: "A/m, dBµA/m, µT и mT" },
         { id: "nearfar", icon: "📐", title: "Near / Far Field", sub: "λ, ближняя зона и граница 2D²/λ" },
         { id: "antfactor", icon: "📶", title: "Antenna Factor", sub: "Reading + AF + cable loss − preamp gain" },
+        { id: "chamber", icon: "🔄", title: "Реверберационная камера", sub: "Геометрия, частота и коэффициенты K" },
       ],
     },
     {
@@ -3204,6 +3207,8 @@ function CalculatorsScreen({ calcId, setCalcId }) {
       tools: [
         { id: "bci", icon: "⚡", title: "Инжекция тока", sub: "Уровень генератора и ток инжекции" },
         { id: "caldots", icon: "📋", title: "Калибровочные точки", sub: "Шаг 1% по разделам 20.4, 20.5, 21.4, 21.5" },
+        { id: "limits", icon: "📈", title: "Нормативные лимиты", sub: "Логарифмический график и PASS / FAIL" },
+        { id: "shielding", icon: "🛡️", title: "Эффективность экранирования", sub: "Разность уровней без корпуса и с корпусом" },
       ],
     },
     {
@@ -3231,6 +3236,9 @@ function CalculatorsScreen({ calcId, setCalcId }) {
   if (calcId === "magfield") return <><BackBtn onBack={() => setCalcId(null)} /><MagneticFieldCalc /></>;
   if (calcId === "nearfar") return <><BackBtn onBack={() => setCalcId(null)} /><NearFarFieldCalc /></>;
   if (calcId === "antfactor") return <><BackBtn onBack={() => setCalcId(null)} /><AntennaFactorCalc /></>;
+  if (calcId === "chamber") return <><BackBtn onBack={() => setCalcId(null)} /><ReverberationChamberCalc /></>;
+  if (calcId === "limits") return <><BackBtn onBack={() => setCalcId(null)} /><NormativeLimitsCalc /></>;
+  if (calcId === "shielding") return <><BackBtn onBack={() => setCalcId(null)} /><ShieldingCalc /></>;
   if (calcId === "time") return <><BackBtn onBack={() => setCalcId(null)} /><TimeConverter /></>;
   if (calcId === "units") return <><BackBtn onBack={() => setCalcId(null)} /><UnitConverter /></>;
 
