@@ -3,6 +3,7 @@ const path = require('path')
 const fs = require('fs')
 const net = require('net')
 const { spawn } = require('child_process')
+const { verifyLicense } = require('./license-verifier.cjs')
 
 const AI_PORT = Number(process.env.EMC_AI_PORT || 39281)
 const AI_HOST = '127.0.0.1'
@@ -188,6 +189,12 @@ function createWindow() {
 }
 
 ipcMain.handle('ai:status', getAiStatus)
+ipcMain.handle('license:verify', (_event, request) => {
+  if (!request || typeof request.licenseString !== 'string' || request.licenseString.length > 16384) {
+    return { valid: false, license: null, licenseString: null, error: 'Неверный формат лицензионного ключа' }
+  }
+  return verifyLicense(request.licenseString, request.now)
+})
 ipcMain.handle('ai:generate', async (_event, { prompt }) => {
   const text = await requestAiCompletion(prompt)
   if (!text.trim()) throw new Error('AI runtime вернул пустой ответ модели.')

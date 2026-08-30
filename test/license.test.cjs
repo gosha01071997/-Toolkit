@@ -1,39 +1,48 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { createPublicKey, generateKeyPairSync, verify } = require("node:crypto");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
-const { issueLicense } = require("../tools/license-generator/index.cjs");
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const { createPublicKey, generateKeyPairSync } = require('node:crypto')
+const { readFileSync } = require('node:fs')
+const { join } = require('node:path')
+const { issueLicense } = require('../tools/license-generator/index.cjs')
+const { LICENSE_PUBLIC_KEY } = require('../license-public-key.cjs')
+const { verifyLicense } = require('../license-verifier.cjs')
 
-const expectedPublicKey = "el0V6qVwgxLm1azSG2uB_6_OuBafM9BrhHfNWXUMxHM";
+const expectedPublicKey = 'el0V6qVwgxLm1azSG2uB_6_OuBafM9BrhHfNWXUMxHM'
+const pair = generateKeyPairSync('ed25519')
+const privateKey = pair.privateKey.export({ type: 'pkcs8', format: 'pem' })
+const testPublicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).subarray(-32).toString('base64url')
 
-const pair = generateKeyPairSync("ed25519");
-const privateKey = pair.privateKey.export({ type: "pkcs8", format: "pem" });
-const publicKey = pair.publicKey;
-
-test("Pro and Lab licenses have valid Ed25519 signatures", () => {
-  for (const edition of ["pro", "lab"]) {
-    const { key } = issueLicense({ edition, licenseId: `EMC-${edition.toUpperCase()}`, expiresAt: "never" }, privateKey);
-    const [payload, signature] = key.split(".");
-    assert.equal(verify(null, Buffer.from(payload, "base64url"), publicKey, Buffer.from(signature, "base64url")), true);
+test('accepts generator payload.signature licenses signed by the corresponding Ed25519 key', () => {
+  for (const edition of ['personal', 'pro', 'lab']) {
+    const { key } = issueLicense({ edition, licenseId: `EMC-${edition.toUpperCase()}`, expiresAt: 'never' }, privateKey)
+    assert.match(key, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
+    const result = verifyLicense(key, new Date(), testPublicKey)
+    assert.equal(result.valid, true, result.error)
+    assert.equal(result.license.edition, edition)
+    assert.equal(result.license.expiresAt, null)
   }
-});
+})
 
-test("toolkit and generator use the production Ed25519 public key", () => {
-  const source = readFileSync(join(__dirname, "..", "src", "license", "publicKey.js"), "utf8");
-  const configuredKey = source.match(/LICENSE_PUBLIC_KEY\s*=\s*"([A-Za-z0-9_-]+)"/)?.[1];
-  const pem = readFileSync(join(__dirname, "..", "tools", "license-generator", "public-key.pem"));
-  const rawKey = createPublicKey(pem).export({ type: "spki", format: "der" }).subarray(-32).toString("base64url");
+test('rejects an incorrect signature in the real payload.signature format', () => {
+  const { key } = issueLicense({ edition: 'pro', licenseId: 'EMC-BAD-SIGNATURE', expiresAt: 'never' }, privateKey)
+  const [payload, signature] = key.split('.')
+  const corrupted = `${payload}.${signature[0] === 'A' ? 'B' : 'A'}${signature.slice(1)}`
+  const result = verifyLicense(corrupted, new Date(), testPublicKey)
+  assert.equal(result.valid, false)
+  assert.equal(result.error, 'Цифровая подпись лицензии недействительна')
+})
 
-  assert.equal(configuredKey, expectedPublicKey);
-  assert.equal(rawKey, expectedPublicKey);
-});
+test('enforces expiry while retaining perpetual licenses', () => {
+  const expired = issueLicense({ edition: 'lab', licenseId: 'EMC-EXPIRED', expiresAt: '2025-01-01' }, privateKey).key
+  assert.equal(verifyLicense(expired, new Date('2025-01-02T00:00:00.000Z'), testPublicKey).valid, false)
 
-test("changing license contents invalidates its signature", () => {
-  const { key } = issueLicense({ edition: "personal", licenseId: "EMC-TAMPER", expiresAt: "never" }, privateKey);
-  const [payload, signature] = key.split(".");
-  const data = JSON.parse(Buffer.from(payload, "base64url"));
-  data.edition = "pro";
-  const changed = Buffer.from(JSON.stringify(data));
-  assert.equal(verify(null, changed, publicKey, Buffer.from(signature, "base64url")), false);
-});
+  const perpetual = issueLicense({ edition: 'pro', licenseId: 'EMC-PERPETUAL', expiresAt: 'never' }, privateKey).key
+  assert.equal(verifyLicense(perpetual, new Date('2100-01-01T00:00:00.000Z'), testPublicKey).valid, true)
+})
+
+test('toolkit and generator use the unchanged production Ed25519 public key', () => {
+  const pem = readFileSync(join(__dirname, '..', 'tools', 'license-generator', 'public-key.pem'))
+  const generatorKey = createPublicKey(pem).export({ type: 'spki', format: 'der' }).subarray(-32).toString('base64url')
+  assert.equal(LICENSE_PUBLIC_KEY, expectedPublicKey)
+  assert.equal(generatorKey, expectedPublicKey)
+})
