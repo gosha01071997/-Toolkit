@@ -1,0 +1,15 @@
+{
+  "name": "emc-license-generator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private standalone Ed25519 license generator for EMC Toolkit",
+  "scripts": {
+    "generate:keypair": "node generate-keypair.cjs",
+    "license": "node index.cjs",
+    "test": "node --test test/*.test.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

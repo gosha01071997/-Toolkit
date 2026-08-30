@@ -1,0 +1,6 @@
+private-key.pem
+*.secret
+.env
+generated/
+node_modules/
+
