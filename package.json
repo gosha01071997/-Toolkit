@@ -38,7 +38,7 @@
     "files": [
       "dist/**/*",
       "electron.js",
-      "preload.js",
+      "preload.cjs",
       "license-public-key.cjs",
       "license-verifier.cjs",
       "package.json"
