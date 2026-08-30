@@ -87,6 +87,8 @@ jobs:
 
       - name: Build React app
         run: npm run build
+        env:
+          VITE_DISABLE_LICENSE_GATING: 'true'
 
       - name: Install Electron and builder
         run: npm install --save-dev electron electron-builder
