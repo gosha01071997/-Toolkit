@@ -7,6 +7,7 @@ const { issueLicense } = require("../index.cjs");
 
 const pair = generateKeyPairSync("ed25519");
 const privateKey = pair.privateKey.export({ type: "pkcs8", format: "pem" });
+const expectedPublicKey = "el0V6qVwgxLm1azSG2uB_6_OuBafM9BrhHfNWXUMxHM";
 
 test("issues Pro by default with no expiry", () => {
   const result = issueLicense({ licenseId: "EMC-DEFAULT" }, privateKey);
@@ -22,8 +23,8 @@ test("issues verifiable licenses for all supported editions", () => {
   }
 });
 
-test("bundled public key is a raw Ed25519 key", () => {
+test("bundled public key is the production Ed25519 key", () => {
   const pem = readFileSync(join(__dirname, "..", "public-key.pem"));
   const rawKey = require("node:crypto").createPublicKey(pem).export({ type: "spki", format: "der" }).subarray(-32).toString("base64url");
-  assert.match(rawKey, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(rawKey, expectedPublicKey);
 });
