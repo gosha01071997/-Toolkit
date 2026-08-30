@@ -6,7 +6,7 @@ import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
 import { AntennaEngineeringCalc, NormativeLimitsCalc, ReverberationChamberCalc, ShieldingCalc } from "./features/engineering/EngineeringCalculators";
 import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
 import { SUPPORT_URL } from "./config/support";
-import { currentEdition, editionConfig, hasFeature, setActiveEdition } from "./config/editions";
+import { currentEdition, editionConfig, hasFeature, isLicenseGatingDisabled, setActiveEdition } from "./config/editions";
 import { getActiveLicense, removeLicense, saveLicense } from "./license";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
@@ -7875,7 +7875,11 @@ function AppInner() {
   useEffect(() => {
     getActiveLicense().then((result) => {
       if (result.valid) { setActiveEdition(result.license.edition); setActiveLicense(result.license); }
-      else { setActiveEdition("community"); setShowLicenseScreen(!localStorage.getItem(COMMUNITY_CHOICE_KEY)); }
+      else {
+        setActiveEdition("community");
+        // Bypass only skips the activation screen; it does not fake a license.
+        setShowLicenseScreen(!isLicenseGatingDisabled && !localStorage.getItem(COMMUNITY_CHOICE_KEY));
+      }
       setLicenseReady(true);
     });
   }, []);
@@ -7896,6 +7900,7 @@ function AppInner() {
     { id: "calc", title: "Калькуляторы", section: "Разделы", keywords: "расчёт db dbm vswr конвертер", action: () => handleTab("calc") },
     { id: "tests", title: "Испытания", section: "Разделы", keywords: "гост методика стенд", action: () => handleTab("tests") },
     { id: "ref", title: "Справочники", section: "Разделы", keywords: "нормы единицы стандарты сокращения", action: () => handleTab("ref") },
+    { id: "equip", title: "Оборудование", section: "Разделы", keywords: "арм приборы фотографии", action: () => handleTab("equip") },
     { id: "ai", title: "ИИ-помощник", section: "Разделы", keywords: "чат вопрос помощь ai ии", action: () => handleTab("ai") },
     { id: "log", title: "Журнал", section: "Разделы", keywords: "история записи pass fail", action: () => handleTab("log") },
     { id: "spectrum", title: "Анализатор спектра", section: "Инструменты", keywords: "csv график лимит превышение спектр", action: () => handleTab("spectrum") },
@@ -7969,15 +7974,14 @@ function AppInner() {
             const isLocked = Boolean(routeFeatures[n.id] && !hasFeature(routeFeatures[n.id]));
             const isActive = !quizOpen && !settingsOpen && !errorsOpen && !searchOpen && (
               n.id === "verify" ? verifyOpen :
-              n.id === "equip" ? (tab === "ref" && refTab === "equip" && !verifyOpen) :
-              n.id === "ref" ? (tab === "ref" && refTab !== "equip" && !verifyOpen) :
+              n.id === "ref" ? (tab === "ref" && !verifyOpen) :
               (tab === n.id && !verifyOpen)
             );
             const handleClick = () => {
               setQuizOpen(false); setSettingsOpen(false); setErrorsOpen(false); setSearchOpen(false);
               if (isLocked) { setUpgradeNotice("pro"); return; }
               if (n.id === "verify") { setVerifyOpen(true); }
-              else if (n.id === "equip") { setVerifyOpen(false); setRefTab("equip"); handleTab("ref"); }
+              else if (n.id === "equip") { setVerifyOpen(false); handleTab("equip"); }
               else if (n.id === "ref") { setVerifyOpen(false); setRefTab("abbr"); handleTab("ref"); }
               else { setVerifyOpen(false); handleTab(n.id); }
             };
@@ -8051,6 +8055,7 @@ function AppInner() {
               {tab === "calc" && <CalculatorsScreen calcId={calcId} setCalcId={setCalcId} />}
               {tab === "tests" && hasFeature("tests") && <TestsScreen />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
+              {tab === "equip" && hasFeature("equipment") && <EquipmentTab />}
               {tab === "log" && hasFeature("advancedJournal") && <LogbookScreen />}
               {tab === "spectrum" && hasFeature("spectrumAnalyzer") && <SpectrumAnalyzer />}
               {tab === "protocol" && hasFeature("protocols") && <ProtocolGenerator />}

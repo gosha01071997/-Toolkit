@@ -63,6 +63,9 @@ export const EDITION_CONFIG = Object.freeze({
 // setActiveEdition after cryptographic license verification. A Community build can
 // never be elevated by a key intended for another distributable.
 const requestedEdition = String(import.meta.env.VITE_APP_EDITION || "all").toLowerCase();
+// Development/test-only feature-gating bypass. It does not change the active
+// edition and never creates or persists a license.
+export const isLicenseGatingDisabled = String(import.meta.env.VITE_DISABLE_LICENSE_GATING || "").toLowerCase() === "true";
 export const maximumEdition = requestedEdition === EDITIONS.COMMUNITY ? EDITIONS.COMMUNITY : "all";
 export let currentEdition = EDITIONS.COMMUNITY;
 export let editionConfig = EDITION_CONFIG[currentEdition];
@@ -72,6 +75,6 @@ export const setActiveEdition = (edition) => {
   editionConfig = EDITION_CONFIG[currentEdition];
   return currentEdition;
 };
-export const hasFeature = (feature) => editionConfig.features[feature] === true;
+export const hasFeature = (feature) => isLicenseGatingDisabled || editionConfig.features[feature] === true;
 
 export const UPGRADE_MESSAGE = "Эта функция доступна в полной версии EMC Toolkit для Windows.";
