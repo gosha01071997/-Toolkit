@@ -39,6 +39,8 @@
       "dist/**/*",
       "electron.js",
       "preload.js",
+      "license-public-key.cjs",
+      "license-verifier.cjs",
       "package.json"
     ],
     "win": {
