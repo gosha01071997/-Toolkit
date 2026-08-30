@@ -50,7 +50,7 @@ test('toolkit and generator use the unchanged production Ed25519 public key', ()
 
 test('packaged desktop exposes the exact license API used by the renderer', async () => {
   const root = join(__dirname, '..')
-  const preloadSource = readFileSync(join(root, 'preload.js'), 'utf8')
+  const preloadSource = readFileSync(join(root, 'preload.cjs'), 'utf8')
   const rendererSource = readFileSync(join(root, 'src', 'license', 'index.js'), 'utf8')
   const mainSource = readFileSync(join(root, 'electron.js'), 'utf8')
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -69,10 +69,11 @@ test('packaged desktop exposes the exact license API used by the renderer', asyn
             invocations.push({ channel, request })
             return Promise.resolve({ valid: false })
           },
+          send() {},
         },
       }
     },
-  }, { filename: 'preload.js' })
+  }, { filename: 'preload.cjs' })
 
   assert.equal(typeof exposed.get('emcLicense')?.verify, 'function')
   await exposed.get('emcLicense').verify('payload.signature', '2030-01-01T00:00:00.000Z')
@@ -87,7 +88,7 @@ test('packaged desktop exposes the exact license API used by the renderer', asyn
   assert.match(mainSource, /nodeIntegration:\s*false/)
   assert.match(mainSource, /sandbox:\s*false/)
   assert.match(mainSource, /preload:\s*preloadPath/)
-  for (const requiredFile of ['preload.js', 'license-verifier.cjs', 'license-public-key.cjs']) {
+  for (const requiredFile of ['preload.cjs', 'license-verifier.cjs', 'license-public-key.cjs']) {
     assert.ok(packageJson.build.files.includes(requiredFile), `${requiredFile} must be included in the packaged app`)
   }
 })

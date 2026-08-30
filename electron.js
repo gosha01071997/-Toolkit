@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain } = require('electron')
+const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const net = require('net')
@@ -9,6 +9,13 @@ const AI_PORT = Number(process.env.EMC_AI_PORT || 39281)
 const AI_HOST = '127.0.0.1'
 let aiProcess = null
 let aiStarting = null
+
+function reportPreloadFailure(message, error) {
+  const details = error?.stack || error?.message || String(error || '')
+  const diagnostic = `[preload] ${message}${details ? `\n${details}` : ''}`
+  console.error(diagnostic)
+  dialog.showErrorBox('EMC Pro: ошибка desktop API', diagnostic)
+}
 
 function getAiRuntimeRoot() {
   const candidates = [
@@ -162,8 +169,10 @@ async function requestAiCompletion(prompt) {
 function createWindow() {
   // Keep the preload path absolute and fail loudly before creating a window. In a
   // packaged app __dirname points inside app.asar, where electron-builder puts
-  // preload.js via the explicit `build.files` entry.
-  const preloadPath = path.resolve(__dirname, 'preload.js')
+  // preload.cjs via the explicit `build.files` entry. The .cjs suffix is
+  // intentional: require('electron') must remain CommonJS even if the package
+  // is changed to "type": "module" in a future renderer/tooling update.
+  const preloadPath = path.resolve(__dirname, 'preload.cjs')
   if (!fs.existsSync(preloadPath)) {
     throw new Error(`Electron preload script is missing: ${preloadPath}`)
   }
@@ -185,6 +194,40 @@ function createWindow() {
     },
     backgroundColor: '#F0F4FF',
     show: false,
+  })
+
+  let preloadReady = false
+  const onPreloadReady = (event, details) => {
+    if (event.sender !== win.webContents) return
+    preloadReady = details?.APIs?.includes('emcLicense') === true
+    console.log(`[preload] loaded ${preloadPath}; APIs=${details?.APIs?.join(',') || 'unknown'}`)
+  }
+  ipcMain.on('preload:ready', onPreloadReady)
+  win.once('closed', () => ipcMain.removeListener('preload:ready', onPreloadReady))
+
+  win.webContents.on('preload-error', (_event, failedPath, error) => {
+    reportPreloadFailure(`Failed to load ${failedPath}`, error)
+  })
+
+  // This runs in the actual renderer after Electron has evaluated the packaged
+  // preload. It checks both the exact window API consumed by src/license and a
+  // complete invoke/handle round trip, rather than trusting a mocked unit test.
+  win.webContents.once('did-finish-load', async () => {
+    try {
+      const bridgePresent = await win.webContents.executeJavaScript(
+        "typeof window.emcLicense?.verify === 'function'",
+      )
+      if (!preloadReady || !bridgePresent) {
+        throw new Error(`Preload handshake=${preloadReady}; window.emcLicense.verify=${bridgePresent}`)
+      }
+      const roundTrip = await win.webContents.executeJavaScript(
+        "window.emcLicense.verify('').then(result => result && result.valid === false)",
+      )
+      if (!roundTrip) throw new Error("IPC round trip 'license:verify' returned an unexpected result")
+      console.log("[preload] window.emcLicense.verify -> license:verify IPC check passed")
+    } catch (error) {
+      reportPreloadFailure('Desktop license bridge self-check failed', error)
+    }
   })
 
   win.loadFile(path.join(__dirname, 'dist', 'index.html'))
