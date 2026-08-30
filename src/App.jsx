@@ -36,7 +36,7 @@ const C = {
 const APP_DATA_SCHEMA_VERSION = "2026-06-emc-lab-feedback-v1";
 const USER_DATA_BACKUP_KEY = "emc_user_backups_v1";
 const USER_DATA_SCHEMA_KEY = "emc_user_data_schema_version_v1";
-const USER_DATA_KEY_PREFIXES = ["emc_"];
+const USER_DATA_KEY_PREFIXES = ["emc_", "emcdb:"];
 
 const isUserDataStorageKey = (key) => (
   USER_DATA_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
@@ -180,6 +180,9 @@ const STANDARDS = [
   { id: "do160", name: "DO-160", desc: "Условия эксплуатации и испытания авиационного оборудования", category: "Эмиссия + Устойчивость", type: "Полный набор", scope: "Авиационное оборудование" },
   { id: "iso11452", name: "ISO 11452", desc: "Устойчивость компонентов транспортных средств к радиопомехам", category: "Устойчивость", type: "инжекция тока, Radiated, Stripline", scope: "Автомобильные компоненты" },
   { id: "iso7637", name: "ISO 7637", desc: "Помехи по цепям питания в транспортных средствах", category: "Устойчивость", type: "Transients on supply lines", scope: "Автомобильная электроника" },
+  { id: "gost-rv-6601-001-2008", name: "ГОСТ РВ 6601-001-2008", desc: "Нормативный документ добавлен в каталог. Подтверждённого полного текста в проекте нет.", category: "Военные стандарты", type: "Уточняется по официальному тексту", scope: "Данные не заполнены без нормативного источника", gost: true },
+  { id: "gost-rv-6601-002", name: "ГОСТ РВ 6601-002", desc: "Нормативный документ добавлен в каталог. Подтверждённого полного текста в проекте нет.", category: "Военные стандарты", type: "Уточняется по официальному тексту", scope: "Данные не заполнены без нормативного источника", gost: true },
+  { id: "kt-160g", name: "КТ-160Г / KT-160G", desc: "Нормативный документ добавлен в каталог. Категории публикуются только при наличии подтверждённых данных проекта.", category: "Авиационные испытания", type: "Связи с разделами испытаний требуют подтверждения источником", scope: "Авиационное оборудование" },
   // ── РОССИЙСКИЕ ГОСТЫ ──
   { id: "gost30804-4-2", name: "ГОСТ 30804.4.2-2013", desc: "Устойчивость к электростатическому разряду. Идентичен IEC 61000-4-2.", category: "Устойчивость", type: "ESD", scope: "Промышленное и бытовое оборудование", gost: true },
   { id: "gost30804-4-3", name: "ГОСТ 30804.4.3-2013", desc: "Устойчивость к радиочастотному электромагнитному полю. Идентичен IEC 61000-4-3.", category: "Устойчивость", type: "Radiated Immunity", scope: "Всё электрооборудование", gost: true },
@@ -4527,7 +4530,13 @@ ${h1("1. ОБЩИЕ СВЕДЕНИЯ")}
 
 // ─────────────────────────────────────────────────────────────────────────────
 function StepsTab({ testId }) {
-  const steps = STEPS_DATA[testId] || [];
+  const originalSteps = STEPS_DATA[testId] || [];
+  const stepsKey = `emc_test_steps_${testId}`;
+  const [steps, setSteps] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(stepsKey)) || originalSteps; } catch (e) { return originalSteps; }
+  });
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(steps);
   const [done, setDone] = useState(Array(steps.length).fill(false));
   const completed = done.filter(Boolean).length;
 
@@ -4541,6 +4550,21 @@ function StepsTab({ testId }) {
 
   return (
     <div>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginBottom:10 }}>
+        {!editing ? <button onClick={() => { setDraft(steps); setEditing(true); }} style={styles.btn("secondary")}>Редактировать</button> : <>
+          <button onClick={() => { setSteps(draft); localStorage.setItem(stepsKey, JSON.stringify(draft)); setDone(Array(draft.length).fill(false)); setEditing(false); }} style={styles.btn("primary")}>Сохранить</button>
+          <button onClick={() => setEditing(false)} style={styles.btn("secondary")}>Отмена</button>
+        </>}
+        <button onClick={() => { if (window.confirm("Восстановить исходный шаблон шагов? Пользовательские изменения будут удалены.")) { localStorage.removeItem(stepsKey); setSteps(originalSteps); setDraft(originalSteps); setDone(Array(originalSteps.length).fill(false)); setEditing(false); } }} style={styles.btn("secondary")}>Восстановить исходный шаблон</button>
+      </div>
+      {editing && <div style={styles.card}>
+        {draft.map((step, i) => <div key={i} style={{ display:"grid", gridTemplateColumns:"130px 1fr auto", gap:8, marginBottom:8 }}>
+          <select style={styles.select} value={step.phase} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, phase:e.target.value} : s))}><option value="before">До испытания</option><option value="during">Во время</option><option value="after">После</option></select>
+          <textarea style={{...styles.input, minHeight:52}} value={step.text} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, text:e.target.value} : s))} />
+          <button onClick={() => setDraft(draft.filter((_,j)=>j!==i).map((s,j)=>({...s,n:j+1})))} style={styles.btn("fail")}>Удалить</button>
+        </div>)}
+        <button onClick={() => setDraft([...draft, {n:draft.length+1, phase:"during", text:""}])} style={styles.btn("secondary")}>+ Добавить шаг</button>
+      </div>}
       {/* Progress */}
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -4580,9 +4604,14 @@ function StepsTab({ testId }) {
 }
 
 function TestDetail({ test, onBack }) {
-  const [checksBefore, setChecksBefore] = useState(Array(CHECKLIST_BEFORE.length).fill(false));
-  const [checksDuring, setChecksDuring] = useState(Array(CHECKLIST_DURING.length).fill(false));
-  const [checksAfter, setChecksAfter] = useState(Array(CHECKLIST_AFTER.length).fill(false));
+  const contentKey = `emc_test_content_${test.id}`;
+  const defaults = { before: CHECKLIST_BEFORE, during: CHECKLIST_DURING, after: CHECKLIST_AFTER, schemaImage: "" };
+  const [content, setContent] = useState(() => { try { return {...defaults, ...JSON.parse(localStorage.getItem(contentKey) || "{}")}; } catch(e) { return defaults; } });
+  const [contentDraft, setContentDraft] = useState(content);
+  const [editingContent, setEditingContent] = useState(false);
+  const [checksBefore, setChecksBefore] = useState(Array(content.before.length).fill(false));
+  const [checksDuring, setChecksDuring] = useState(Array(content.during.length).fill(false));
+  const [checksAfter, setChecksAfter] = useState(Array(content.after.length).fill(false));
   const [tab, setTab] = useState("info");
   const [notes, setNotes] = useState("");
 
@@ -4629,6 +4658,18 @@ function TestDetail({ test, onBack }) {
   };
 
   const toggle = (arr, setArr, i) => { const n = [...arr]; n[i] = !n[i]; setArr(n); };
+
+  const saveContent = () => {
+    setContent(contentDraft);
+    localStorage.setItem(contentKey, JSON.stringify(contentDraft));
+    setChecksBefore(Array(contentDraft.before.length).fill(false)); setChecksDuring(Array(contentDraft.during.length).fill(false)); setChecksAfter(Array(contentDraft.after.length).fill(false));
+    setEditingContent(false);
+  };
+
+  function EditableChecklist({ section, title }) {
+    const value = contentDraft[section] || [];
+    return <div style={styles.card}><div style={{fontWeight:800, marginBottom:10}}>{title}</div>{value.map((x,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:8}}><input style={styles.input} value={x} onChange={e=>setContentDraft(p=>({...p,[section]:value.map((v,j)=>j===i?e.target.value:v)}))}/><button style={styles.btn("fail")} onClick={()=>setContentDraft(p=>({...p,[section]:value.filter((_,j)=>j!==i)}))}>Удалить</button></div>)}<button style={styles.btn("secondary")} onClick={()=>setContentDraft(p=>({...p,[section]:[...value,""]}))}>+ Добавить пункт</button></div>;
+  }
 
   function CheckList({ items, checks, setChecks, title }) {
     const done = checks.filter(Boolean).length;
@@ -4679,6 +4720,11 @@ function TestDetail({ test, onBack }) {
       </div>
 
       <InnerTabs tabs={innerTabs} active={tab} onSet={setTab} className="test-detail-tabs" />
+
+      {["before","during","after","schema"].includes(tab) && <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginBottom:10}}>
+        {!editingContent ? <button style={styles.btn("secondary")} onClick={()=>{setContentDraft(content);setEditingContent(true)}}>Редактировать</button> : <><button style={styles.btn("primary")} onClick={saveContent}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditingContent(false)}>Отмена</button></>}
+        <button style={styles.btn("secondary")} onClick={()=>{if(window.confirm("Восстановить исходный шаблон? Пользовательские изменения этого раздела будут удалены.")){localStorage.removeItem(contentKey);setContent(defaults);setContentDraft(defaults);setEditingContent(false)}}}>Восстановить исходный шаблон</button>
+      </div>}
 
       {tab === "steps" && <StepsTab testId={test.id} />}
       {tab === "info" && (
@@ -4777,10 +4823,10 @@ function TestDetail({ test, onBack }) {
           </div>
         </div>
       )}
-      {tab === "schema" && <SchemaEditor testId={test.id} setupItems={setupItems} />}
-      {tab === "before" && <CheckList items={CHECKLIST_BEFORE} checks={checksBefore} setChecks={setChecksBefore} title="Чек-лист ДО испытания" />}
-      {tab === "during" && <CheckList items={CHECKLIST_DURING} checks={checksDuring} setChecks={setChecksDuring} title="Чек-лист ВО ВРЕМЯ испытания" />}
-      {tab === "after" && <CheckList items={CHECKLIST_AFTER} checks={checksAfter} setChecks={setChecksAfter} title="Чек-лист ПОСЛЕ испытания" />}
+      {tab === "schema" && <><SchemaEditor testId={test.id} setupItems={setupItems} /><div style={styles.card}><div style={{fontWeight:800,marginBottom:8}}>Пользовательское изображение схемы</div>{(editingContent?contentDraft:content).schemaImage && <img src={(editingContent?contentDraft:content).schemaImage} alt="Пользовательская схема" style={{maxWidth:"100%",maxHeight:420,borderRadius:10,display:"block",marginBottom:10}}/>}{editingContent && <div style={{display:"flex",gap:8}}><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setContentDraft(p=>({...p,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{contentDraft.schemaImage && <button style={styles.btn("fail")} onClick={()=>setContentDraft(p=>({...p,schemaImage:""}))}>Удалить изображение</button>}</div>}{!(editingContent?contentDraft:content).schemaImage && !editingContent && <div style={{color:C.textSec}}>Пользовательское изображение не загружено.</div>}</div></>}
+      {tab === "before" && (editingContent ? <EditableChecklist section="before" title="До испытания"/> : <CheckList items={content.before} checks={checksBefore} setChecks={setChecksBefore} title="Чек-лист ДО испытания" />)}
+      {tab === "during" && (editingContent ? <EditableChecklist section="during" title="Во время испытания"/> : <CheckList items={content.during} checks={checksDuring} setChecks={setChecksDuring} title="Чек-лист ВО ВРЕМЯ испытания" />)}
+      {tab === "after" && (editingContent ? <EditableChecklist section="after" title="После испытания"/> : <CheckList items={content.after} checks={checksAfter} setChecks={setChecksAfter} title="Чек-лист ПОСЛЕ испытания" />)}
       {tab === "notes" && (
         <div style={styles.card}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>Заметки по испытанию</div>
@@ -5197,6 +5243,10 @@ function StandardsTab() {
       {filtered.length === 0 && <div style={{ textAlign: "center", color: C.textSec, padding: 40 }}>Ничего не найдено</div>}
     </div>
   );
+}
+
+function CategoriesTab() {
+  return <div><div style={{...styles.card,borderLeft:`3px solid ${C.warn}`}}><div style={{fontSize:16,fontWeight:800,marginBottom:8}}>Категории нормативных испытаний</div><div style={{fontSize:13,color:C.textSec,lineHeight:1.65}}>Структура раздела подготовлена для названия, обозначения, буквенно-цифрового кода, объяснения и связанного вида воздействия. Точные категории ГОСТ РВ 6601-001-2008, ГОСТ РВ 6601-002 и КТ-160Г не заполнены: в репозитории отсутствует подтверждённый полный текст нормативных документов. Значения не подменяются предположениями.</div></div><div style={{...styles.card}}><div style={{display:"grid",gridTemplateColumns:"1.2fr .8fr 1fr 1.5fr 1.2fr",gap:8,fontSize:11,fontWeight:800,color:C.textSec}}><span>Название</span><span>Обозначение</span><span>Цифры / буквы</span><span>Значение</span><span>Вид испытания</span></div><div style={{padding:"18px 0 4px",color:C.textSec,fontSize:13}}>Нет подтверждённых данных для безопасного заполнения.</div></div></div>;
 }
 
 // ─── АНАЛИЗ ПРИЧИН ОТКАЗА ────────────────────────────────────────────────────
@@ -5693,7 +5743,7 @@ const EQUIPMENT_DATA = [
   { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
 ];
 
-function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
+function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms = [] }) {
   const [showSpecsForm, setShowSpecsForm] = useState(false);
   const [editName, setEditName] = useState(e.name || "");
   const [specRows, setSpecRows] = useState(
@@ -5757,7 +5807,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
             />
             <div style={{ fontSize: 12, color: "#8A9BB8", marginBottom: 6 }}>{e.type}</div>
             <button onClick={() => onSaveChanges(e.id, { name: editName })} style={{ ...styles.btn(), padding: "7px 12px", fontSize: 12, marginBottom: 6 }}>Сохранить</button>
-            <div style={{ display: "inline-block", background: "rgba(30,91,232,0.2)", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "#4A9FFF", fontWeight: 600 }}>{e.arm}</div>
+            <select aria-label="АРМ оборудования" value={e.arm} onChange={ev=>onSaveChanges(e.id,{arm:ev.target.value})} style={{...styles.select,padding:"5px 8px",fontSize:11}}>{arms.map(a=><option key={a}>{a}</option>)}</select>
           </div>
         </div>
       </div>
@@ -5835,9 +5885,10 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete }) {
           )}
         </div>
         <label style={{ ...styles.btn(), display: "inline-block" }}>
-          Добавить фото
+          {e.photo ? "Заменить фото" : "Добавить фото"}
           <input type="file" accept="image/*" onChange={onPhotoChange} style={{ display: "none" }} />
         </label>
+        {e.photo && <button onClick={() => { if (window.confirm("Удалить фотографию оборудования?")) onSaveChanges(e.id, { photo:"" }); }} style={{...styles.btn("fail"), marginLeft:8}}>Удалить фото</button>}
       </div>
 
       <button onClick={() => onDelete(e.id)} style={{ ...styles.btn("fail"), width: "100%" }}>Удалить оборудование</button>
@@ -5855,7 +5906,9 @@ const [customEquip, setCustomEquip] = useState(() => {
 const [equipmentEdits, setEquipmentEdits] = useState(() => {
   try { return JSON.parse(localStorage.getItem("emc_equip_edits_v1") || "{}"); } catch(e) { return {}; }
 });
-  const arms = ["Все", "Станция A", "Станция B", "Станция C"];
+  const [armsList, setArmsList] = useState(() => { try { const v=JSON.parse(localStorage.getItem("emc_arms_v1")||"null"); return Array.isArray(v)&&v.length?v:["Станция A","Станция B","Станция C"]; } catch(e) { return ["Станция A","Станция B","Станция C"]; } });
+  const [newArmName, setNewArmName] = useState("");
+  const arms = ["Все", ...armsList];
   const [armFilter, setArmFilter] = useState("Все");
 const allEquip = [...EQUIPMENT_DATA, ...customEquip]
   .map((item) => normalizeEquipmentItem(item, equipmentEdits[item.id] || {}))
@@ -5914,6 +5967,10 @@ const createEquipment = () => {
   try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
   setSelected(item.id);
 };
+const saveArms = (next) => { setArmsList(next); localStorage.setItem("emc_arms_v1", JSON.stringify(next)); };
+const addArm = () => { const name=newArmName.trim(); if(!name||armsList.includes(name)) return; saveArms([...armsList,name]); setNewArmName(""); setArmFilter(name); };
+const renameArm = () => { if(armFilter==="Все") return; const name=window.prompt("Новое название АРМ",armFilter)?.trim(); if(!name||name===armFilter||armsList.includes(name)) return; saveArms(armsList.map(a=>a===armFilter?name:a)); allEquip.filter(e=>e.arm===armFilter).forEach(e=>saveEquipmentChanges(e.id,{arm:name})); setArmFilter(name); };
+const deleteArm = () => { if(armFilter==="Все") return; if(allEquip.some(e=>e.arm===armFilter)){window.alert("Нельзя удалить АРМ, пока к нему привязано оборудование. Перенесите оборудование в другой АРМ.");return;} if(window.confirm(`Удалить АРМ «${armFilter}»? Действие нельзя отменить.`)){saveArms(armsList.filter(a=>a!==armFilter));setArmFilter("Все");} };
   const filtered = allEquip.filter(e => {
     const q = search.toLowerCase();
     const matchSearch = !q || e.name.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q);
@@ -5991,7 +6048,7 @@ const createEquipment = () => {
     if (!e) return <div style={{ fontSize: 13, color: C.textSec }}>Оборудование не найдено</div>;
     return (
       <>
-        <EquipDetailCard e={e} onBack={handleBackFromDetail} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={(id) => setDeleteCandidateId(id)} />
+        <EquipDetailCard e={e} arms={armsList} onBack={handleBackFromDetail} getEquipSVG={getEquipSVG} onSaveChanges={saveEquipmentChanges} onDelete={(id) => setDeleteCandidateId(id)} />
         {deleteConfirmModal}
       </>
     );
@@ -6016,7 +6073,8 @@ const createEquipment = () => {
       <SectionHeader title="Парк оборудования" caption="Поиск, станции и карточки приборов без изменения данных и логики управления" count={`${filtered.length} найдено`} accent="#60A5FA" />
       <PremiumSearch value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по названию, типу или описанию..." />
       <PremiumPills items={arms.map(a => [a, a])} active={armFilter} onSet={setArmFilter} />
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14, flexWrap:"wrap" }}>
+        <div style={{display:"flex",gap:8}}><input style={{...styles.input,width:220}} value={newArmName} onChange={e=>setNewArmName(e.target.value)} placeholder="Название нового АРМ"/><button onClick={addArm} style={styles.btn("secondary")}>+ Добавить АРМ</button>{armFilter!=="Все"&&<><button onClick={renameArm} style={styles.btn("secondary")}>Переименовать АРМ</button><button onClick={deleteArm} style={styles.btn("fail")}>Удалить АРМ</button></>}</div>
         <button onClick={createEquipment} style={{ ...styles.btn(), padding: "9px 14px", fontSize: 12, borderRadius: 12 }}>+ Добавить оборудование</button>
       </div>
       {deleteConfirmModal}
@@ -6385,7 +6443,7 @@ function LearningEquipmentTab() {
 function ReferenceScreen({ refTab, setRefTab }) {
   const tabs = [
     { id: "abbr", label: "Сокращения" },
-    { id: "equip", label: "Оборудование" },
+    { id: "categories", label: "Категории" },
     { id: "learn", label: "🎓 Как работает" },
     { id: "norms", label: "📊 Нормы" },
     { id: "qual", label: "⭐ Базис T/M/P" },
@@ -6395,7 +6453,7 @@ function ReferenceScreen({ refTab, setRefTab }) {
     { id: "noise", label: "Помехи" },
     { id: "fail", label: "🔧 Отказы" },
     { id: "formulas", label: "Формулы" },
-  ].filter(tab => tab.id !== "equip" || hasFeature("equipment"));
+  ];
   return (
     <PageContainer>
       <SectionHero
@@ -6413,7 +6471,7 @@ function ReferenceScreen({ refTab, setRefTab }) {
       </div>
       <div className="reference-content-slot">
         {refTab === "abbr" && <AbbreviationsTab />}
-        {refTab === "equip" && <EquipmentTab compact />}
+        {refTab === "categories" && <CategoriesTab />}
         {refTab === "learn" && <LearningEquipmentTab />}
         {refTab === "norms" && <NormsTab />}
         {refTab === "qual" && <QualBasisTab />}
@@ -6430,7 +6488,13 @@ function ReferenceScreen({ refTab, setRefTab }) {
 
 // ─── LOGBOOK ──────────────────────────────────────────────────────────────
 const RESULT_OPTIONS = ["PASS", "FAIL", "Предварительный", "Не завершён"];
-const TEST_TYPES = ["Conducted Emissions", "Radiated Emissions", "Conducted Immunity", "Radiated Immunity", "Инжекция тока", "ESD", "EFT/Burst", "Surge", "PFMF", "Voltage Dips"];
+const TEST_TYPES = [
+  ["Conducted Emissions", "Кондуктивная эмиссия / помехоэмиссия"], ["Radiated Emissions", "Излучаемая эмиссия"],
+  ["Conducted Immunity", "Устойчивость к кондуктивным помехам"], ["Radiated Immunity", "Устойчивость к излучаемым помехам"],
+  ["Инжекция тока", "Инжекция тока"], ["ESD", "Электростатический разряд"], ["EFT/Burst", "Наносекундные импульсные помехи / EFT/Burst"],
+  ["Surge", "Импульс большой энергии / Surge"], ["PFMF", "Магнитное поле промышленной частоты"], ["Voltage Dips", "Провалы и прерывания напряжения"],
+];
+const testTypeLabel = value => TEST_TYPES.find(([id])=>id===value)?.[1] || value;
 
 const MOCK_LOG = [
   { id: 1, date: "2025-06-10", project: "Проект Alpha", testType: "Инжекция тока", standard: "Стандарт ЭМС A", freqRange: "1–400 MHz", level: "100 мА (20 dBµA×10)", result: "PASS", notes: "AM 1 кГц, 80%. Жгут A.", fail: "", action: "", comment: "Все критерии выполнены" },
@@ -6448,7 +6512,8 @@ function LogEntry({ entry, onEdit, onDelete }) {
             <span style={{ fontSize: 16, fontWeight: 850, color: C.text }}>{entry.project || "Без проекта"}</span>
             <span style={{ fontSize: 11, color: C.textSec, fontWeight: 800 }}>{entry.date}</span>
           </div>
-          <div style={{ fontSize: 12, color: C.textSec }}>{entry.testType}</div>
+          <div style={{ fontSize: 12, color: C.textSec }}>{testTypeLabel(entry.testType)}</div>
+          {entry.conductedBy && <div style={{fontSize:12,color:C.textSec,marginTop:4}}>Проводил: <b style={{color:C.text}}>{entry.conductedBy}</b></div>}
         </div>
         <span style={styles.tag(tone)}>{entry.result}</span>
       </div>
@@ -6460,6 +6525,7 @@ function LogEntry({ entry, onEdit, onDelete }) {
       {entry.fail && <div style={{ fontSize: 12, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#FCA5A5", padding: "9px 11px", borderRadius: 12, marginBottom: 8 }}>❌ {entry.fail}</div>}
       {entry.action && <div style={{ fontSize: 12, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", color: "#FCD34D", padding: "9px 11px", borderRadius: 12, marginBottom: 8 }}>🔧 {entry.action}</div>}
       {entry.comment && <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>💬 {entry.comment}</div>}
+      {entry.photos?.length > 0 && <div style={{display:"flex",gap:8,overflowX:"auto",marginTop:8}}>{entry.photos.map((p,i)=><img key={p.id||i} src={p.data||p} alt={`Фото ${i+1}`} style={{width:110,height:80,objectFit:"cover",borderRadius:8}}/>)}</div>}
       <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" }}>
         <button onClick={() => onEdit(entry)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10 }}>Редактировать</button>
         <button onClick={() => onDelete(entry.id)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10, color: C.fail }}>Удалить</button>
@@ -6469,7 +6535,7 @@ function LogEntry({ entry, onEdit, onDelete }) {
 }
 
 function LogForm({ entry, onSave, onCancel }) {
-  const [form, setForm] = useState(entry || { id: Date.now(), date: new Date().toISOString().slice(0, 10), project: "", testType: TEST_TYPES[0], standard: "", freqRange: "", level: "", result: "PASS", notes: "", fail: "", action: "", comment: "" });
+  const [form, setForm] = useState(entry ? {...entry, conductedBy:entry.conductedBy||"", photos:Array.isArray(entry.photos)?entry.photos:[]} : { id: Date.now(), date: new Date().toISOString().slice(0, 10), project: "", conductedBy:"", photos:[], testType: TEST_TYPES[0][0], standard: "", freqRange: "", level: "", result: "PASS", notes: "", fail: "", action: "", comment: "" });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
     <div>
@@ -6485,9 +6551,10 @@ function LogForm({ entry, onSave, onCancel }) {
           </Field>
         </div>
         <Field label="Проект / Наименование Изделия"><input style={styles.input} value={form.project} onChange={e => set("project", e.target.value)} placeholder="Название изделия" /></Field>
+        <Field label="Кто проводил испытание"><input style={styles.input} value={form.conductedBy} onChange={e => set("conductedBy", e.target.value)} placeholder="Фамилия, имя или подразделение" /></Field>
         <Field label="Тип испытания">
           <select style={styles.select} value={form.testType} onChange={e => set("testType", e.target.value)}>
-            {TEST_TYPES.map(t => <option key={t}>{t}</option>)}
+            {TEST_TYPES.map(([id,label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
         <div style={styles.row}>
@@ -6501,6 +6568,7 @@ function LogForm({ entry, onSave, onCancel }) {
           <Field label="Корректирующее действие"><textarea style={{ ...styles.input, minHeight: 70, resize: "vertical" }} value={form.action} onChange={e => set("action", e.target.value)} placeholder="Добавить ферриты на..." /></Field>
         </>}
         <Field label="Итоговый комментарий"><textarea style={{ ...styles.input, minHeight: 70, resize: "vertical" }} value={form.comment} onChange={e => set("comment", e.target.value)} /></Field>
+        <Field label="Фотографии"><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>{form.photos.map((p,i)=><div key={p.id||i} style={{position:"relative"}}><img src={p.data||p} alt={`Фото ${i+1}`} style={{width:130,height:90,objectFit:"cover",borderRadius:8}}/><button aria-label="Удалить фото" onClick={()=>set("photos",form.photos.filter((_,j)=>j!==i))} style={{position:"absolute",right:4,top:4,border:0,borderRadius:20,background:C.fail,color:"white",cursor:"pointer"}}>×</button></div>)}</div><label style={styles.btn("secondary")}>Добавить фото<input type="file" accept="image/*" multiple hidden onChange={e=>{[...e.target.files].forEach(file=>{const r=new FileReader();r.onload=()=>setForm(prev=>({...prev,photos:[...(prev.photos||[]),{id:`photo_${Date.now()}_${Math.random()}`,name:file.name,type:file.type,data:String(r.result||"")}]}));r.readAsDataURL(file)});e.target.value=""}}/></label></Field>
         <button onClick={() => onSave(form)} style={{ ...styles.btn("primary"), width: "100%", marginTop: 4 }}>Сохранить запись</button>
 
 
@@ -6525,6 +6593,7 @@ function LogbookScreen() {
   const [filter, setFilter] = useState("all");
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
 
   const save = useCallback((form) => {
     setEntries(prev => {
@@ -6576,7 +6645,8 @@ function LogbookScreen() {
       <PremiumSearch value={q} onChange={e => setQ(e.target.value)} placeholder="Поиск по проекту или типу испытания..." />
       <PremiumPills items={[["all", `Все (${entries.length})`], ["pass", `PASS (${passCount})`], ["fail", `FAIL (${failCount})`]]} active={filter} onSet={setFilter} />
       {visible.length === 0 && <div className="premium-card" style={{ textAlign: "center", color: C.textSec, padding: 40 }}>Записей не найдено</div>}
-      {visible.map(e => <LogEntry key={e.id} entry={e} onEdit={setEditing} onDelete={del} />)}
+      {visible.map(e => <LogEntry key={e.id} entry={e} onEdit={setEditing} onDelete={setDeleteCandidate} />)}
+      {deleteCandidate !== null && <div role="dialog" aria-modal="true" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.72)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{...styles.card,maxWidth:420,width:"100%"}}><div style={{fontSize:16,fontWeight:800,marginBottom:8}}>Удалить эту запись?</div><div style={{color:C.textSec,fontSize:13,marginBottom:18}}>Действие нельзя отменить.</div><div style={{display:"flex",gap:8}}><button autoFocus onClick={()=>setDeleteCandidate(null)} style={{...styles.btn("secondary"),flex:1}}>Отмена</button><button onClick={()=>{del(deleteCandidate);setDeleteCandidate(null)}} style={{...styles.btn("fail"),flex:1}}>Удалить</button></div></div></div>}
     </PageContainer>
   );
 }
@@ -6941,6 +7011,7 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, activeLicense, 
   const handleImportBackup = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (!window.confirm("Импортировать резервную копию? Текущие пользовательские данные с совпадающими ключами будут перезаписаны.")) { event.target.value = ""; return; }
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -6985,7 +7056,7 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, activeLicense, 
         </div>
       </div>
 
-      {hasFeature("importExport") && <><div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>РЕЗЕРВНОЕ КОПИРОВАНИЕ ДАННЫХ</div>
+      <><div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>РЕЗЕРВНОЕ КОПИРОВАНИЕ ДАННЫХ</div>
       <div style={styles.card}>
         <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6, marginBottom: 12 }}>
           Перед изменением версии данных приложение автоматически сохраняет копию всех пользовательских ключей localStorage с префиксом <b>emc_</b>: оборудование, правки карточек, журнал испытаний, поверку, схемы стендов и настройки разделов.
@@ -7015,7 +7086,7 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, activeLicense, 
             ))}
           </div>
         )}
-      </div></>}
+      </div></>
 
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>О ПРИЛОЖЕНИИ</div>
       <div style={styles.card}>
