@@ -5,24 +5,26 @@ export const EDITIONS = Object.freeze({
   LAB: "lab",
 });
 
-const COMMUNITY_FEATURES = {
+export const COMMUNITY_FEATURES = Object.freeze({
   calculators: true,
   converters: true,
   knowledgeBase: true,
-  fullKnowledgeBase: false,
+  fullKnowledgeBase: true,
   checklists: true,
   favorites: false,
   notes: false,
   localStorage: false,
-  equipment: false,
-  calibration: false,
-  tests: false,
+  equipment: true,
+  calibration: true,
+  tests: true,
+  spectrumAnalyzer: true,
+  advancedJournal: false,
   protocols: false,
   ai: false,
   importExport: false,
   advancedStorage: false,
   corporate: false,
-};
+});
 
 const PERSONAL_FEATURES = {
   ...COMMUNITY_FEATURES,
@@ -32,21 +34,27 @@ const PERSONAL_FEATURES = {
   localStorage: true,
 };
 
-const PRO_FEATURES = {
-  ...PERSONAL_FEATURES,
-  equipment: true,
-  calibration: true,
-  tests: true,
+export const PRO_ONLY_FEATURES = Object.freeze({
   protocols: true,
   ai: true,
+  advancedJournal: true,
   importExport: true,
   advancedStorage: true,
-};
+});
+
+// Pro is a strict superset of Community. Personal preferences are retained for
+// compatibility with already issued licenses, while access to engineering tools
+// always comes from the Community feature set.
+export const PRO_FEATURES = Object.freeze({
+  ...COMMUNITY_FEATURES,
+  ...PERSONAL_FEATURES,
+  ...PRO_ONLY_FEATURES,
+});
 
 export const EDITION_CONFIG = Object.freeze({
-  [EDITIONS.COMMUNITY]: { label: "EMC Toolkit Community", features: Object.freeze(COMMUNITY_FEATURES) },
+  [EDITIONS.COMMUNITY]: { label: "EMC Toolkit Community", features: COMMUNITY_FEATURES },
   [EDITIONS.PERSONAL]: { label: "EMC Toolkit Personal", features: Object.freeze(PERSONAL_FEATURES) },
-  [EDITIONS.PRO]: { label: "EMC Toolkit Pro", features: Object.freeze(PRO_FEATURES) },
+  [EDITIONS.PRO]: { label: "EMC Toolkit Pro", features: PRO_FEATURES },
   // Lab is not a separate application: it uses Pro as its technical foundation.
   [EDITIONS.LAB]: { label: "EMC Toolkit Lab", features: Object.freeze({ ...PRO_FEATURES, corporate: true }) },
 });

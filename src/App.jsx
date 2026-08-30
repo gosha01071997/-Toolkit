@@ -6975,9 +6975,10 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, activeLicense, 
 
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8 }}>ЛИЦЕНЗИЯ</div>
       <div style={styles.card}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 10 }}>Текущая версия: {editionConfig.label}</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 10 }}>Редакция: {editionConfig.label}</div>
+        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 6 }}>Версия: <b style={{ color: C.text }}>2.0.0</b></div>
         <div style={{ fontSize: 13, color: C.textSec, marginBottom: 6 }}>ID лицензии: <b style={{ color: C.text }}>{activeLicense?.licenseId || "—"}</b></div>
-        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 14 }}>Статус: <b style={{ color: C.pass }}>{activeLicense ? "Активна" : "Community — лицензия не требуется"}</b></div>
+        <div style={{ fontSize: 13, color: C.textSec, marginBottom: 14 }}>Статус: <b style={{ color: C.pass }}>{activeLicense ? "Лицензия активна" : "Бесплатная версия — лицензия не требуется"}</b></div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={onChangeLicense} style={styles.btn("primary")}>Сменить лицензию</button>
           {activeLicense && <button onClick={onRemoveLicense} style={styles.btn("secondary")}>Удалить лицензию</button>}
@@ -7024,14 +7025,14 @@ function SettingsScreen({ onClose, language = "ru", setLanguage, activeLicense, 
           ["Стандарт", "ГОСТ РВ 20.57.306-98"],
           ["Разработчик", "Кондратьев Г.Д."],
           ["Консультант", "Григоренко М.А."],
-          ["Лицензия", "Коммерческая, однопользовательская"],
+          ["Тип", currentEdition === "community" ? "Community — бесплатная версия" : `${editionConfig.label} — лицензированная версия`],
         ].map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
             <span style={{ fontSize: 13, color: C.textSec }}>{k}</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{v}</span>
           </div>
         ))}
-        {currentEdition === "community" && <div style={{ ...styles.warn, marginBottom: 0 }}>Нужны журнал испытаний, оборудование, поверки и протоколы? Доступно в EMC Toolkit для Windows.</div>}
+        {currentEdition === "community" && <div style={{ ...styles.warn, marginBottom: 0 }}>Статус: Бесплатная версия — лицензия не требуется</div>}
         {currentEdition === "personal" && <div style={{ ...styles.warn, marginBottom: 0 }}>Расширенные возможности лаборатории доступны в EMC Toolkit Pro.</div>}
       </div>
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>ПОДДЕРЖКА</div>
@@ -7710,13 +7711,13 @@ function LicenseActivationScreen({ onActivate, onCommunity, activationOnly = fal
           <div style={{ ...styles.card, marginBottom:12 }}>
             <b>EMC Toolkit Community</b>
             <div style={{ color:C.text, fontSize:14, marginTop:8 }}>Бесплатная версия для инженеров ЭМС</div>
-            <div style={{ color:C.textSec, fontSize:12, lineHeight:1.55, margin:"7px 0 12px" }}>Калькуляторы, справочники, база знаний и основные инструменты — без регистрации и ограничений по времени.</div>
+            <div style={{ color:C.textSec, fontSize:12, lineHeight:1.55, margin:"7px 0 12px" }}>Калькуляторы, справочники, испытания и основные инженерные инструменты — бесплатно, без регистрации и ограничений по времени.</div>
             <button onClick={onCommunity} style={{ ...styles.btn(), width:"100%" }}>Продолжить бесплатно</button>
           </div>
           <div style={{ ...styles.card, marginBottom:14 }}>
             <b>EMC Toolkit Pro</b>
             <div style={{ color:C.text, fontSize:14, marginTop:8 }}>Расширенная версия для тех, кто хочет поддержать развитие проекта</div>
-            <div style={{ color:C.textSec, fontSize:12, lineHeight:1.55, margin:"7px 0 12px" }}>Поддержите развитие проекта от 300 ₽ и получите бессрочный Pro-ключ.</div>
+            <div style={{ color:C.textSec, fontSize:12, lineHeight:1.55, margin:"7px 0 12px" }}>Поддержите развитие проекта от 300 ₽ и получите бессрочный Pro-ключ с дополнительными возможностями.</div>
             <button onClick={() => setShowActivation(true)} style={{ ...styles.btn("primary"), width:"100%" }}>Активировать Pro</button>
           </div>
           <a href={SUPPORT_URL} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", color:C.accent, fontSize:13 }}>Поддержать проект</a>
@@ -7736,7 +7737,8 @@ function ProUpgradeModal({ onClose, onActivate }) {
   return <div role="dialog" aria-modal="true" style={{ position:"fixed", inset:0, zIndex:1000, display:"grid", placeItems:"center", padding:20, background:"rgba(2,6,23,0.78)" }}>
     <div style={{ width:"100%", maxWidth:520, ...styles.card, padding:26, boxShadow:"0 24px 80px rgba(0,0,0,0.45)" }}>
       <div style={{ fontSize:22, fontWeight:800, marginBottom:12 }}>Доступно в EMC Toolkit Pro</div>
-      <div style={{ color:C.textSec, lineHeight:1.65, marginBottom:18 }}>Этот модуль входит в расширенную версию EMC Toolkit Pro. Если бесплатная версия оказалась полезной, вы можете поддержать развитие проекта от 300 ₽ и получить бессрочный Pro-ключ.</div>
+      <div style={{ color:C.textSec, lineHeight:1.65, marginBottom:8 }}>Эта возможность входит в расширенную версию EMC Toolkit Pro.</div>
+      <div style={{ color:C.textSec, lineHeight:1.65, marginBottom:18 }}>Если бесплатная версия оказалась полезной, вы можете поддержать развитие проекта от 300 ₽ и получить бессрочный Pro-ключ.</div>
       <a href={SUPPORT_URL} target="_blank" rel="noreferrer" style={{ ...styles.btn("primary"), display:"block", boxSizing:"border-box", width:"100%", textAlign:"center", textDecoration:"none", marginBottom:10 }}>Поддержать проект</a>
       <button onClick={onActivate} style={{ ...styles.btn(), width:"100%", marginBottom:10 }}>У меня уже есть ключ</button>
       <button onClick={onClose} style={{ ...styles.btn("secondary"), width:"100%" }}>Закрыть</button>
@@ -7808,7 +7810,7 @@ function AppInner() {
   }, []);
   useEffect(() => { if (language) { try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch(e) {} } }, [language]);
 
-  const routeFeatures = { tests: "tests", equip: "equipment", verify: "calibration", log: "tests", ai: "ai", spectrum: "tests", protocol: "protocols" };
+  const routeFeatures = { tests: "tests", equip: "equipment", verify: "calibration", log: "advancedJournal", ai: "ai", spectrum: "spectrumAnalyzer", protocol: "protocols" };
   const handleTab = (t) => {
     const feature = routeFeatures[t];
     if (feature && !hasFeature(feature)) { setUpgradeNotice("pro"); return; }
@@ -7978,8 +7980,8 @@ function AppInner() {
               {tab === "calc" && <CalculatorsScreen calcId={calcId} setCalcId={setCalcId} />}
               {tab === "tests" && hasFeature("tests") && <TestsScreen />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
-              {tab === "log" && hasFeature("tests") && <LogbookScreen />}
-              {tab === "spectrum" && hasFeature("tests") && <SpectrumAnalyzer />}
+              {tab === "log" && hasFeature("advancedJournal") && <LogbookScreen />}
+              {tab === "spectrum" && hasFeature("spectrumAnalyzer") && <SpectrumAnalyzer />}
               {tab === "protocol" && hasFeature("protocols") && <ProtocolGenerator />}
               <CommandPalette {...palette} commands={paletteCommands} />
               {tab === "ai" && hasFeature("ai") && <AiAssistantScreen onClose={() => setTab("home")} />}
