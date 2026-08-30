@@ -160,6 +160,14 @@ async function requestAiCompletion(prompt) {
 }
 
 function createWindow() {
+  // Keep the preload path absolute and fail loudly before creating a window. In a
+  // packaged app __dirname points inside app.asar, where electron-builder puts
+  // preload.js via the explicit `build.files` entry.
+  const preloadPath = path.resolve(__dirname, 'preload.js')
+  if (!fs.existsSync(preloadPath)) {
+    throw new Error(`Electron preload script is missing: ${preloadPath}`)
+  }
+
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -169,7 +177,11 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
+      // The license verifier runs in the main process. Disabling the renderer
+      // sandbox here only gives the isolated preload its normal Electron preload
+      // environment; Node APIs remain unavailable to the renderer itself.
+      sandbox: false,
+      preload: preloadPath,
     },
     backgroundColor: '#F0F4FF',
     show: false,
