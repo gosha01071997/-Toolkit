@@ -5,6 +5,8 @@ import {
   chamberKField, chamberKPower, chamberModesEquivalent, chamberModesRectangular, shieldingEffectiveness,
 } from "../src/calculations/engineering.mjs";
 import { EMC_LIMITS, evaluateLimit } from "../src/data/limits/emcLimits.mjs";
+import { MMHG_TO_PA, convertPressure } from "../src/calculations/pressure.mjs";
+import { createUserTest, deleteUserTest, migrateEquipmentItem, moveStep } from "../src/data/userData.mjs";
 
 const close = (actual, expected, tolerance = 1e-10) => assert.ok(Math.abs(actual - expected) <= tolerance * Math.max(1, Math.abs(expected)), `${actual} ≉ ${expected}`);
 
@@ -18,6 +20,26 @@ test("приёмный AF в линейных единицах", () => { const r
 test("приёмный AF не смешивает dB и линейное отношение", () => close(antennaFactorReceive({frequencyHz:100e6,u1:26.020599913,u2:20,distance:3,unit:"db"}).k1,2,1e-9));
 test("передающий AFT", () => close(antennaFactorTransmit({af:10,distance:3,wavelength:2}),20*Math.log10(3)-10-32-20*Math.log10(2)));
 test("эффективность экранирования", () => assert.equal(shieldingEffectiveness(80,25),55));
+test("точная конвертация mmHg ↔ Pa", () => {
+  assert.equal(convertPressure(1, "mmHgToPa"), MMHG_TO_PA);
+  close(convertPressure(convertPressure(760), "paToMmHg"), 760, 1e-14);
+});
+test("создание и удаление пользовательского испытания не затрагивает встроенное", () => {
+  const builtIn = { id: "p15" };
+  const custom = createUserTest({ short: "U-1", name: "Проверка", steps: [{ text: "A" }] }, 123);
+  assert.equal(custom.id, "user_test_123"); assert.equal(custom.steps[0].n, 1);
+  assert.deepEqual(deleteUserTest([builtIn, custom], custom.id), [builtIn]);
+  assert.deepEqual(deleteUserTest([builtIn], builtIn.id), [builtIn]);
+});
+test("новый порядок шагов пересчитывается и сериализуется", () => {
+  const reordered = moveStep([{ text:"A" }, { text:"B" }, { text:"C" }], 2, 0);
+  assert.deepEqual(reordered.map(x=>[x.n,x.text]), [[1,"C"],[2,"A"],[3,"B"]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(reordered)), reordered);
+});
+test("тип и ручная иконка оборудования сохраняются, старые данные мигрируют", () => {
+  assert.deepEqual(migrateEquipmentItem({ id:"old" }), { id:"old", type:"Другое", icon:"🔧" });
+  assert.equal(migrateEquipmentItem({ type:"LISN", icon:"🔌" }).icon, "🔌");
+});
 
 const cases = [
   ["voltage",0.01,94,100,48], ["current",0.15,73,30,40],
