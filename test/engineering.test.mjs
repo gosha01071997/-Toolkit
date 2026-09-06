@@ -7,6 +7,8 @@ import {
 import { EMC_LIMITS, evaluateLimit } from "../src/data/limits/emcLimits.mjs";
 import { MMHG_TO_PA, convertPressure } from "../src/calculations/pressure.mjs";
 import { createUserTest, deleteUserTest, migrateEquipmentItem, moveStep } from "../src/data/userData.mjs";
+import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "../src/data/catalog.mjs";
+import { readFileSync } from "node:fs";
 
 const close = (actual, expected, tolerance = 1e-10) => assert.ok(Math.abs(actual - expected) <= tolerance * Math.max(1, Math.abs(expected)), `${actual} ≉ ${expected}`);
 
@@ -39,6 +41,36 @@ test("новый порядок шагов пересчитывается и с�
 test("тип и ручная иконка оборудования сохраняются, старые данные мигрируют", () => {
   assert.deepEqual(migrateEquipmentItem({ id:"old" }), { id:"old", type:"Другое", icon:"🔧" });
   assert.equal(migrateEquipmentItem({ type:"LISN", icon:"🔌" }).icon, "🔌");
+});
+
+test("раздел 16 редактируется через слой пользовательских данных", () => {
+  const base = [{ id:"p16_placeholder", short:"п.16", name:"Раздел 16", desc:"Требует заполнения" }];
+  const result = buildTestCatalog(base, [], { p16_placeholder:{ desc:"Описание инженера", normDoc:"Документ лаборатории" } });
+  assert.equal(result[0].desc, "Описание инженера");
+  assert.equal(result[0].normDoc, "Документ лаборатории");
+});
+test("в пользовательское испытание добавляется и перенумеровывается шаг", () => {
+  const custom=createUserTest({steps:[{text:"Подготовка"},{text:"Новый шаг"}]},42);
+  assert.deepEqual(custom.steps.map(x=>[x.n,x.text]),[[1,"Подготовка"],[2,"Новый шаг"]]);
+});
+test("общая форма оборудования сохраняет все поля одновременно", () => {
+  const patch=createEquipmentPatch({name:"Генератор A",type:"Генератор",arm:"АРМ 1",desc:"Описание",specs:[{key:"f",value:"1 GHz"}],photo:"data:image/png;base64,x",icon:"⚡"});
+  assert.equal(Object.keys(patch).length,7); assert.equal(patch.name,"Генератор A"); assert.equal(patch.photo,"data:image/png;base64,x");
+});
+test("выбранная иконка входит в общую транзакцию оборудования",()=>assert.equal(createEquipmentPatch({icon:"📡"}).icon,"📡"));
+test("список журнала формируется из единого каталога, включая пользовательские испытания",()=>{
+  const catalog=buildTestCatalog([{id:"p15",short:"п.15",name:"Магнитное воздействие"}],[{id:"u1",short:"U-1",name:"Пользовательское"}],{});
+  assert.deepEqual(buildJournalTestOptions(catalog).map(x=>x.displayValue),["п.15 — Магнитное воздействие","U-1 — Пользовательское"]);
+});
+test("старый testType журнала безопасно мигрирует, а выбор сохраняет snapshot",()=>{
+  const catalog=[{id:"p15",short:"п.15",name:"Магнитное воздействие"}];
+  const legacy=migrateJournalEntry({id:1,testType:"PFMF"},catalog); assert.equal(legacy.testName,"Магнитное поле промышленной частоты");
+  const saved=snapshotJournalSelection({id:2},buildJournalTestOptions(catalog)[0]);
+  assert.deepEqual([saved.testId,saved.section,saved.testName,saved.displayValue],["p15","п.15","Магнитное воздействие","п.15 — Магнитное воздействие"]);
+});
+test("NSIS создаёт стабильные desktop и Start Menu shortcuts",()=>{
+  const config=JSON.parse(readFileSync(new URL("../package.json",import.meta.url),"utf8")).build.nsis;
+  assert.equal(config.createDesktopShortcut,"always"); assert.equal(config.createStartMenuShortcut,true); assert.equal(config.shortcutName,"EMC Toolkit");
 });
 
 const cases = [

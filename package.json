@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "ru.emc.pro",
-    "productName": "EMC Pro",
+    "productName": "EMC Toolkit",
     "directories": {
       "output": "release"
     },
@@ -52,7 +52,11 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "EMC Toolkit",
+      "deleteAppDataOnUninstall": false
     },
     "forceCodeSigning": false,
     "extraResources": [

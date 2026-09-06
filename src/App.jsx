@@ -10,6 +10,7 @@ import { currentEdition, editionConfig, hasFeature, isLicenseGatingDisabled, set
 import { getActiveLicense, removeLicense, saveLicense } from "./license";
 import { convertPressure, formatEngineeringPressure } from "./calculations/pressure.mjs";
 import { EQUIPMENT_TYPES, moveStep, createUserTest, migrateEquipmentItem } from "./data/userData.mjs";
+import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "./data/catalog.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -502,6 +503,16 @@ function PremiumUiStyles() {
       border-color: rgba(125,211,252,0.34);
       box-shadow: 0 22px 58px rgba(2,6,23,0.56), 0 0 32px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
     }
+    .premium-card-action:active, .premium-card-action.is-pressed {
+      transform: scale(.992);
+      border-color: rgba(125,211,252,.55);
+      background: linear-gradient(150deg, rgba(22,34,56,.96), rgba(9,17,34,.9));
+    }
+    .premium-card-action { -webkit-tap-highlight-color: rgba(56,189,248,.16); touch-action: manipulation; }
+    .category-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    .category-card { padding:20px; min-width:0; overflow-wrap:anywhere; }
+    .category-row { padding:9px 0; border-top:1px solid rgba(148,163,184,.13); font-size:13px; line-height:1.55; }
+    .category-row b { display:block; color:#7DD3FC; font-size:11px; letter-spacing:.45px; margin-bottom:3px; }
     .premium-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
     .premium-list { display: grid; gap: 12px; }
     .premium-search { position: relative; margin-bottom: 14px; }
@@ -609,7 +620,7 @@ function PremiumUiStyles() {
       font-weight: 800;
       white-space: nowrap;
     }
-    @media (max-width: 1180px) { .premium-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 1180px) { .premium-grid, .category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 980px) {
       .premium-hero { align-items: stretch; flex-direction: column; padding: 24px; }
       .premium-hero-meta { min-width: 0; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -618,7 +629,7 @@ function PremiumUiStyles() {
       .premium-page { padding: 2px 0 28px; }
       .premium-hero { border-radius: 22px; margin-bottom: 22px; padding: 22px 18px; }
       .premium-subtitle { font-size: 13px; }
-      .premium-hero-meta, .premium-grid { grid-template-columns: 1fr; }
+      .premium-hero-meta, .premium-grid, .category-grid { grid-template-columns: 1fr; }
       .premium-section-header { align-items: flex-start; flex-direction: column; gap: 10px; }
     }
   `}</style>;
@@ -4568,12 +4579,6 @@ function StepsTab({ testId, initialSteps = [] }) {
   const [done, setDone] = useState(Array(steps.length).fill(false));
   const completed = done.filter(Boolean).length;
 
-  if (!steps.length) return (
-    <div style={styles.card}>
-      <div style={{ color: C.textSec, fontSize: 13 }}>Пошаговые инструкции для этого испытания в разработке.</div>
-    </div>
-  );
-
   const toggle = (i) => { const n = [...done]; n[i] = !n[i]; setDone(n); };
 
   return (
@@ -5158,18 +5163,32 @@ function SchemaEditor({ testId, setupItems }) {
 function TestsScreen() {
   const [selected, setSelected] = useState(null);
   const [customTests, setCustomTests] = useState(()=>{try{return JSON.parse(localStorage.getItem("emc_custom_tests_v1")||"[]")}catch(e){return []}});
+  const [overrides, setOverrides] = useState(()=>{try{return JSON.parse(localStorage.getItem("emc_test_overrides_v1")||"{}")}catch(e){return {}}});
   const [editing, setEditing] = useState(null);
-  const allTests = [...TESTS_DATA, ...customTests];
-  const blank = {short:"",name:"",standard:"",desc:"",range:"",setup:"",steps:"",before:"",during:"",after:"",notes:"",schemaImage:""};
+  const allTests = buildTestCatalog(TESTS_DATA, customTests, overrides);
+  const blank = {short:"",name:"",standard:"",normDoc:"",criteria:"",desc:"",range:"",setup:"",steps:"",before:"",during:"",after:"",notes:"",schemaImage:""};
   const [draft,setDraft]=useState(blank);
-  const saveCustom=()=>{const lines=k=>String(draft[k]||"").split("\n").map(x=>x.trim()).filter(Boolean); const item=createUserTest({...draft,setup:lines("setup"),steps:lines("steps").map(text=>({phase:"during",text})),before:lines("before"),during:lines("during"),after:lines("after")},editing?.id?Number(editing.id.replace(/\D/g,""))||Date.now():Date.now()); const next=editing?customTests.map(x=>x.id===editing.id?{...item,id:x.id}:x):[...customTests,item];setCustomTests(next);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(next));setEditing(null);setDraft(blank)};
-  const openEdit=t=>{setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
+  const lines=k=>String(draft[k]||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  const toTest=()=>({...draft,setup:lines("setup"),steps:lines("steps").map((text,n)=>({n:n+1,phase:"during",text})),before:lines("before"),during:lines("during"),after:lines("after")});
+  const saveTest=()=>{
+    const value=toTest();
+    if(editing?.custom || !editing?.id){
+      const item=createUserTest(value,editing?.id?Number(editing.id.replace(/\D/g,""))||Date.now():Date.now());
+      const next=editing?.id?customTests.map(x=>x.id===editing.id?{...item,id:x.id}:x):[...customTests,item];
+      setCustomTests(next);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(next));
+    } else {
+      const next={...overrides,[editing.id]:value};setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));
+    }
+    setEditing(null);setDraft(blank);
+  };
+  const openEdit=t=>{setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||STEPS_DATA[t.id]||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
+  const restore=t=>{if(!window.confirm("Восстановить исходный шаблон? Пользовательские изменения будут удалены."))return;const next={...overrides};delete next[t.id];setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));localStorage.removeItem(`emc_test_content_${t.id}`);localStorage.removeItem(`emc_test_steps_${t.id}`);localStorage.removeItem(`emc_setup_${t.id}`);};
   if(selected)return <TestDetail test={selected} onBack={()=>setSelected(null)}/>;
-  const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["range","Диапазон / тип"],["desc","Краткое описание"],["setup","Состав / схема подключения (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
+  const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["normDoc","Нормативный документ"],["criteria","Критерии качества функционирования"],["range","Диапазон / тип"],["desc","Описание"],["setup","Состав испытательного оборудования (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
   return <PageContainer><SectionHero title="Испытания" subtitle="Встроенные нормативные шаблоны и пользовательские методики." stats={[{value:allTests.length,label:"шаблонов"},{value:customTests.length,label:"пользовательских"},{value:"ГОСТ РВ",label:"активный стандарт"}]}/>
-  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button style={styles.btn()} onClick={()=>{setEditing({});setDraft(blank)}}>+ Добавить испытание</button></div>
-  {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<div style={{display:"flex",gap:8}}><button style={styles.btn()} onClick={saveCustom}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditing(null)}>Отмена</button></div></div>}
-  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Неподтверждённые нормативные разделы явно отмечены" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card" style={{display:"grid",gridTemplateColumns:"64px 1fr auto",gap:16,alignItems:"center",borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><button onClick={()=>setSelected(t)} style={{display:"contents",color:"inherit"}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div></button><div style={{display:"flex",gap:6}}>{t.custom&&<><button style={styles.btn("secondary")} onClick={()=>openEdit(t)}>Изменить</button><button style={styles.btn("fail")} onClick={()=>{if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button></>}</div></div>)}</div></PageContainer>;
+  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button style={styles.btn()} onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</button></div>
+  {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<Field label="Схема стенда"><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setDraft(x=>({...x,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{draft.schemaImage&&<span style={{marginLeft:10,color:C.pass}}>✓ Изображение выбрано</span>}</Field><div style={{display:"flex",gap:8}}><button style={styles.btn()} onClick={saveTest}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditing(null)}>Отмена</button></div></div>}
+  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Разделы 16–20 являются редактируемыми пользовательскими шаблонами без придуманных нормативных значений" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</button>{!t.custom&&["p15","p204","p205","p21","p214","p25"].includes(t.id)&&<button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();restore(t)}}>Восстановить исходный шаблон</button>}{t.custom&&<button style={styles.btn("fail")} onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button>}</div></div>)}</div></PageContainer>;
 }
 
 // ─── REFERENCE SCREEN ─────────────────────────────────────────────────────
@@ -5263,7 +5282,7 @@ const ENGINEERING_CATEGORIES = [
  ["Инжекция РЧ-тока","Наведение контролируемого РЧ-тока в жгут.","BCI / current injection","Инжектор, монитор, усилитель","Калькулятор BCI"],
  ["Измерения радиочастотных помех","Количественная оценка спектра помех.","CE/RE pre-scan и измерение","Приёмник, анализатор, антенна","Анализатор спектра"],
 ];
-function CategoriesTab() { return <div><div style={{...styles.card,borderLeft:`3px solid ${C.cyan}`}}><div style={{fontSize:18,fontWeight:850}}>Инженерные категории EMC Toolkit</div><div style={{fontSize:13,color:C.textSec,marginTop:6}}>Это инженерная классификация EMC Toolkit, а не официальные категории конкретного ГОСТ.</div></div><div className="premium-list">{ENGINEERING_CATEGORIES.map(c=><div className="premium-card" key={c[0]}><div style={{fontWeight:850,color:C.text}}>{c[0]}</div><div style={{fontSize:13,color:C.textSec,margin:"6px 0"}}>{c[1]}</div><div style={{fontSize:12,lineHeight:1.65}}><b>Типичные испытания:</b> {c[2]}<br/><b>Оборудование:</b> {c[3]}<br/><b>Разделы Toolkit:</b> {c[4]}</div></div>)}</div><div style={{...styles.card,borderLeft:`3px solid ${C.warn}`,marginTop:16}}><div style={{fontSize:18,fontWeight:850}}>Нормативные категории</div>{["ГОСТ РВ 6601-001-2008","ГОСТ РВ 6601-002","КТ-160Г"].map(x=><div key={x} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`}}><b>{x}</b><div style={{fontSize:12,color:C.warn}}>Буквенно-цифровые категории требуют подтверждённого текста нормативного документа.</div></div>)}</div></div>; }
+function CategoriesTab() { return <div><div style={{...styles.card,borderLeft:`3px solid ${C.cyan}`}}><div style={{fontSize:18,fontWeight:850}}>Инженерные категории EMC Toolkit</div><div style={{fontSize:13,color:C.textSec,marginTop:6}}>Это инженерная классификация EMC Toolkit, а не официальные категории конкретного ГОСТ.</div></div><div className="category-grid">{ENGINEERING_CATEGORIES.map(c=><article className="premium-card category-card" key={c[0]}><div style={{fontSize:17,fontWeight:850,color:C.text,marginBottom:10}}>{c[0]}</div><div className="category-row"><b>ОПИСАНИЕ</b>{c[1]}</div><div className="category-row"><b>ТИПИЧНЫЕ ИСПЫТАНИЯ</b>{c[2]}</div><div className="category-row"><b>ОБОРУДОВАНИЕ</b>{c[3]}</div><div className="category-row"><b>СВЯЗАННЫЕ РАЗДЕЛЫ</b>{c[4]}</div></article>)}</div><div style={{...styles.card,borderLeft:`3px solid ${C.warn}`,marginTop:16}}><div style={{fontSize:18,fontWeight:850}}>Нормативные категории</div>{["ГОСТ РВ 6601-001-2008","ГОСТ РВ 6601-002","КТ-160Г"].map(x=><div key={x} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`}}><b>{x}</b><div style={{fontSize:13,color:C.warn,lineHeight:1.55}}>Буквенно-цифровые категории требуют подтверждённого текста нормативного документа.</div></div>)}</div></div>; }
 
 // ─── АНАЛИЗ ПРИЧИН ОТКАЗА ────────────────────────────────────────────────────
 const FAIL_PATTERNS = [
@@ -5759,157 +5778,34 @@ const EQUIPMENT_DATA = [
   { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
 ];
 
+const EQUIPMENT_ICONS = [
+  ["⚡","Генератор"],["🔺","Усилитель"],["〰️","Аттенюатор"],["📡","Антенна"],
+  ["🧲","Инжектор / BCI"],["⭕","Токовый пробник"],["📊","Анализатор / измерительный приёмник"],
+  ["🔌","LISN"],["🔗","CDN"],["➰","Кабель / тракт"],["🧰","Вспомогательное оборудование"],["🔧","Универсальная / другое"],
+];
 function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms = [] }) {
-  const [showSpecsForm, setShowSpecsForm] = useState(false);
-  const [editName, setEditName] = useState(e.name || "");
-  const [specRows, setSpecRows] = useState(
-    Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]
-  );
-  const [editType, setEditType] = useState(e.type || "");
-  const [editDesc, setEditDesc] = useState(e.desc || "");
-  const [antennaProfile, setAntennaProfile] = useState(normalizeAntennaProfile(e.antennaProfile));
-
-  useEffect(() => {
-    setEditName(e.name || "");
-    setEditType(e.type || "");
-    setEditDesc(e.desc || "");
-    setAntennaProfile(normalizeAntennaProfile(e.antennaProfile));
-    setSpecRows(Array.isArray(e.specs) && e.specs.length ? e.specs : [{ key: "", value: "" }]);
-  }, [e]);
-
-  const saveSpecs = () => {
-    const normalized = normalizeSpecs(specRows, "");
-    onSaveChanges(e.id, { specs: normalized, type: editType, desc: editDesc, antennaProfile: normalizeAntennaProfile(antennaProfile) });
-    setShowSpecsForm(false);
-  };
-
-  const antennaRows = [
-    ["minFieldVm", "Минимальная напряжённость поля, В/м"],
-    ["maxFieldVm", "Максимальная напряжённость поля, В/м"],
-    ["frequencyRange", "Рабочий диапазон частот"],
-    ["polarization", "Поляризация"],
-    ["recommendedDistance", "Рекомендуемое расстояние"],
-    ["powerLimitations", "Ограничения по мощности/усилителю"],
-    ["applicableStandards", "Стандарты/режимы испытаний"],
-    ["engineerNotes", "Примечания инженера"],
-  ];
-
-  const updateAntennaProfile = (key, value) => setAntennaProfile((prev) => ({ ...prev, [key]: value }));
-
-  const onPhotoChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onSaveChanges(e.id, { photo: String(reader.result || "") });
-    reader.readAsDataURL(file);
-    event.target.value = "";
-  };
-
-  return (
-    <div>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>‹ Назад</button>
-
-      {/* Header — SVG иконка + название */}
-      <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
-          <div style={{ width: 64, height: 64, minWidth: 64, borderRadius: 16, background: "rgba(30,91,232,0.15)", border: "1px solid rgba(30,91,232,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {getEquipSVG(e.type, e.icon)}
-          </div>
-          <div>
-            <input
-              style={{ ...styles.input, fontSize: 18, fontWeight: 800, marginBottom: 6, color: C.textOnLight }}
-              value={editName}
-              onChange={(ev) => setEditName(ev.target.value)}
-            />
-            <div style={{ fontSize: 12, color: "#8A9BB8", marginBottom: 6 }}>{e.type}</div>
-            <button onClick={() => onSaveChanges(e.id, { name: editName })} style={{ ...styles.btn(), padding: "7px 12px", fontSize: 12, marginBottom: 6 }}>Сохранить</button>
-            <select aria-label="АРМ оборудования" value={e.arm} onChange={ev=>onSaveChanges(e.id,{arm:ev.target.value})} style={{...styles.select,padding:"5px 8px",fontSize:11}}>{arms.map(a=><option key={a}>{a}</option>)}</select>
-          </div>
-        </div>
+  const makeDraft=item=>({...item,specs:Array.isArray(item.specs)&&item.specs.length?item.specs:[{key:"",value:""}]});
+  const [draft,setDraft]=useState(()=>makeDraft(e));
+  const [chooseIcon,setChooseIcon]=useState(false);
+  useEffect(()=>setDraft(makeDraft(e)),[e]);
+  const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
+  const onPhotoChange=event=>{const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>set("photo",String(reader.result||""));reader.readAsDataURL(file);event.target.value=""};
+  const save=()=>onSaveChanges(e.id,createEquipmentPatch({...draft,specs:normalizeSpecs(draft.specs,"")}));
+  return <div><BackBtn onBack={onBack}/>
+    <div style={{...styles.card,background:"linear-gradient(135deg,#0D1627,#1C2D50)",border:"none"}}>
+      <div style={{fontSize:18,fontWeight:850,marginBottom:14}}>Редактирование оборудования</div>
+      <div style={{display:"grid",gridTemplateColumns:"90px minmax(0,1fr)",gap:16,alignItems:"start"}}>
+        <div><button type="button" aria-label="Выбрать иконку оборудования" onClick={()=>setChooseIcon(true)} className="premium-card-action" style={{width:76,height:76,borderRadius:18,border:`1px solid ${C.accent}`,background:C.accentLight,color:C.text,fontSize:34,cursor:"pointer"}}>{draft.icon||getEquipSVG(draft.type)}</button><div style={{fontSize:11,color:C.textSec,marginTop:6}}>Нажмите для выбора</div></div>
+        <div><Field label="Название оборудования"><input style={styles.input} value={draft.name||""} onChange={x=>set("name",x.target.value)}/></Field><Field label="Тип оборудования"><select style={styles.select} value={draft.type||"Другое"} onChange={x=>set("type",x.target.value)}>{EQUIPMENT_TYPES.map(x=><option key={x}>{x}</option>)}</select></Field><Field label="АРМ"><select style={styles.select} value={draft.arm||""} onChange={x=>set("arm",x.target.value)}>{arms.map(x=><option key={x}>{x}</option>)}</select></Field></div>
       </div>
-
-      {/* Характеристики */}
-      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ХАРАКТЕРИСТИКИ</div>
-      <div style={{ ...styles.card, marginBottom: 12 }}>
-        {Array.isArray(e.specs) && e.specs.length ? (
-          e.specs.map((s, idx) => (
-            <div key={`${s.key}_${idx}`} style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>
-              <span style={{ fontWeight: 700 }}>{s.key || "Параметр"}:</span> {s.value || "—"}
-            </div>
-          ))
-        ) : (
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>📐 {formatSpecsShort(e.specs)}</div>
-        )}
-        <button onClick={() => setShowSpecsForm((v) => !v)} style={{ ...styles.btn(), marginTop: 8 }}>Добавить характеристики</button>
-        {showSpecsForm && (
-          <div style={{ marginTop: 10 }}>
-            <Field label="Тип оборудования"><select style={styles.select} value={editType} onChange={(ev) => { setEditType(ev.target.value); onSaveChanges(e.id,{type:ev.target.value}); }}><option value="">Выберите тип</option>{EQUIPMENT_TYPES.map(type=><option key={type}>{type}</option>)}</select></Field><Field label="Иконка (можно выбрать независимо от типа)"><select style={styles.select} value={e.icon||"🔧"} onChange={ev=>onSaveChanges(e.id,{icon:ev.target.value})}>{["🔧","⚡","📡","📊","〰️","🔌","🧲","🛡️"].map(icon=><option key={icon}>{icon}</option>)}</select></Field>
-            <Field label="Описание"><textarea style={{ ...styles.input, minHeight: 70 }} value={editDesc} onChange={(ev) => setEditDesc(ev.target.value)} /></Field>
-            {specRows.map((row, idx) => (
-              <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                <input style={styles.input} placeholder="Параметр" value={row.key} onChange={(ev) => setSpecRows((prev) => prev.map((x, i) => i === idx ? { ...x, key: ev.target.value } : x))} />
-                <input style={styles.input} placeholder="Значение" value={row.value} onChange={(ev) => setSpecRows((prev) => prev.map((x, i) => i === idx ? { ...x, value: ev.target.value } : x))} />
-              </div>
-            ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-              <button onClick={() => setSpecRows((prev) => [...prev, { key: "", value: "" }])} style={styles.btn("secondary")}>+ Параметр</button>
-              <button onClick={saveSpecs} style={styles.btn()}>Сохранить</button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {isAntennaEquipment(e) && (
-        <>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ДИАПАЗОНЫ НАПРЯЖЁННОСТИ ПОЛЯ</div>
-          <div style={{ ...styles.card, marginBottom: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10, marginBottom: 10 }}>
-              {antennaRows.map(([key, label]) => (
-                <div key={key} style={{ background: "rgba(15,23,42,0.42)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px" }}>
-                  <div style={{ fontSize: 11, color: C.textSec, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 13, color: antennaProfile[key] ? C.text : C.textSec, lineHeight: 1.45 }}>{antennaProfile[key] || "Не заполнено"}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.55, marginBottom: showSpecsForm ? 10 : 0 }}>
-              Поля оставлены пустыми до ручного заполнения инженером: реальные уровни В/м и ограничения усилителя нельзя подставлять без паспортных данных или протокола калибровки.
-            </div>
-            {showSpecsForm && (
-              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-                {antennaRows.map(([key, label]) => (
-                  <Field key={key} label={label}>
-                    <input style={styles.input} value={antennaProfile[key] || ""} placeholder={key === "applicableStandards" ? "Например: RS103; IEC 61000-4-3" : "Заполнить по паспорту/методике"} onChange={(ev) => updateAntennaProfile(key, ev.target.value)} />
-                  </Field>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Фото под описанием */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6 }}>ФОТО</div>
-        <div style={{ ...styles.card, minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-          {e.photo ? (
-            <img src={e.photo} alt={e.name} style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 12 }} />
-          ) : (
-            <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 700 }}>Добавить фото оборудования</div>
-              <div>Фото оборудования не добавлено</div>
-            </div>
-          )}
-        </div>
-        <label style={{ ...styles.btn(), display: "inline-block" }}>
-          {e.photo ? "Заменить фото" : "Добавить фото"}
-          <input type="file" accept="image/*" onChange={onPhotoChange} style={{ display: "none" }} />
-        </label>
-        {e.photo && <button onClick={() => { if (window.confirm("Удалить фотографию оборудования?")) onSaveChanges(e.id, { photo:"" }); }} style={{...styles.btn("fail"), marginLeft:8}}>Удалить фото</button>}
-      </div>
-
-      <button onClick={() => onDelete(e.id)} style={{ ...styles.btn("fail"), width: "100%" }}>Удалить оборудование</button>
+      <Field label="Описание"><textarea style={{...styles.input,minHeight:72}} value={draft.desc||""} onChange={x=>set("desc",x.target.value)}/></Field>
+      <Field label="Технические характеристики">{draft.specs.map((row,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8,marginBottom:8}}><input style={styles.input} placeholder="Параметр" value={row.key||""} onChange={x=>set("specs",draft.specs.map((v,j)=>j===i?{...v,key:x.target.value}:v))}/><input style={styles.input} placeholder="Значение" value={row.value||""} onChange={x=>set("specs",draft.specs.map((v,j)=>j===i?{...v,value:x.target.value}:v))}/><button style={styles.btn("fail")} onClick={()=>set("specs",draft.specs.filter((_,j)=>j!==i))}>Удалить</button></div>)}<button style={styles.btn("secondary")} onClick={()=>set("specs",[...draft.specs,{key:"",value:""}])}>+ Параметр</button></Field>
+      <Field label="Фото">{draft.photo&&<img src={draft.photo} alt="Предпросмотр" style={{width:"100%",maxHeight:240,objectFit:"contain",borderRadius:12,marginBottom:8}}/>}<label style={styles.btn("secondary")}>{draft.photo?"Заменить фото":"Добавить фото"}<input type="file" accept="image/*" hidden onChange={onPhotoChange}/></label>{draft.photo&&<button style={{...styles.btn("fail"),marginLeft:8}} onClick={()=>set("photo","")}>Удалить фото</button>}</Field>
+      <button onClick={save} style={{...styles.btn(),width:"100%",padding:14,fontSize:15}}>Сохранить изменения</button>
     </div>
-  );
+    {chooseIcon&&<div role="dialog" aria-modal="true" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.72)",display:"grid",placeItems:"center",padding:20}}><div className="premium-card" style={{maxWidth:620,width:"100%",padding:22}}><div style={{fontSize:18,fontWeight:850,marginBottom:14}}>Выберите иконку</div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>{EQUIPMENT_ICONS.map(([icon,label])=><button key={label} onClick={()=>{set("icon",icon);setChooseIcon(false)}} className="premium-card-action" style={{padding:14,border:`1px solid ${draft.icon===icon?C.cyan:C.border}`,borderRadius:12,background:C.card,color:C.text,cursor:"pointer",textAlign:"left"}}><span style={{fontSize:26,display:"block",marginBottom:6}}>{icon}</span>{label}</button>)}</div><button style={{...styles.btn("secondary"),marginTop:14,width:"100%"}} onClick={()=>setChooseIcon(false)}>Отмена</button></div></div>}
+    <button onClick={()=>onDelete(e.id)} style={{...styles.btn("fail"),width:"100%",marginTop:12}}>Удалить оборудование</button>
+  </div>;
 }
 
 function EquipmentTab({ compact = false } = {}) {
@@ -6496,13 +6392,7 @@ function ReferenceScreen({ refTab, setRefTab }) {
 
 // ─── LOGBOOK ──────────────────────────────────────────────────────────────
 const RESULT_OPTIONS = ["PASS", "FAIL", "Предварительный", "Не завершён"];
-const TEST_TYPES = [
-  ["Conducted Emissions", "Кондуктивная эмиссия / помехоэмиссия"], ["Radiated Emissions", "Излучаемая эмиссия"],
-  ["Conducted Immunity", "Устойчивость к кондуктивным помехам"], ["Radiated Immunity", "Устойчивость к излучаемым помехам"],
-  ["Инжекция тока", "Инжекция тока"], ["ESD", "Электростатический разряд"], ["EFT/Burst", "Наносекундные импульсные помехи / EFT/Burst"],
-  ["Surge", "Импульс большой энергии / Surge"], ["PFMF", "Магнитное поле промышленной частоты"], ["Voltage Dips", "Провалы и прерывания напряжения"],
-];
-const testTypeLabel = value => TEST_TYPES.find(([id])=>id===value)?.[1] || value;
+const testTypeLabel = entry => entry.displayValue || [entry.section, entry.testName].filter(Boolean).join(" — ") || entry.testType || "Неизвестный тип испытания";
 
 const MOCK_LOG = [
   { id: 1, date: "2025-06-10", project: "Проект Alpha", testType: "Инжекция тока", standard: "Стандарт ЭМС A", freqRange: "1–400 MHz", level: "100 мА (20 dBµA×10)", result: "PASS", notes: "AM 1 кГц, 80%. Жгут A.", fail: "", action: "", comment: "Все критерии выполнены" },
@@ -6520,7 +6410,7 @@ function LogEntry({ entry, onEdit, onDelete }) {
             <span style={{ fontSize: 16, fontWeight: 850, color: C.text }}>{entry.project || "Без проекта"}</span>
             <span style={{ fontSize: 11, color: C.textSec, fontWeight: 800 }}>{entry.date}</span>
           </div>
-          <div style={{ fontSize: 12, color: C.textSec }}>{testTypeLabel(entry.testType)}</div>
+          <div style={{ fontSize: 12, color: C.textSec }}>{testTypeLabel(entry)}</div>
           {entry.conductedBy && <div style={{fontSize:12,color:C.textSec,marginTop:4}}>Проводил: <b style={{color:C.text}}>{entry.conductedBy}</b></div>}
         </div>
         <span style={styles.tag(tone)}>{entry.result}</span>
@@ -6542,8 +6432,9 @@ function LogEntry({ entry, onEdit, onDelete }) {
   );
 }
 
-function LogForm({ entry, onSave, onCancel }) {
-  const [form, setForm] = useState(entry ? {...entry, conductedBy:entry.conductedBy||"", photos:Array.isArray(entry.photos)?entry.photos:[]} : { id: Date.now(), date: new Date().toISOString().slice(0, 10), project: "", conductedBy:"", photos:[], testType: TEST_TYPES[0][0], standard: "", freqRange: "", level: "", result: "PASS", notes: "", fail: "", action: "", comment: "" });
+function LogForm({ entry, onSave, onCancel, testOptions }) {
+  const first=testOptions[0]||{testId:"",section:"",testName:"",displayValue:""};
+  const [form, setForm] = useState(entry ? {...entry, conductedBy:entry.conductedBy||"", photos:Array.isArray(entry.photos)?entry.photos:[]} : snapshotJournalSelection({ id: Date.now(), date: new Date().toISOString().slice(0, 10), project: "", conductedBy:"", photos:[], standard: "", freqRange: "", level: "", result: "PASS", notes: "", fail: "", action: "", comment: "" }, first));
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
     <div>
@@ -6561,8 +6452,8 @@ function LogForm({ entry, onSave, onCancel }) {
         <Field label="Проект / Наименование Изделия"><input style={styles.input} value={form.project} onChange={e => set("project", e.target.value)} placeholder="Название изделия" /></Field>
         <Field label="Кто проводил испытание"><input style={styles.input} value={form.conductedBy} onChange={e => set("conductedBy", e.target.value)} placeholder="Фамилия, имя или подразделение" /></Field>
         <Field label="Тип испытания">
-          <select style={styles.select} value={form.testType} onChange={e => set("testType", e.target.value)}>
-            {TEST_TYPES.map(([id,label]) => <option key={id} value={id}>{label}</option>)}
+          <select style={styles.select} value={form.testId} onChange={e => setForm(f=>snapshotJournalSelection(f,testOptions.find(x=>x.testId===e.target.value)||first))}>
+            {testOptions.map(option => <option key={option.testId} value={option.testId}>{option.displayValue}</option>)}
           </select>
         </Field>
         <div style={styles.row}>
@@ -6586,10 +6477,14 @@ function LogForm({ entry, onSave, onCancel }) {
 }
 
 function LogbookScreen() {
+  const catalog = useMemo(()=>{let custom=[],overrides={};try{custom=JSON.parse(localStorage.getItem("emc_custom_tests_v1")||"[]");overrides=JSON.parse(localStorage.getItem("emc_test_overrides_v1")||"{}")}catch(e){}return buildTestCatalog(TESTS_DATA,custom,overrides)},[]);
+  const testOptions=useMemo(()=>buildJournalTestOptions(catalog),[catalog]);
   const [entries, setEntries] = useState(() => {
     try {
       const saved = localStorage.getItem("emc_logbook_v1");
-      return saved ? JSON.parse(saved) : MOCK_LOG;
+      const migrated=(saved ? JSON.parse(saved) : MOCK_LOG).map(entry=>migrateJournalEntry(entry,catalog));
+      localStorage.setItem("emc_logbook_v1",JSON.stringify(migrated));
+      return migrated;
     } catch(e) { return MOCK_LOG; }
   });
 
@@ -6624,13 +6519,13 @@ function LogbookScreen() {
   }, []);
 
   const visible = useMemo(() => entries.filter(e => {
-    const matchQ = !q || e.project.toLowerCase().includes(q.toLowerCase()) || e.testType.toLowerCase().includes(q.toLowerCase());
+    const matchQ = !q || (e.project||"").toLowerCase().includes(q.toLowerCase()) || testTypeLabel(e).toLowerCase().includes(q.toLowerCase());
     const matchF = filter === "all" || (filter === "pass" && e.result === "PASS") || (filter === "fail" && e.result === "FAIL");
     return matchQ && matchF;
   }), [entries, q, filter]);
 
-  if (adding) return <LogForm onSave={save} onCancel={() => setAdding(false)} />;
-  if (editing) return <LogForm entry={editing} onSave={save} onCancel={() => setEditing(null)} />;
+  if (adding) return <LogForm testOptions={testOptions} onSave={save} onCancel={() => setAdding(false)} />;
+  if (editing) return <LogForm testOptions={testOptions} entry={editing} onSave={save} onCancel={() => setEditing(null)} />;
 
   const passCount = entries.filter(e => e.result === "PASS").length;
   const failCount = entries.filter(e => e.result === "FAIL").length;
