@@ -9,7 +9,7 @@ import { SUPPORT_URL } from "./config/support";
 import { currentEdition, editionConfig, hasFeature, isLicenseGatingDisabled, setActiveEdition } from "./config/editions";
 import { getActiveLicense, removeLicense, saveLicense } from "./license";
 import { convertPressure, formatEngineeringPressure } from "./calculations/pressure.mjs";
-import { EQUIPMENT_TYPES, moveStep, createUserTest, migrateEquipmentItem } from "./data/userData.mjs";
+import { EQUIPMENT_TYPES, addStep, moveStep, removeStep, updateStep, createUserTest, migrateEquipmentItem } from "./data/userData.mjs";
 import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "./data/catalog.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
@@ -3554,24 +3554,17 @@ function BackBtn({ onBack }) {
 // ─── TESTS SCREEN ─────────────────────────────────────────────────────────
 // ─── ПОШАГОВЫЕ ИНСТРУКЦИИ ────────────────────────────────────────────────────
 const PHASE_COLORS = { подготовка: "#E07B00", калибровка: "#1E5BE8", испытание: "#D93025", "испытание CE": "#D93025", "испытание RE": "#8B1DC7", завершение: "#1A9B5A" };
-const PHASE_LABELS = { подготовка: "ПОДГОТОВКА", калибровка: "КАЛИБРОВКА", испытание: "ИСПЫТАНИЕ", "испытание CE": "ИСПЫТАНИЕ CE", "испытание RE": "ИСПЫТАНИЕ RE", завершение: "ЗАВЕРШЕНИЕ" };
 
-const STEP_TEMPLATE = [
-  { phase: "подготовка", text: "Добавьте описание этапа" },
-  { phase: "калибровка", text: "Добавьте описание этапа" },
-  { phase: "испытание", text: "Добавьте описание этапа" },
-  { phase: "завершение", text: "Добавьте описание этапа" },
+const STEP_PHASES = [
+  ["подготовка", "Подготовка"],
+  ["калибровка", "Калибровка"],
+  ["испытание", "Испытание"],
+  ["завершение", "Завершение"],
 ];
 
-const STEPS_DATA = {
-  p15: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
-  p204: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
-  p205: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
-  p25: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
-  p21: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
-  p214: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
-  p215: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
-};
+// Built-in tests start without synthetic placeholder steps. Previously saved
+// user steps still take precedence in StepsTab and are never migrated away.
+const STEPS_DATA = {};
 
 const TESTS_DATA = [
   {
@@ -3737,8 +3730,14 @@ const TESTS_DATA = [
       "Фильтры и ферриты на кабелях управления/мониторинга",
     ]
   },
-  ...["16", "17", "18", "19", "20"].map(section => ({
-    id: `p${section}_placeholder`, short: `п.${section}`, name: `Раздел ${section}`,
+  ...Object.entries({
+    16: "Провалы и прерывания напряжения питания",
+    17: "Импульсные помехи в цепях питания",
+    18: "Низкочастотные кондуктивные помехи",
+    19: "Электростатические разряды",
+    20: "Радиочастотная восприимчивость",
+  }).map(([section, name]) => ({
+    id: `p${section}_placeholder`, short: `п.${section}`, name,
     standard: `ГОСТ РВ 20.57.306, раздел ${section}`, range: "Требует заполнения по нормативному документу",
     gost: true, placeholder: true, desc: "Требует заполнения по нормативному документу",
     normDoc: "Подтверждённые данные в репозитории отсутствуют. Заполните карточку по нормативному документу.",
@@ -4575,29 +4574,45 @@ function StepsTab({ testId, initialSteps = [] }) {
     try { return JSON.parse(localStorage.getItem(stepsKey)) || originalSteps; } catch (e) { return originalSteps; }
   });
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(steps);
+  const [adding, setAdding] = useState(false);
+  const [newStep, setNewStep] = useState({ phase: "подготовка", text: "" });
+  const [addError, setAddError] = useState("");
   const [done, setDone] = useState(Array(steps.length).fill(false));
   const completed = done.filter(Boolean).length;
 
   const toggle = (i) => { const n = [...done]; n[i] = !n[i]; setDone(n); };
+  const saveSteps = next => {
+    setSteps(next);
+    localStorage.setItem(stepsKey, JSON.stringify(next));
+    setDone(current => next.map((_, i) => Boolean(current[i])));
+  };
+  const submitStep = () => {
+    if (!newStep.text.trim()) { setAddError("Введите описание шага"); return; }
+    saveSteps(addStep(steps, newStep));
+    setNewStep({ phase: "подготовка", text: "" });
+    setAddError("");
+    setAdding(false);
+  };
+  const dropStep = (event, targetIndex, targetPhase) => {
+    event.preventDefault();
+    const from = Number(event.dataTransfer.getData("text/plain"));
+    if (!Number.isInteger(from) || from < 0 || from >= steps.length) return;
+    const phased = updateStep(steps, from, { phase: targetPhase });
+    saveSteps(moveStep(phased, from, targetIndex));
+  };
 
   return (
     <div>
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginBottom:10 }}>
-        {!editing ? <button onClick={() => { setDraft(steps); setEditing(true); }} style={styles.btn("secondary")}>Редактировать</button> : <>
-          <button onClick={() => { setSteps(draft); localStorage.setItem(stepsKey, JSON.stringify(draft)); setDone(Array(draft.length).fill(false)); setEditing(false); }} style={styles.btn("primary")}>Сохранить</button>
-          <button onClick={() => setEditing(false)} style={styles.btn("secondary")}>Отмена</button>
-        </>}
-        <button onClick={() => { if (window.confirm("Восстановить исходный шаблон шагов? Пользовательские изменения будут удалены.")) { localStorage.removeItem(stepsKey); setSteps(originalSteps); setDraft(originalSteps); setDone(Array(originalSteps.length).fill(false)); setEditing(false); } }} style={styles.btn("secondary")}>Восстановить исходный шаблон</button>
+        {steps.length > 0 && <button onClick={() => setEditing(value => !value)} style={styles.btn("secondary")}>{editing ? "Готово" : "Редактировать"}</button>}
+        <button onClick={() => { setAdding(true); setAddError(""); }} disabled={adding} style={styles.btn("primary")}>+ Добавить шаг</button>
       </div>
-      {editing && <div style={styles.card}>
-        {draft.map((step, i) => <div key={i} draggable onDragStart={e=>e.dataTransfer.setData("text/plain",String(i))} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();setDraft(moveStep(draft,Number(e.dataTransfer.getData("text/plain")),i));}} style={{ display:"grid", gridTemplateColumns:"36px 130px 1fr auto", gap:8, marginBottom:8, touchAction:"pan-y" }}>
-          <span title="Перетащить шаг" aria-label="Перетащить шаг" style={{cursor:"grab",fontSize:22,textAlign:"center",color:C.textSec}}>⠿</span>
-          <select style={styles.select} value={step.phase} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, phase:e.target.value} : s))}><option value="before">До испытания</option><option value="during">Во время</option><option value="after">После</option></select>
-          <textarea style={{...styles.input, minHeight:52}} value={step.text} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, text:e.target.value} : s))} />
-          <div style={{display:"flex",gap:4}}><button aria-label="Переместить вверх" disabled={i===0} onClick={()=>setDraft(moveStep(draft,i,i-1))} style={styles.btn("secondary")}>↑</button><button aria-label="Переместить вниз" disabled={i===draft.length-1} onClick={()=>setDraft(moveStep(draft,i,i+1))} style={styles.btn("secondary")}>↓</button><button onClick={() => setDraft(draft.filter((_,j)=>j!==i).map((s,j)=>({...s,n:j+1})))} style={styles.btn("fail")}>Удалить</button></div>
-        </div>)}
-        <button onClick={() => setDraft([...draft, {n:draft.length+1, phase:"during", text:""}])} style={styles.btn("secondary")}>+ Добавить шаг</button>
+      {adding && <div style={{...styles.card, borderLeft:`3px solid ${C.accent}`}}>
+        <div style={{fontWeight:800,marginBottom:10}}>Новый шаг</div>
+        <Field label="Этап"><select aria-label="Этап нового шага" style={styles.select} value={newStep.phase} onChange={e=>setNewStep({...newStep,phase:e.target.value})}>{STEP_PHASES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></Field>
+        <Field label="Описание"><textarea aria-label="Описание нового шага" autoFocus style={{...styles.input,minHeight:70}} value={newStep.text} onChange={e=>{setNewStep({...newStep,text:e.target.value});setAddError("")}} /></Field>
+        {addError && <div role="alert" style={{color:C.fail,fontSize:12,marginBottom:8}}>{addError}</div>}
+        <div style={{display:"flex",gap:8}}><button onClick={submitStep} style={styles.btn("primary")}>Добавить</button><button onClick={()=>{setAdding(false);setNewStep({phase:"подготовка",text:""});setAddError("")}} style={styles.btn("secondary")}>Отмена</button></div>
       </div>}
       {/* Progress */}
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 12 }}>
@@ -4606,28 +4621,32 @@ function StepsTab({ testId, initialSteps = [] }) {
           <div style={{ fontSize: 13, fontWeight: 800, color: completed === steps.length ? "#1A9B5A" : "#4A9FFF" }}>{completed}/{steps.length}</div>
         </div>
         <div style={{ height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2 }}>
-          <div style={{ width: `${(completed / steps.length) * 100}%`, height: "100%", background: completed === steps.length ? "#1A9B5A" : "#1E5BE8", borderRadius: 2, transition: "width 0.3s" }}/>
+          <div style={{ width: `${steps.length ? (completed / steps.length) * 100 : 0}%`, height: "100%", background: completed === steps.length && steps.length ? "#1A9B5A" : "#1E5BE8", borderRadius: 2, transition: "width 0.3s" }}/>
         </div>
-        {completed === steps.length && <div style={{ fontSize: 12, color: "#1A9B5A", marginTop: 8, fontWeight: 700 }}>✓ Все шаги выполнены!</div>}
+        {steps.length > 0 && completed === steps.length && <div style={{ fontSize: 12, color: "#1A9B5A", marginTop: 8, fontWeight: 700 }}>✓ Все шаги выполнены!</div>}
       </div>
 
       {/* Steps */}
-      {steps.map((step, i) => {
-        const phaseColor = PHASE_COLORS[step.phase] || C.accent;
-        const phaseLabel = PHASE_LABELS[step.phase] || step.phase.toUpperCase();
-        return (
-          <div key={i} onClick={() => toggle(i)} style={{ ...styles.card, cursor: "pointer", marginBottom: 8, borderLeft: `3px solid ${done[i] ? "#1A9B5A" : phaseColor}`, opacity: done[i] ? 0.6 : 1 }}>
+      {STEP_PHASES.map(([phase, groupLabel]) => {
+        const phaseSteps=steps.map((step,index)=>({step,index})).filter(({step})=>step.phase===phase || (phase==="испытание" && !STEP_PHASES.some(([value])=>value===step.phase)));
+        return <section key={phase} style={{marginBottom:14}} onDragOver={editing ? e=>e.preventDefault() : undefined} onDrop={editing && phaseSteps.length===0 ? e=>dropStep(e,steps.length-1,phase) : undefined}>
+          <div style={{fontSize:12,fontWeight:850,color:PHASE_COLORS[phase],textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>{groupLabel} <span style={{color:C.textSec}}>· {phaseSteps.length}</span></div>
+          {phaseSteps.length===0 && <div style={{...styles.card,color:C.textSec,fontSize:12,padding:12}}>Шагов пока нет</div>}
+          {phaseSteps.map(({step,index:i}, phasePosition) => {
+            const phaseColor = PHASE_COLORS[phase];
+            return <div key={`${step.n}-${i}`} onDragOver={editing ? e=>e.preventDefault() : undefined} onDrop={editing ? e=>dropStep(e,i,phase) : undefined} onClick={!editing ? () => toggle(i) : undefined} style={{ ...styles.card, cursor: editing ? "default" : "pointer", marginBottom: 8, borderLeft: `3px solid ${done[i] ? "#1A9B5A" : phaseColor}`, opacity: done[i] ? 0.6 : 1 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              {editing && <span draggable onDragStart={e=>{e.stopPropagation();e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i))}} title="Перетащить шаг" aria-label="Перетащить шаг" style={{cursor:"grab",fontSize:20,color:C.textSec,userSelect:"none"}}>⋮⋮</span>}
               <div style={{ width: 28, height: 28, minWidth: 28, borderRadius: "50%", background: done[i] ? "#1A9B5A" : phaseColor, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, marginTop: 1 }}>
                 {done[i] ? "✓" : step.n}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: done[i] ? "#1A9B5A" : phaseColor, letterSpacing: 1, marginBottom: 4 }}>{phaseLabel}</div>
-                <div style={{ fontSize: 13, color: done[i] ? C.textSec : C.text, lineHeight: 1.65, textDecoration: done[i] ? "line-through" : "none" }}>{step.text}</div>
+                {editing ? <><select aria-label={`Этап шага ${step.n}`} style={{...styles.select,marginBottom:7}} value={phase} onChange={e=>saveSteps(updateStep(steps,i,{phase:e.target.value}))}>{STEP_PHASES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><textarea aria-label={`Текст шага ${step.n}`} style={{...styles.input,minHeight:58}} value={step.text} onChange={e=>saveSteps(updateStep(steps,i,{text:e.target.value}))}/></> : <div style={{ fontSize: 13, color: done[i] ? C.textSec : C.text, lineHeight: 1.65, textDecoration: done[i] ? "line-through" : "none" }}>{step.text}</div>}
               </div>
+              {editing && <div style={{display:"flex",gap:4}}><button aria-label="Переместить вверх" disabled={phasePosition===0} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition-1].index))} style={styles.btn("secondary")}>↑</button><button aria-label="Переместить вниз" disabled={phasePosition===phaseSteps.length-1} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition+1].index))} style={styles.btn("secondary")}>↓</button><button onClick={()=>saveSteps(removeStep(steps,i))} style={styles.btn("fail")}>Удалить</button></div>}
             </div>
-          </div>
-        );
+          </div>})}
+        </section>;
       })}
 
       <button onClick={() => setDone(Array(steps.length).fill(false))} style={{ width: "100%", padding: "10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.textSec, fontSize: 12, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>
@@ -4757,7 +4776,6 @@ function TestDetail({ test, onBack }) {
 
       {["before","during","after","schema"].includes(tab) && <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginBottom:10}}>
         {!editingContent ? <button style={styles.btn("secondary")} onClick={()=>{setContentDraft(content);setEditingContent(true)}}>Редактировать</button> : <><button style={styles.btn("primary")} onClick={saveContent}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditingContent(false)}>Отмена</button></>}
-        <button style={styles.btn("secondary")} onClick={()=>{if(window.confirm("Восстановить исходный шаблон? Пользовательские изменения этого раздела будут удалены.")){localStorage.removeItem(contentKey);setContent(defaults);setContentDraft(defaults);setEditingContent(false)}}}>Восстановить исходный шаблон</button>
       </div>}
 
       {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} />}
@@ -5182,13 +5200,12 @@ function TestsScreen() {
     setEditing(null);setDraft(blank);
   };
   const openEdit=t=>{setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||STEPS_DATA[t.id]||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
-  const restore=t=>{if(!window.confirm("Восстановить исходный шаблон? Пользовательские изменения будут удалены."))return;const next={...overrides};delete next[t.id];setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));localStorage.removeItem(`emc_test_content_${t.id}`);localStorage.removeItem(`emc_test_steps_${t.id}`);localStorage.removeItem(`emc_setup_${t.id}`);};
   if(selected)return <TestDetail test={selected} onBack={()=>setSelected(null)}/>;
   const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["normDoc","Нормативный документ"],["criteria","Критерии качества функционирования"],["range","Диапазон / тип"],["desc","Описание"],["setup","Состав испытательного оборудования (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
   return <PageContainer><SectionHero title="Испытания" subtitle="Встроенные нормативные шаблоны и пользовательские методики." stats={[{value:allTests.length,label:"шаблонов"},{value:customTests.length,label:"пользовательских"},{value:"ГОСТ РВ",label:"активный стандарт"}]}/>
   <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button style={styles.btn()} onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</button></div>
   {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<Field label="Схема стенда"><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setDraft(x=>({...x,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{draft.schemaImage&&<span style={{marginLeft:10,color:C.pass}}>✓ Изображение выбрано</span>}</Field><div style={{display:"flex",gap:8}}><button style={styles.btn()} onClick={saveTest}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditing(null)}>Отмена</button></div></div>}
-  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Разделы 16–20 являются редактируемыми пользовательскими шаблонами без придуманных нормативных значений" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</button>{!t.custom&&["p15","p204","p205","p21","p214","p25"].includes(t.id)&&<button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();restore(t)}}>Восстановить исходный шаблон</button>}{t.custom&&<button style={styles.btn("fail")} onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button>}</div></div>)}</div></PageContainer>;
+  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Разделы 16–20 являются редактируемыми пользовательскими шаблонами без придуманных нормативных значений" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</button>{t.custom&&<button style={styles.btn("fail")} onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button>}</div></div>)}</div></PageContainer>;
 }
 
 // ─── REFERENCE SCREEN ─────────────────────────────────────────────────────

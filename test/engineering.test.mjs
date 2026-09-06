@@ -6,7 +6,7 @@ import {
 } from "../src/calculations/engineering.mjs";
 import { EMC_LIMITS, evaluateLimit } from "../src/data/limits/emcLimits.mjs";
 import { MMHG_TO_PA, convertPressure } from "../src/calculations/pressure.mjs";
-import { createUserTest, deleteUserTest, migrateEquipmentItem, moveStep } from "../src/data/userData.mjs";
+import { addStep, createUserTest, deleteUserTest, migrateEquipmentItem, moveStep, removeStep, updateStep } from "../src/data/userData.mjs";
 import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "../src/data/catalog.mjs";
 import { readFileSync } from "node:fs";
 
@@ -38,6 +38,26 @@ test("новый порядок шагов пересчитывается и с�
   assert.deepEqual(reordered.map(x=>[x.n,x.text]), [[1,"C"],[2,"A"],[3,"B"]]);
   assert.deepEqual(JSON.parse(JSON.stringify(reordered)), reordered);
 });
+test("пустые шаги не создаются автоматически и не добавляются", () => {
+  assert.deepEqual(addStep([], { phase:"подготовка", text:"   " }), []);
+  const source=readFileSync(new URL("../src/App.jsx",import.meta.url),"utf8");
+  assert.doesNotMatch(source,/const STEP_TEMPLATE/);
+});
+test("одно подтверждение формы добавляет ровно один шаг", () => {
+  const result=addStep([], { phase:"калибровка", text:"  Настроить генератор  " });
+  assert.deepEqual(result,[{n:1,phase:"калибровка",text:"Настроить генератор"}]);
+});
+test("шаг можно удалить, изменить и перенумеровать", () => {
+  const steps=[{n:1,phase:"подготовка",text:"A"},{n:2,phase:"испытание",text:"B"}];
+  assert.deepEqual(updateStep(steps,1,{phase:"завершение",text:"Итог"})[1],{n:2,phase:"завершение",text:"Итог"});
+  assert.deepEqual(removeStep(steps,0),[{n:1,phase:"испытание",text:"B"}]);
+});
+test("порядок шагов сохраняется после повторного чтения хранилища", () => {
+  const saved=JSON.stringify(moveStep([{text:"A"},{text:"B"},{text:"C"}],2,0));
+  const reopened=JSON.parse(saved);
+  assert.deepEqual(reopened.map(step=>step.text),["C","A","B"]);
+  assert.deepEqual(reopened.map(step=>step.n),[1,2,3]);
+});
 test("тип и ручная иконка оборудования сохраняются, старые данные мигрируют", () => {
   assert.deepEqual(migrateEquipmentItem({ id:"old" }), { id:"old", type:"Другое", icon:"🔧" });
   assert.equal(migrateEquipmentItem({ type:"LISN", icon:"🔌" }).icon, "🔌");
@@ -48,6 +68,11 @@ test("раздел 16 редактируется через слой польз�
   const result = buildTestCatalog(base, [], { p16_placeholder:{ desc:"Описание инженера", normDoc:"Документ лаборатории" } });
   assert.equal(result[0].desc, "Описание инженера");
   assert.equal(result[0].normDoc, "Документ лаборатории");
+});
+test("разделы 16–20 имеют названия испытаний, используемые журналом", () => {
+  const source=readFileSync(new URL("../src/App.jsx",import.meta.url),"utf8");
+  for (const section of [16,17,18,19,20]) assert.doesNotMatch(source,new RegExp(`name:\\s*['\"]Раздел ${section}['\"]`));
+  for (const name of ["Провалы и прерывания напряжения питания","Импульсные помехи в цепях питания","Низкочастотные кондуктивные помехи","Электростатические разряды","Радиочастотная восприимчивость"]) assert.match(source,new RegExp(name));
 });
 test("в пользовательское испытание добавляется и перенумеровывается шаг", () => {
   const custom=createUserTest({steps:[{text:"Подготовка"},{text:"Новый шаг"}]},42);

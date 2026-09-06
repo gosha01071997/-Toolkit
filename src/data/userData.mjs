@@ -1,6 +1,23 @@
 export const EQUIPMENT_TYPES = ["Генератор", "Усилитель", "Аттенюатор", "Антенна", "Инжектор / BCI probe", "Токовый пробник", "Анализатор / измерительный приёмник", "LISN", "CDN", "Кабель / тракт", "Вспомогательное оборудование", "Другое"];
 
 export const renumberSteps = (steps = []) => steps.map((step, index) => ({ ...step, n: index + 1 }));
+
+export function addStep(steps = [], step = {}) {
+  const text = String(step.text || "").trim();
+  if (!text) return renumberSteps(steps);
+  return renumberSteps([...steps, { ...step, text }]);
+}
+
+export function updateStep(steps = [], index, patch = {}) {
+  if (index < 0 || index >= steps.length) return renumberSteps(steps);
+  return renumberSteps(steps.map((step, i) => i === index ? { ...step, ...patch } : step));
+}
+
+export function removeStep(steps = [], index) {
+  if (index < 0 || index >= steps.length) return renumberSteps(steps);
+  return renumberSteps(steps.filter((_, i) => i !== index));
+}
+
 export function moveStep(steps, from, to) {
   if (!Array.isArray(steps) || from < 0 || to < 0 || from >= steps.length || to >= steps.length) return renumberSteps(steps || []);
   const next = [...steps];
