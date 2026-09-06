@@ -10,7 +10,7 @@ import { currentEdition, editionConfig, hasFeature, isLicenseGatingDisabled, set
 import { getActiveLicense, removeLicense, saveLicense } from "./license";
 import { convertPressure, formatEngineeringPressure } from "./calculations/pressure.mjs";
 import { EQUIPMENT_TYPES, moveStep, createUserTest, migrateEquipmentItem } from "./data/userData.mjs";
-import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "./data/catalog.mjs";
+import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, hasCompletedAllSteps, KT160G_SECTIONS, migrateJournalEntry, snapshotJournalSelection } from "./data/catalog.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -3573,178 +3573,7 @@ const STEPS_DATA = {
   p215: STEP_TEMPLATE.map((step, i) => ({ n: i + 1, ...step })),
 };
 
-const TESTS_DATA = [
-  {
-    id: "p15",
-    name: "Магнитное воздействие",
-    short: "п.15",
-    standard: "ГОСТ РВ 20.57.306 п.15",
-    range: "50 Гц / постоянное поле",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию внешнего магнитного поля промышленной частоты 50 Гц и/или постоянного магнитного поля. Оцениваются функциональные параметры Изделия во время и после воздействия.",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.15. Степень жёсткости 1–5 по напряжённости поля.",
-    criteria: "Работоспособность Изделия сохраняется в течение воздействия и после его прекращения.",
-    setup: [
-      "Источник питания (регулируемый AC/DC)",
-      "Катушка Гельмгольца или индукционная катушка",
-      "Компас прецизионный Датчик поля A (калиброванный, с поверкой)",
-      "Магнитометр портативный Измеритель магнитного поля A (с поверкой)",
-      "ИРИ (изделие — объект испытаний)",
-      "Монитор работоспособности Изделия",
-      "Опорная плоскость заземления",
-    ]
-  },
-  {
-    id: "p204",
-    name: "РЧ-восприимчивость — помехи проводимости",
-    short: "п.20.4",
-    standard: "Шаблон испытания 01 · Раздел 01",
-    range: "0,15 – 400 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к радиочастотным помехам, распространяемым по цепям питания и сигнальным кабелям (кондуктивная восприимчивость). Воздействие производится через сеть связи/развязки (CDN) или токовыми клещами (инжекция тока).",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 01. Уровни воздействия по степеням 1–4.",
-    criteria: "Изделие сохраняет работоспособность во время воздействия (критерий I) или самовосстанавливается (критерий II).",
-    setup: [
-      "Генератор сигналов Генератор A (10 кГц – 1200 МГц, AM/IM)",
-      "Усилитель мощности Усилитель A (9 кГц – 400 МГц, 230 Вт)",
-      "Токовый инжектор Токосъёмник A с калибровочным устройством",
-      "Монитор тока Токосъёмник A (10 кГц – 400 МГц, диаметр 46 мм)",
-      "Комплект инжекции тока A (нагрузки 50 Ом, аттенюаторы, кабели СВЧ)",
-      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия",
-      "ПО программа BCI-LAB",
-    ]
-  },
-  {
-    id: "p205",
-    name: "РЧ-восприимчивость — помехи излучению",
-    short: "п.20.5",
-    standard: "Шаблон испытания 01 · Раздел 02",
-    range: "20 МГц – 1000 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию радиочастотного электромагнитного поля (радиационная восприимчивость). Изделие облучается нормированным полем в безэховой камере или с использованием TEM-ячейки.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 02. Напряжённость поля 1–20 В/м.",
-    criteria: "Изделие сохраняет работоспособность во время облучения (критерий I) или самовосстанавливается (критерий II).",
-    setup: [
-      "Генератор сигналов Генератор A (9 кГц – 2,1 ГГц)",
-      "Усилитель мощности Усилитель A (2–250 МГц, 1000 Вт)",
-      "Усилитель мощности Усилитель A (80–1000 МГц, 1 кВт)",
-      "РЧ коммутатор коммутатор A (до 6 ГГц, 3 модуля SP3T)",
-      "Измеритель мощности Измерительный приёмник A (8 кГц – 6 ГГц, ±23 дБм)",
-      "Пробник поля Измерительный приёмник B (9 кГц – 18 ГГц, 1-1000 В/м, оптоволоконный кабель)",
-      "Антенна рупорная Антенна A (200 МГц – 2,8 ГГц)",
-      "Антенна логопериодическая Антенна A (60–3000 МГц, 3 кВт)",
-      "Линия излучающая симметричная Антенна A (1–200 МГц, 2 кВт)",
-      "Мачта антенная Стенд A с антенным адаптером",
-      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия",
-      "ПО PROVE-EMC RF-LAB",
-    ]
-  },
-  {
-    id: "p25",
-    name: "Генератор электростатических разрядов",
-    short: "п.25",
-    standard: "Шаблон испытания 02 · Раздел 01",
-    range: "Контактный / воздушный разряд",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию электростатических разрядов (ЭСР). Моделируется разряд наэлектризованного человека или предмета на корпус и доступные части Изделия. Воздействие: контактный и воздушный разряды заданных уровней напряжения.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 03. Уровни напряжения по шаблону испытаний.",
-    criteria: "Изделие сохраняет работоспособность во время воздействия и после него.",
-    setup: [
-      "Генератор ЭСР Модуль питания A (до 30 кВ, 150пФ/330 Ом, разрядные наконечники)",
-      "Делитель напряжения калибровочный РН-5000 (до 30 кВ)",
-      "Калибровочная мишень ИШ-2,0 ВЧ (2 Ом, 30 кВ)",
-      "Осциллограф цифровой Контроллер Alpha (4 кан., 2 ГГц, 10 ГВыб/с)",
-      "Стол испытательный деревянный 2,5×0,9×0,9 м (лиственница)",
-      "Горизонтальная опорная металлическая плита (оцинкованная сталь 2 мм)",
-      "Вертикальная пластина связи 0,5×0,5 м + кабель 2 м с резисторами 2×470 кОм",
-      "Изолирующая подставка под Изделие (10 см от ОПЗ)",
-      "Изделие",
-    ]
-  },
-  {
-    id: "p21",
-    name: "Генерация радиочастотной энергии",
-    short: "п.21",
-    standard: "Шаблон испытания 01 · Раздел 03",
-    range: "0,15 – 1000 МГц",
-    gost: true,
-    desc: "Измерение уровня радиочастотных помех, генерируемых Изделием и распространяемых по цепям питания (кондуктивные помехи) и излучаемых в пространство (радиационные помехи). Проверяется соответствие нормам допустимых значений помех.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 04. Нормы по степеням и видам помех.",
-    criteria: "Уровни кондуктивных и радиационных помех не превышают допустимых значений для данной степени жёсткости.",
-    setup: [
-      "Измерительный приёмник Измерительный приёмник A (10 кГц – 6000 МГц)",
-      "Анализатор спектра Анализатор спектра A (9 кГц – 22 ГГц, -99,7 дБн/Гц)",
-      "ЛИСН ЛИСН A (70/100 А, 600В DC/270В AC, до 400 МГц)",
-      "ЛИСН ЛИСН B (50 мкГн+5 Ом, 9 кГц–100 МГц, двухканальный)",
-      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц)",
-      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц, до 2А CW/100А имп.)",
-      "Пробник Измерительный приёмник A (100 Гц – 1000 МГц)",
-      "Антенна штыревая активная Антенна A (9 кГц – 30 МГц)",
-      "Антенна биконическая Антенна A (30–300 МГц)",
-      "Антенна логопериодическая Антенна A (300–6000 МГц)",
-      "Антенна рупорная двухгребневая Антенна A (0,8–18 ГГц)",
-      "Мачта антенная Стенд A с антенным адаптером",
-      "ПО Лаборант ЭМС",
-      "Изделие в рабочем режиме",
-    ]
-  },
-  {
-    id: "p214",
-    name: "РЧ-восприимчивость — помехи проводимости",
-    short: "п.21.4",
-    standard: "Шаблон испытания 01 · Раздел 03.4",
-    range: "0,15 – 400 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к радиочастотным кондуктивным помехам, наводимым на цепи питания и сигнальные кабели. Воздействие осуществляется через сеть связи/развязки (CDN) или методом токовой инжекции (инжекция тока) с модуляцией AM 80% / 1 кГц. Отличие от п.20.4 — иные уровни воздействия и область применения согласно программе испытаний.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 05. Уровни воздействия степени 1–4, метод замещения/прямого замера.",
-    criteria: "Изделие сохраняет работоспособность во время воздействия (критерий I) или самовосстанавливается после его прекращения без вмешательства оператора (критерий II).",
-    setup: [
-      "Генератор сигналов (CW + AM 80% / 1 кГц)",
-      "Усилитель мощности широкополосный (50 Ом)",
-      "Направленный ответвитель (для контроля прямой/отражённой мощности)",
-      "CDN (сеть связи/развязки) — для цепей питания и сигнальных портов",
-      "Токовые инжекционные клещи инжекция тока (для кабельных жгутов)",
-      "Монитор тока (контрольные токовые клещи)",
-      "Нагрузка 50 Ом на конце жгута",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия",
-      "Опорная металлическая плоскость заземления (ОМПЗ)",
-    ]
-  },
-  {
-    id: "p215",
-    name: "РЧ-восприимчивость — помехи излучению",
-    short: "п.21.5",
-    standard: "Шаблон испытания 01 · Раздел 03.5",
-    range: "20 МГц – 1000 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию радиочастотного электромагнитного поля (радиационная восприимчивость). Изделие облучается нормированным полем в безэховой (полубезэховой) камере или TEM-ячейке. Антенна и Изделие располагаются на одной оси, испытание проводится при горизонтальной и вертикальной поляризации. Отличие от п.20.5 — в иных уровнях поля и условиях применения.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 06. Поле 1–20 В/м, AM 80% / 1 кГц, шаг ≤1%.",
-    criteria: "Изделие сохраняет работоспособность во время облучения (критерий I) или самовосстанавливается после прекращения воздействия без вмешательства оператора (критерий II).",
-    setup: [
-      "Генератор сигналов (CW + AM 80% / 1 кГц)",
-      "Усилитель мощности широкополосный",
-      "Направленный ответвитель",
-      "Антенна излучающая (рупорная для >200 МГц, bilog / логопериодическая для 20–1000 МГц)",
-      "Датчик (изотропный монитор) напряжённости поля — контроль уровня в реальном времени",
-      "Безэховая или полубезэховая камера (SAC / FAR)",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия (вне камеры)",
-      "Фильтры и ферриты на кабелях управления/мониторинга",
-    ]
-  },
-  ...["16", "17", "18", "19", "20"].map(section => ({
-    id: `p${section}_placeholder`, short: `п.${section}`, name: `Раздел ${section}`,
-    standard: `ГОСТ РВ 20.57.306, раздел ${section}`, range: "Требует заполнения по нормативному документу",
-    gost: true, placeholder: true, desc: "Требует заполнения по нормативному документу",
-    normDoc: "Подтверждённые данные в репозитории отсутствуют. Заполните карточку по нормативному документу.",
-    criteria: "Требует заполнения по нормативному документу", setup: [],
-  })),
-];
+const TESTS_DATA = KT160G_SECTIONS;
 
 const CHECKLIST_BEFORE = [
   "Оборудование включено и прогрето",
@@ -4577,6 +4406,8 @@ function StepsTab({ testId, initialSteps = [] }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(steps);
   const [done, setDone] = useState(Array(steps.length).fill(false));
+  const [dragFrom, setDragFrom] = useState(null);
+  const [dropAt, setDropAt] = useState(null);
   const completed = done.filter(Boolean).length;
 
   const toggle = (i) => { const n = [...done]; n[i] = !n[i]; setDone(n); };
@@ -4584,31 +4415,31 @@ function StepsTab({ testId, initialSteps = [] }) {
   return (
     <div>
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginBottom:10 }}>
-        {!editing ? <button onClick={() => { setDraft(steps); setEditing(true); }} style={styles.btn("secondary")}>Редактировать</button> : <>
+        {!editing ? <button onClick={() => { setDraft(steps.length ? steps : [{n:1,phase:"during",text:""}]); setEditing(true); }} style={styles.btn("primary")}>{steps.length ? "Редактировать шаги" : "+ Добавить шаг"}</button> : <>
           <button onClick={() => { setSteps(draft); localStorage.setItem(stepsKey, JSON.stringify(draft)); setDone(Array(draft.length).fill(false)); setEditing(false); }} style={styles.btn("primary")}>Сохранить</button>
           <button onClick={() => setEditing(false)} style={styles.btn("secondary")}>Отмена</button>
         </>}
-        <button onClick={() => { if (window.confirm("Восстановить исходный шаблон шагов? Пользовательские изменения будут удалены.")) { localStorage.removeItem(stepsKey); setSteps(originalSteps); setDraft(originalSteps); setDone(Array(originalSteps.length).fill(false)); setEditing(false); } }} style={styles.btn("secondary")}>Восстановить исходный шаблон</button>
       </div>
       {editing && <div style={styles.card}>
-        {draft.map((step, i) => <div key={i} draggable onDragStart={e=>e.dataTransfer.setData("text/plain",String(i))} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();setDraft(moveStep(draft,Number(e.dataTransfer.getData("text/plain")),i));}} style={{ display:"grid", gridTemplateColumns:"36px 130px 1fr auto", gap:8, marginBottom:8, touchAction:"pan-y" }}>
-          <span title="Перетащить шаг" aria-label="Перетащить шаг" style={{cursor:"grab",fontSize:22,textAlign:"center",color:C.textSec}}>⠿</span>
+        {draft.map((step, i) => <div key={i} data-step-index={i} onDragOver={e=>{e.preventDefault();setDropAt(i)}} onDrop={e=>{e.preventDefault();setDraft(moveStep(draft,dragFrom??Number(e.dataTransfer.getData("text/plain")),i));setDragFrom(null);setDropAt(null)}} style={{ display:"grid", gridTemplateColumns:"36px 130px 1fr auto", gap:8, marginBottom:8, paddingTop:dropAt===i&&dragFrom!==i?8:0, borderTop:dropAt===i&&dragFrom!==i?`2px solid ${C.cyan}`:"2px solid transparent", touchAction:"pan-y" }}>
+          <span draggable title="Перетащить шаг" aria-label="Перетащить шаг" onDragStart={e=>{setDragFrom(i);e.dataTransfer.setData("text/plain",String(i))}} onDragEnd={()=>{setDragFrom(null);setDropAt(null)}} onPointerDown={e=>{if(e.pointerType!=="mouse"){e.currentTarget.setPointerCapture(e.pointerId);setDragFrom(i)}}} onPointerMove={e=>{if(dragFrom===null||e.pointerType==="mouse")return;const row=document.elementFromPoint(e.clientX,e.clientY)?.closest?.("[data-step-index]");if(row)setDropAt(Number(row.dataset.stepIndex))}} onPointerUp={e=>{if(e.pointerType!=="mouse"&&dropAt!==null)setDraft(moveStep(draft,dragFrom,dropAt));setDragFrom(null);setDropAt(null)}} style={{cursor:"grab",fontSize:22,textAlign:"center",color:C.textSec,touchAction:"none",userSelect:"none"}}>⠿</span>
           <select style={styles.select} value={step.phase} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, phase:e.target.value} : s))}><option value="before">До испытания</option><option value="during">Во время</option><option value="after">После</option></select>
           <textarea style={{...styles.input, minHeight:52}} value={step.text} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, text:e.target.value} : s))} />
           <div style={{display:"flex",gap:4}}><button aria-label="Переместить вверх" disabled={i===0} onClick={()=>setDraft(moveStep(draft,i,i-1))} style={styles.btn("secondary")}>↑</button><button aria-label="Переместить вниз" disabled={i===draft.length-1} onClick={()=>setDraft(moveStep(draft,i,i+1))} style={styles.btn("secondary")}>↓</button><button onClick={() => setDraft(draft.filter((_,j)=>j!==i).map((s,j)=>({...s,n:j+1})))} style={styles.btn("fail")}>Удалить</button></div>
         </div>)}
-        <button onClick={() => setDraft([...draft, {n:draft.length+1, phase:"during", text:""}])} style={styles.btn("secondary")}>+ Добавить шаг</button>
+        <button onClick={() => setDraft([...draft, {n:draft.length+1, phase:"during", text:""}])} style={styles.btn("primary")}>+ Добавить шаг</button>
       </div>}
       {/* Progress */}
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Прогресс выполнения</div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: completed === steps.length ? "#1A9B5A" : "#4A9FFF" }}>{completed}/{steps.length}</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: hasCompletedAllSteps(steps, completed) ? "#1A9B5A" : "#4A9FFF" }}>{completed}/{steps.length}</div>
         </div>
         <div style={{ height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2 }}>
-          <div style={{ width: `${(completed / steps.length) * 100}%`, height: "100%", background: completed === steps.length ? "#1A9B5A" : "#1E5BE8", borderRadius: 2, transition: "width 0.3s" }}/>
+          <div style={{ width: `${steps.length ? (completed / steps.length) * 100 : 0}%`, height: "100%", background: hasCompletedAllSteps(steps, completed) ? "#1A9B5A" : "#1E5BE8", borderRadius: 2, transition: "width 0.3s" }}/>
         </div>
-        {completed === steps.length && <div style={{ fontSize: 12, color: "#1A9B5A", marginTop: 8, fontWeight: 700 }}>✓ Все шаги выполнены!</div>}
+        {!steps.length && <div style={{fontSize:12,color:C.textSec,marginTop:8,fontWeight:700}}>Шаги пока не добавлены</div>}
+        {hasCompletedAllSteps(steps, completed) && <div style={{ fontSize: 12, color: "#1A9B5A", marginTop: 8, fontWeight: 700 }}>✓ Все шаги выполнены!</div>}
       </div>
 
       {/* Steps */}
@@ -4637,7 +4468,7 @@ function StepsTab({ testId, initialSteps = [] }) {
   );
 }
 
-function TestDetail({ test, onBack }) {
+function TestDetail({ test, onBack, onEdit }) {
   const contentKey = `emc_test_content_${test.id}`;
   const defaults = { before: test.before || CHECKLIST_BEFORE, during: test.during || CHECKLIST_DURING, after: test.after || CHECKLIST_AFTER, schemaImage: test.schemaImage || "" };
   const [content, setContent] = useState(() => { try { return {...defaults, ...JSON.parse(localStorage.getItem(contentKey) || "{}")}; } catch(e) { return defaults; } });
@@ -4737,13 +4568,13 @@ function TestDetail({ test, onBack }) {
 
   return (
     <PageContainer>
-      <BackBtn onBack={onBack} />
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><BackBtn onBack={onBack} /><button style={styles.btn("primary")} onClick={onEdit}>Редактировать испытание</button></div>
       {/* Header card */}
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ background: "#C0392B22", color: "#FF6B6B", borderRadius: 5, padding: "2px 9px", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>ГОСТ РВ</span>
+              <span style={{ background: "#C0392B22", color: "#FF6B6B", borderRadius: 5, padding: "2px 9px", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>{test.catalogGroup === "kt160g" ? "КТ-160Г" : test.catalogGroup === "custom" ? "ПОЛЬЗОВАТЕЛЬСКОЕ" : "ГОСТ РВ"}</span>
               <span style={{ fontSize: 11, color: "#8A9BB8", letterSpacing: 0.5 }}>{test.standard}</span>
             </div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginTop: 2, lineHeight: 1.3 }}>{test.name}</div>
@@ -4757,7 +4588,6 @@ function TestDetail({ test, onBack }) {
 
       {["before","during","after","schema"].includes(tab) && <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginBottom:10}}>
         {!editingContent ? <button style={styles.btn("secondary")} onClick={()=>{setContentDraft(content);setEditingContent(true)}}>Редактировать</button> : <><button style={styles.btn("primary")} onClick={saveContent}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditingContent(false)}>Отмена</button></>}
-        <button style={styles.btn("secondary")} onClick={()=>{if(window.confirm("Восстановить исходный шаблон? Пользовательские изменения этого раздела будут удалены.")){localStorage.removeItem(contentKey);setContent(defaults);setContentDraft(defaults);setEditingContent(false)}}}>Восстановить исходный шаблон</button>
       </div>}
 
       {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} />}
@@ -5161,12 +4991,13 @@ function SchemaEditor({ testId, setupItems }) {
 }
 
 function TestsScreen() {
-  const [selected, setSelected] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [customTests, setCustomTests] = useState(()=>{try{return JSON.parse(localStorage.getItem("emc_custom_tests_v1")||"[]")}catch(e){return []}});
   const [overrides, setOverrides] = useState(()=>{try{return JSON.parse(localStorage.getItem("emc_test_overrides_v1")||"{}")}catch(e){return {}}});
   const [editing, setEditing] = useState(null);
   const allTests = buildTestCatalog(TESTS_DATA, customTests, overrides);
-  const blank = {short:"",name:"",standard:"",normDoc:"",criteria:"",desc:"",range:"",setup:"",steps:"",before:"",during:"",after:"",notes:"",schemaImage:""};
+  const selected=allTests.find(test=>test.id===selectedId);
+  const blank = {short:"",name:"",standard:"",normDoc:"",criteria:"",desc:"",range:"",setup:"",steps:"",before:"",during:"",after:"",notes:"",schemaImage:"",catalogGroup:"custom"};
   const [draft,setDraft]=useState(blank);
   const lines=k=>String(draft[k]||"").split("\n").map(x=>x.trim()).filter(Boolean);
   const toTest=()=>({...draft,setup:lines("setup"),steps:lines("steps").map((text,n)=>({n:n+1,phase:"during",text})),before:lines("before"),during:lines("during"),after:lines("after")});
@@ -5174,23 +5005,28 @@ function TestsScreen() {
     const value=toTest();
     if(editing?.custom || !editing?.id){
       const item=createUserTest(value,editing?.id?Number(editing.id.replace(/\D/g,""))||Date.now():Date.now());
-      const next=editing?.id?customTests.map(x=>x.id===editing.id?{...item,id:x.id}:x):[...customTests,item];
+      const next=editing?.id?customTests.map(x=>x.id===editing.id?{...item,id:x.id,catalogGroup:"custom"}:x):[...customTests,{...item,catalogGroup:"custom"}];
       setCustomTests(next);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(next));
     } else {
       const next={...overrides,[editing.id]:value};setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));
+      // Keep the detail tabs on the same transaction instead of letting legacy
+      // per-tab values mask the newly saved full-test edit.
+      localStorage.setItem(`emc_test_steps_${editing.id}`,JSON.stringify(value.steps));
+      localStorage.setItem(`emc_setup_${editing.id}`,JSON.stringify(value.setup));
+      localStorage.setItem(`emc_test_content_${editing.id}`,JSON.stringify({before:value.before,during:value.during,after:value.after,schemaImage:value.schemaImage||""}));
+      localStorage.setItem(`emc_test_notes_${editing.id}`,value.notes||"");
     }
     setEditing(null);setDraft(blank);
   };
-  const openEdit=t=>{setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||STEPS_DATA[t.id]||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
-  const restore=t=>{if(!window.confirm("Восстановить исходный шаблон? Пользовательские изменения будут удалены."))return;const next={...overrides};delete next[t.id];setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));localStorage.removeItem(`emc_test_content_${t.id}`);localStorage.removeItem(`emc_test_steps_${t.id}`);localStorage.removeItem(`emc_setup_${t.id}`);};
-  if(selected)return <TestDetail test={selected} onBack={()=>setSelected(null)}/>;
-  const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["normDoc","Нормативный документ"],["criteria","Критерии качества функционирования"],["range","Диапазон / тип"],["desc","Описание"],["setup","Состав испытательного оборудования (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
-  return <PageContainer><SectionHero title="Испытания" subtitle="Встроенные нормативные шаблоны и пользовательские методики." stats={[{value:allTests.length,label:"шаблонов"},{value:customTests.length,label:"пользовательских"},{value:"ГОСТ РВ",label:"активный стандарт"}]}/>
+  const openEdit=t=>{setSelectedId(null);setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||STEPS_DATA[t.id]||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
+  if(selected)return <TestDetail test={selected} onBack={()=>setSelectedId(null)} onEdit={()=>openEdit(selected)}/>;
+  const fields=[["name","Название"],["short","Номер раздела"],["standard","Стандарт"],["range","Диапазон / тип"],["desc","Описание"],["normDoc","Нормативный документ"],["criteria","Критерии качества функционирования"],["setup","Состав испытательного оборудования (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
+  const groups=[{id:"kt160g",title:"КТ-160Г",caption:"Разделы 15–21 и 25",accent:C.accent2},{id:"gost-rv",title:"ГОСТ РВ",caption:"Испытания со своим реальным обозначением",accent:C.warn},{id:"custom",title:"Пользовательские испытания",caption:"Созданные пользователем методики",accent:C.cyan}];
+  return <PageContainer><SectionHero title="Испытания" subtitle="Единый каталог нормативных и пользовательских методик." stats={[{value:allTests.length,label:"испытаний"},{value:customTests.length,label:"пользовательских"},{value:"КТ-160Г",label:"каталог"}]}/>
   <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button style={styles.btn()} onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</button></div>
   {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<Field label="Схема стенда"><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setDraft(x=>({...x,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{draft.schemaImage&&<span style={{marginLeft:10,color:C.pass}}>✓ Изображение выбрано</span>}</Field><div style={{display:"flex",gap:8}}><button style={styles.btn()} onClick={saveTest}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditing(null)}>Отмена</button></div></div>}
-  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Разделы 16–20 являются редактируемыми пользовательскими шаблонами без придуманных нормативных значений" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</button>{!t.custom&&["p15","p204","p205","p21","p214","p25"].includes(t.id)&&<button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();restore(t)}}>Восстановить исходный шаблон</button>}{t.custom&&<button style={styles.btn("fail")} onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button>}</div></div>)}</div></PageContainer>;
+  {groups.map(group=>{const items=allTests.filter(t=>(t.catalogGroup||(t.custom?"custom":"gost-rv"))===group.id);return <section key={group.id}><SectionHeader title={group.title} caption={group.caption} count={`${items.length} карточек`} accent={group.accent}/>{items.length?<div className="premium-list">{items.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelectedId(t.id)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${group.accent}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.title || t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6}}><button style={styles.btn("primary")} onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</button>{t.custom&&<button style={styles.btn("fail")} onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button>}</div></div>)}</div>:<div style={{...styles.card,color:C.textSec}}>В этом разделе пока нет испытаний.</div>}</section>})}</PageContainer>;
 }
-
 // ─── REFERENCE SCREEN ─────────────────────────────────────────────────────
 function AbbreviationsTab() {
   const [q, setQ] = useState("");
@@ -5788,6 +5624,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
   const [draft,setDraft]=useState(()=>makeDraft(e));
   const [chooseIcon,setChooseIcon]=useState(false);
   useEffect(()=>setDraft(makeDraft(e)),[e]);
+  useEffect(()=>{ if(!chooseIcon)return undefined; const close=event=>{if(event.key==="Escape")setChooseIcon(false)}; window.addEventListener("keydown",close); return()=>window.removeEventListener("keydown",close); },[chooseIcon]);
   const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
   const onPhotoChange=event=>{const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>set("photo",String(reader.result||""));reader.readAsDataURL(file);event.target.value=""};
   const save=()=>onSaveChanges(e.id,createEquipmentPatch({...draft,specs:normalizeSpecs(draft.specs,"")}));
@@ -5803,7 +5640,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
       <Field label="Фото">{draft.photo&&<img src={draft.photo} alt="Предпросмотр" style={{width:"100%",maxHeight:240,objectFit:"contain",borderRadius:12,marginBottom:8}}/>}<label style={styles.btn("secondary")}>{draft.photo?"Заменить фото":"Добавить фото"}<input type="file" accept="image/*" hidden onChange={onPhotoChange}/></label>{draft.photo&&<button style={{...styles.btn("fail"),marginLeft:8}} onClick={()=>set("photo","")}>Удалить фото</button>}</Field>
       <button onClick={save} style={{...styles.btn(),width:"100%",padding:14,fontSize:15}}>Сохранить изменения</button>
     </div>
-    {chooseIcon&&<div role="dialog" aria-modal="true" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.72)",display:"grid",placeItems:"center",padding:20}}><div className="premium-card" style={{maxWidth:620,width:"100%",padding:22}}><div style={{fontSize:18,fontWeight:850,marginBottom:14}}>Выберите иконку</div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>{EQUIPMENT_ICONS.map(([icon,label])=><button key={label} onClick={()=>{set("icon",icon);setChooseIcon(false)}} className="premium-card-action" style={{padding:14,border:`1px solid ${draft.icon===icon?C.cyan:C.border}`,borderRadius:12,background:C.card,color:C.text,cursor:"pointer",textAlign:"left"}}><span style={{fontSize:26,display:"block",marginBottom:6}}>{icon}</span>{label}</button>)}</div><button style={{...styles.btn("secondary"),marginTop:14,width:"100%"}} onClick={()=>setChooseIcon(false)}>Отмена</button></div></div>}
+    {chooseIcon&&<div role="dialog" aria-modal="true" onMouseDown={event=>{if(event.target===event.currentTarget)setChooseIcon(false)}} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(2,6,23,.88)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",display:"grid",placeItems:"center",padding:20}}><div className="premium-card" style={{maxWidth:620,width:"100%",padding:22}}><div style={{fontSize:18,fontWeight:850,marginBottom:14}}>Выберите иконку</div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>{EQUIPMENT_ICONS.map(([icon,label])=><button key={label} onClick={()=>{set("icon",icon);setChooseIcon(false)}} className="premium-card-action" style={{padding:14,border:`1px solid ${draft.icon===icon?C.cyan:C.border}`,borderRadius:12,background:C.card,color:C.text,cursor:"pointer",textAlign:"left"}}><span style={{fontSize:26,display:"block",marginBottom:6}}>{icon}</span>{label}</button>)}</div><button style={{...styles.btn("secondary"),marginTop:14,width:"100%"}} onClick={()=>setChooseIcon(false)}>Отмена</button></div></div>}
     <button onClick={()=>onDelete(e.id)} style={{...styles.btn("fail"),width:"100%",marginTop:12}}>Удалить оборудование</button>
   </div>;
 }

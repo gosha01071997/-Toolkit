@@ -13,7 +13,8 @@ export function createUserTest(fields = {}, now = Date.now()) {
   return {
     id: `user_test_${now}`, custom: true, short: fields.short || "Без номера",
     name: fields.name || "Новое испытание", standard: fields.standard || "Пользовательский стандарт",
-    desc: fields.desc || "", range: fields.range || "Не задано", setup: fields.setup || [],
+    desc: fields.desc || "", normDoc: fields.normDoc || "", criteria: fields.criteria || "",
+    range: fields.range || "Не задано", setup: fields.setup || [],
     steps: renumberSteps(fields.steps || []), before: fields.before || [], during: fields.during || [],
     after: fields.after || [], schemaImage: fields.schemaImage || "", notes: fields.notes || "",
   };

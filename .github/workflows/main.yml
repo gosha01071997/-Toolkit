@@ -34,7 +34,7 @@ jobs:
           sdkmanager "platforms;android-34"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build React app
         run: npm run build
@@ -83,70 +83,28 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build React app
         run: npm run build
         env:
           VITE_DISABLE_LICENSE_GATING: 'true'
 
-      - name: Install Electron and builder
-        run: npm install --save-dev electron electron-builder
-
-      - name: Create Electron main file
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path electron
-          @"
-          const { app, BrowserWindow } = require('electron')
-          const path = require('path')
-
-          function createWindow() {
-            const win = new BrowserWindow({
-              width: 1200,
-              height: 800,
-              icon: path.join(__dirname, '../public/favicon.ico'),
-              webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true
-              },
-              title: 'EMC Engineer Toolkit'
-            })
-            win.loadFile(path.join(__dirname, '../dist/index.html'))
-            win.setMenuBarVisibility(false)
-          }
-
-          app.whenReady().then(createWindow)
-
-          app.on('window-all-closed', () => {
-            if (process.platform !== 'darwin') app.quit()
-          })
-          "@ | Out-File -FilePath electron/main.cjs -Encoding UTF8
-
-      - name: Add Electron config to package.json
-        shell: pwsh
-        run: |
-          $pkg = Get-Content package.json | ConvertFrom-Json
-          $pkg | Add-Member -Force -NotePropertyName "main" -NotePropertyValue "electron/main.cjs"
-          $pkg | Add-Member -Force -NotePropertyName "build" -NotePropertyValue @{
-            appId = "ru.emc.toolkit"
-            productName = "EMC Engineer Toolkit"
-            win = @{ target = "nsis"; icon = "public/favicon.ico" }
-            directories = @{ output = "release" }
-            files = @("dist/**", "electron/**", "public/**")
-          }
-          $pkg | ConvertTo-Json -Depth 10 | Out-File package.json -Encoding UTF8
-
-      - name: Build Windows EXE
-        run: npx electron-builder --win --x64
+      - name: Build NSIS installer
+        run: npx electron-builder --win nsis --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload EXE
+      - name: Verify NSIS installer
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "release/EMC-Toolkit-Setup.exe")) { throw "NSIS installer was not produced" }
+
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: EMC-Toolkit-Windows
-          path: release/*.exe
+          path: release/EMC-Toolkit-Setup.exe
           retention-days: 30
 
   # ── JOB 3: iOS Simulator app ────────────────────

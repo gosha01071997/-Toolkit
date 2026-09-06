@@ -87,3 +87,25 @@ test("границы всех piecewise-сегментов принадлежа�
   assert.equal(evaluateLimit(EMC_LIMITS.field2,2),24);
   assert.equal(evaluateLimit(EMC_LIMITS.field2,100),20*Math.log10(100)-16);
 });
+
+test("пустой список шагов не считается выполненным", async()=>{
+  const { hasCompletedAllSteps }=await import("../src/data/catalog.mjs");
+  assert.equal(hasCompletedAllSteps([],0),false);
+  assert.equal(hasCompletedAllSteps([{n:1}],1),true);
+});
+test("полное редактирование испытания сохраняет нормативные и пользовательские поля",()=>{
+  const saved=createUserTest({name:"Название",short:"16",standard:"КТ-160Г",range:"тип",desc:"описание",normDoc:"документ",criteria:"критерий",setup:["прибор"],steps:[{text:"шаг"}],before:["до"],during:["во время"],after:["после"],notes:"заметка",schemaImage:"data:image/png,x"},7);
+  for(const key of ["name","short","standard","range","desc","normDoc","criteria","setup","steps","before","during","after","notes","schemaImage"]) assert.ok(key in saved,key);
+});
+test("каталог КТ-160Г содержит требуемые разделы отдельно от ГОСТ РВ",async()=>{
+  const { KT160G_SECTIONS }=await import("../src/data/catalog.mjs");
+  assert.deepEqual(KT160G_SECTIONS.map(x=>x.short),["п.15","п.16","п.17","п.18","п.19","п.20","п.20.4","п.20.5","п.21","п.21.4","п.25"]);
+  assert.ok(KT160G_SECTIONS.every(x=>x.catalogGroup==="kt160g"&&x.standard.startsWith("КТ-160Г")));
+  assert.equal(buildJournalTestOptions(KT160G_SECTIONS)[0].displayValue,"КТ-160Г, разд. 15 — Магнитное воздействие");
+});
+test("workflow публикует только именованный NSIS installer",()=>{
+  const workflow=readFileSync(new URL("../.github/workflows/main.yml",import.meta.url),"utf8");
+  assert.match(workflow,/electron-builder --win nsis/);assert.match(workflow,/release\/EMC-Toolkit-Setup\.exe/);assert.doesNotMatch(workflow,/release\/\*\.exe/);
+  const config=JSON.parse(readFileSync(new URL("../package.json",import.meta.url),"utf8")).build;
+  assert.equal(config.win.target,"nsis");assert.equal(config.win.artifactName,"EMC-Toolkit-Setup.${ext}");assert.equal(config.win.icon,"public/favicon.ico");
+});

@@ -48,6 +48,8 @@
     ],
     "win": {
       "target": "nsis",
+      "icon": "public/favicon.ico",
+      "artifactName": "EMC-Toolkit-Setup.${ext}",
       "signAndEditExecutable": false
     },
     "nsis": {
