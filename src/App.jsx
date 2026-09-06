@@ -8,6 +8,8 @@ import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
 import { SUPPORT_URL } from "./config/support";
 import { currentEdition, editionConfig, hasFeature, isLicenseGatingDisabled, setActiveEdition } from "./config/editions";
 import { getActiveLicense, removeLicense, saveLicense } from "./license";
+import { convertPressure, formatEngineeringPressure } from "./calculations/pressure.mjs";
+import { EQUIPMENT_TYPES, moveStep, createUserTest, migrateEquipmentItem } from "./data/userData.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -33,7 +35,7 @@ const C = {
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
-const APP_DATA_SCHEMA_VERSION = "2026-06-emc-lab-feedback-v1";
+const APP_DATA_SCHEMA_VERSION = "2026-09-emc-tests-pressure-equipment-v2";
 const USER_DATA_BACKUP_KEY = "emc_user_backups_v1";
 const USER_DATA_SCHEMA_KEY = "emc_user_data_schema_version_v1";
 const USER_DATA_KEY_PREFIXES = ["emc_", "emcdb:"];
@@ -3167,6 +3169,23 @@ function CalibrationDotsCalc() {
   );
 }
 
+function AtmosphericPressureCalc() {
+  const [value, setValue] = useState("760");
+  const [direction, setDirection] = useState("mmHgToPa");
+  const numeric = Number(String(value).replace(",", "."));
+  const result = Number.isFinite(numeric) ? convertPressure(numeric, direction) : NaN;
+  const outputUnit = direction === "mmHgToPa" ? "Па" : "мм рт. ст.";
+  const display = formatEngineeringPressure(result);
+  const copy = async () => { if (display !== "—") await navigator.clipboard?.writeText(display); };
+  return <div style={{maxWidth:680}}><div style={styles.sectionTitle}>Атмосферное давление</div><div style={styles.card}>
+    <Field label="Значение"><input inputMode="decimal" style={styles.input} value={value} onChange={e=>setValue(e.target.value)} /></Field>
+    <Field label="Направление преобразования"><select style={styles.select} value={direction} onChange={e=>setDirection(e.target.value)}><option value="mmHgToPa">мм рт. ст. → Па</option><option value="paToMmHg">Па → мм рт. ст.</option></select></Field>
+    <div style={{padding:18,borderRadius:14,background:C.accentLight,border:`1px solid ${C.accent}`}}><div style={{fontSize:11,color:C.textSec,fontWeight:800}}>РЕЗУЛЬТАТ</div><div style={{fontSize:28,fontWeight:900,color:C.text,wordBreak:"break-all"}}>{display} <span style={{fontSize:16,color:C.cyan}}>{outputUnit}</span></div></div>
+    <button onClick={copy} disabled={display === "—"} style={{...styles.btn("secondary"),marginTop:12}}>Копировать результат</button>
+    <div style={{fontSize:11,color:C.textSec,marginTop:12}}>Расчёт: 1 mmHg = 133.322387415 Pa. Округляется только отображение (до 12 значащих цифр).</div>
+  </div></div>;
+}
+
 function CalculatorsScreen({ calcId, setCalcId }) {
   const groups = [
     {
@@ -3177,6 +3196,7 @@ function CalculatorsScreen({ calcId, setCalcId }) {
         { id: "db", icon: "📊", title: "dB-конвертер", sub: "dBµV, dBm, dBµA и dBµV/m" },
         { id: "dbmwv", icon: "🔋", title: "dBm / W / V", sub: "Мощность и напряжение в 50 Ω тракте" },
         { id: "units", icon: "🔁", title: "Конвертер единиц", sub: "Частота, ток, напряжение и мощность" },
+        { id: "pressure", icon: "🌡️", title: "Атмосферное давление", sub: "мм рт. ст. ↔ Па с инженерной точностью" },
       ],
     },
     {
@@ -3225,6 +3245,7 @@ function CalculatorsScreen({ calcId, setCalcId }) {
     },
   ];
 
+  if (calcId === "pressure") return <><BackBtn onBack={() => setCalcId(null)} /><AtmosphericPressureCalc /></>;
   if (calcId === "db") return <><BackBtn onBack={() => setCalcId(null)} /><DbConverter /></>;
   if (calcId === "dbmwv") return <><BackBtn onBack={() => setCalcId(null)} /><DbmPowerVoltageCalc /></>;
   if (calcId === "bci") return <><BackBtn onBack={() => setCalcId(null)} /><BciCalc /></>;
@@ -3705,6 +3726,13 @@ const TESTS_DATA = [
       "Фильтры и ферриты на кабелях управления/мониторинга",
     ]
   },
+  ...["16", "17", "18", "19", "20"].map(section => ({
+    id: `p${section}_placeholder`, short: `п.${section}`, name: `Раздел ${section}`,
+    standard: `ГОСТ РВ 20.57.306, раздел ${section}`, range: "Требует заполнения по нормативному документу",
+    gost: true, placeholder: true, desc: "Требует заполнения по нормативному документу",
+    normDoc: "Подтверждённые данные в репозитории отсутствуют. Заполните карточку по нормативному документу.",
+    criteria: "Требует заполнения по нормативному документу", setup: [],
+  })),
 ];
 
 const CHECKLIST_BEFORE = [
@@ -4529,8 +4557,8 @@ ${h1("1. ОБЩИЕ СВЕДЕНИЯ")}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-function StepsTab({ testId }) {
-  const originalSteps = STEPS_DATA[testId] || [];
+function StepsTab({ testId, initialSteps = [] }) {
+  const originalSteps = STEPS_DATA[testId] || initialSteps || [];
   const stepsKey = `emc_test_steps_${testId}`;
   const [steps, setSteps] = useState(() => {
     try { return JSON.parse(localStorage.getItem(stepsKey)) || originalSteps; } catch (e) { return originalSteps; }
@@ -4558,10 +4586,11 @@ function StepsTab({ testId }) {
         <button onClick={() => { if (window.confirm("Восстановить исходный шаблон шагов? Пользовательские изменения будут удалены.")) { localStorage.removeItem(stepsKey); setSteps(originalSteps); setDraft(originalSteps); setDone(Array(originalSteps.length).fill(false)); setEditing(false); } }} style={styles.btn("secondary")}>Восстановить исходный шаблон</button>
       </div>
       {editing && <div style={styles.card}>
-        {draft.map((step, i) => <div key={i} style={{ display:"grid", gridTemplateColumns:"130px 1fr auto", gap:8, marginBottom:8 }}>
+        {draft.map((step, i) => <div key={i} draggable onDragStart={e=>e.dataTransfer.setData("text/plain",String(i))} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();setDraft(moveStep(draft,Number(e.dataTransfer.getData("text/plain")),i));}} style={{ display:"grid", gridTemplateColumns:"36px 130px 1fr auto", gap:8, marginBottom:8, touchAction:"pan-y" }}>
+          <span title="Перетащить шаг" aria-label="Перетащить шаг" style={{cursor:"grab",fontSize:22,textAlign:"center",color:C.textSec}}>⠿</span>
           <select style={styles.select} value={step.phase} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, phase:e.target.value} : s))}><option value="before">До испытания</option><option value="during">Во время</option><option value="after">После</option></select>
           <textarea style={{...styles.input, minHeight:52}} value={step.text} onChange={e => setDraft(draft.map((s,j) => j===i ? {...s, text:e.target.value} : s))} />
-          <button onClick={() => setDraft(draft.filter((_,j)=>j!==i).map((s,j)=>({...s,n:j+1})))} style={styles.btn("fail")}>Удалить</button>
+          <div style={{display:"flex",gap:4}}><button aria-label="Переместить вверх" disabled={i===0} onClick={()=>setDraft(moveStep(draft,i,i-1))} style={styles.btn("secondary")}>↑</button><button aria-label="Переместить вниз" disabled={i===draft.length-1} onClick={()=>setDraft(moveStep(draft,i,i+1))} style={styles.btn("secondary")}>↓</button><button onClick={() => setDraft(draft.filter((_,j)=>j!==i).map((s,j)=>({...s,n:j+1})))} style={styles.btn("fail")}>Удалить</button></div>
         </div>)}
         <button onClick={() => setDraft([...draft, {n:draft.length+1, phase:"during", text:""}])} style={styles.btn("secondary")}>+ Добавить шаг</button>
       </div>}
@@ -4605,7 +4634,7 @@ function StepsTab({ testId }) {
 
 function TestDetail({ test, onBack }) {
   const contentKey = `emc_test_content_${test.id}`;
-  const defaults = { before: CHECKLIST_BEFORE, during: CHECKLIST_DURING, after: CHECKLIST_AFTER, schemaImage: "" };
+  const defaults = { before: test.before || CHECKLIST_BEFORE, during: test.during || CHECKLIST_DURING, after: test.after || CHECKLIST_AFTER, schemaImage: test.schemaImage || "" };
   const [content, setContent] = useState(() => { try { return {...defaults, ...JSON.parse(localStorage.getItem(contentKey) || "{}")}; } catch(e) { return defaults; } });
   const [contentDraft, setContentDraft] = useState(content);
   const [editingContent, setEditingContent] = useState(false);
@@ -4613,7 +4642,7 @@ function TestDetail({ test, onBack }) {
   const [checksDuring, setChecksDuring] = useState(Array(content.during.length).fill(false));
   const [checksAfter, setChecksAfter] = useState(Array(content.after.length).fill(false));
   const [tab, setTab] = useState("info");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(() => { try { return localStorage.getItem(`emc_test_notes_${test.id}`) || test.notes || ""; } catch(e) { return test.notes || ""; } });
 
   // Редактируемый состав оборудования
   const storageKey = `emc_setup_${test.id}`;
@@ -4726,7 +4755,7 @@ function TestDetail({ test, onBack }) {
         <button style={styles.btn("secondary")} onClick={()=>{if(window.confirm("Восстановить исходный шаблон? Пользовательские изменения этого раздела будут удалены.")){localStorage.removeItem(contentKey);setContent(defaults);setContentDraft(defaults);setEditingContent(false)}}}>Восстановить исходный шаблон</button>
       </div>}
 
-      {tab === "steps" && <StepsTab testId={test.id} />}
+      {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} />}
       {tab === "info" && (
         <div>
           {/* Description */}
@@ -4830,7 +4859,7 @@ function TestDetail({ test, onBack }) {
       {tab === "notes" && (
         <div style={styles.card}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>Заметки по испытанию</div>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Запишите особенности конфигурации, наблюдения, отклонения от штатного протокола..." style={{ ...styles.input, minHeight: 160, resize: "vertical" }} />
+          <textarea value={notes} onChange={e => { setNotes(e.target.value); localStorage.setItem(`emc_test_notes_${test.id}`, e.target.value); }} placeholder="Запишите особенности конфигурации, наблюдения, отклонения от штатного протокола..." style={{ ...styles.input, minHeight: 160, resize: "vertical" }} />
         </div>
       )}
 
@@ -5128,42 +5157,19 @@ function SchemaEditor({ testId, setupItems }) {
 
 function TestsScreen() {
   const [selected, setSelected] = useState(null);
-  const standardGroups = new Set(TESTS_DATA.map(t => (t.standard || "").split("·")[0].trim()).filter(Boolean));
-  if (selected) return <TestDetail test={selected} onBack={() => setSelected(null)} />;
-  return (
-    <PageContainer>
-      <SectionHero
-        title="Испытания"
-        subtitle="Шаблоны EMC/EMI испытаний с кратким назначением, диапазонами и составом стенда — в едином инженерном стиле EMC Toolkit."
-        stats={[
-          { value: TESTS_DATA.length, label: "шаблонов" },
-          { value: standardGroups.size, label: "групп стандартов" },
-          { value: "ГОСТ РВ", label: "активный стандарт" },
-        ]}
-      />
-      <SectionHeader title="ГОСТ РВ 20.57.306" caption="Испытания на стойкость к электромагнитным воздействиям" count={`${TESTS_DATA.length} карточек`} accent="#F59E0B" />
-      <div className="premium-list">
-        {TESTS_DATA.map(t => (
-          <button key={t.id} onClick={() => setSelected(t)} className="premium-card premium-card-action" style={{ width: "100%", display: "grid", gridTemplateColumns: "64px minmax(0, 1fr) minmax(110px, 180px) 18px", alignItems: "center", gap: 16, padding: "18px 20px", borderLeft: "3px solid rgba(245,158,11,0.78)" }}>
-            <div className="premium-icon-box" style={{ color: "#FBBF24", fontSize: 13, fontWeight: 900, lineHeight: 1.15, textAlign: "center" }}>{t.short}</div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 5 }}>
-                <span className="premium-badge" style={{ color: "#FBBF24", borderColor: "rgba(251,191,36,0.22)", background: "rgba(245,158,11,0.08)" }}>{t.short}</span>
-                <span style={{ fontSize: 12, color: C.textSec, fontWeight: 800 }}>{t.standard}</span>
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 850, color: C.text, letterSpacing: "-0.01em" }}>{t.name}</div>
-              <div style={{ fontSize: 12, color: C.textSec, marginTop: 6, lineHeight: 1.45 }}>{t.desc}</div>
-            </div>
-            <div style={{ justifySelf: "end", textAlign: "right" }}>
-              <div className="premium-badge">{t.range}</div>
-              <div style={{ fontSize: 11, color: C.textSec, marginTop: 8 }}>Диапазон / тип</div>
-            </div>
-            <div style={{ fontSize: 26, color: "#64748B" }}>›</div>
-          </button>
-        ))}
-      </div>
-    </PageContainer>
-  );
+  const [customTests, setCustomTests] = useState(()=>{try{return JSON.parse(localStorage.getItem("emc_custom_tests_v1")||"[]")}catch(e){return []}});
+  const [editing, setEditing] = useState(null);
+  const allTests = [...TESTS_DATA, ...customTests];
+  const blank = {short:"",name:"",standard:"",desc:"",range:"",setup:"",steps:"",before:"",during:"",after:"",notes:"",schemaImage:""};
+  const [draft,setDraft]=useState(blank);
+  const saveCustom=()=>{const lines=k=>String(draft[k]||"").split("\n").map(x=>x.trim()).filter(Boolean); const item=createUserTest({...draft,setup:lines("setup"),steps:lines("steps").map(text=>({phase:"during",text})),before:lines("before"),during:lines("during"),after:lines("after")},editing?.id?Number(editing.id.replace(/\D/g,""))||Date.now():Date.now()); const next=editing?customTests.map(x=>x.id===editing.id?{...item,id:x.id}:x):[...customTests,item];setCustomTests(next);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(next));setEditing(null);setDraft(blank)};
+  const openEdit=t=>{setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
+  if(selected)return <TestDetail test={selected} onBack={()=>setSelected(null)}/>;
+  const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["range","Диапазон / тип"],["desc","Краткое описание"],["setup","Состав / схема подключения (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
+  return <PageContainer><SectionHero title="Испытания" subtitle="Встроенные нормативные шаблоны и пользовательские методики." stats={[{value:allTests.length,label:"шаблонов"},{value:customTests.length,label:"пользовательских"},{value:"ГОСТ РВ",label:"активный стандарт"}]}/>
+  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button style={styles.btn()} onClick={()=>{setEditing({});setDraft(blank)}}>+ Добавить испытание</button></div>
+  {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<div style={{display:"flex",gap:8}}><button style={styles.btn()} onClick={saveCustom}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditing(null)}>Отмена</button></div></div>}
+  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Неподтверждённые нормативные разделы явно отмечены" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card" style={{display:"grid",gridTemplateColumns:"64px 1fr auto",gap:16,alignItems:"center",borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><button onClick={()=>setSelected(t)} style={{display:"contents",color:"inherit"}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div></button><div style={{display:"flex",gap:6}}>{t.custom&&<><button style={styles.btn("secondary")} onClick={()=>openEdit(t)}>Изменить</button><button style={styles.btn("fail")} onClick={()=>{if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button></>}</div></div>)}</div></PageContainer>;
 }
 
 // ─── REFERENCE SCREEN ─────────────────────────────────────────────────────
@@ -5245,9 +5251,19 @@ function StandardsTab() {
   );
 }
 
-function CategoriesTab() {
-  return <div><div style={{...styles.card,borderLeft:`3px solid ${C.warn}`}}><div style={{fontSize:16,fontWeight:800,marginBottom:8}}>Категории нормативных испытаний</div><div style={{fontSize:13,color:C.textSec,lineHeight:1.65}}>Структура раздела подготовлена для названия, обозначения, буквенно-цифрового кода, объяснения и связанного вида воздействия. Точные категории ГОСТ РВ 6601-001-2008, ГОСТ РВ 6601-002 и КТ-160Г не заполнены: в репозитории отсутствует подтверждённый полный текст нормативных документов. Значения не подменяются предположениями.</div></div><div style={{...styles.card}}><div style={{display:"grid",gridTemplateColumns:"1.2fr .8fr 1fr 1.5fr 1.2fr",gap:8,fontSize:11,fontWeight:800,color:C.textSec}}><span>Название</span><span>Обозначение</span><span>Цифры / буквы</span><span>Значение</span><span>Вид испытания</span></div><div style={{padding:"18px 0 4px",color:C.textSec,fontSize:13}}>Нет подтверждённых данных для безопасного заполнения.</div></div></div>;
-}
+const ENGINEERING_CATEGORIES = [
+ ["Помехоэмиссия","Нежелательная энергия, создаваемая изделием.","Кондуктивная и излучаемая эмиссия","Приёмник, LISN, антенна","Испытания; Нормы"],
+ ["Помехоустойчивость","Способность изделия работать при воздействии помех.","ESD, RF immunity, EFT, surge","Генераторы, усилители, пробники","Испытания"],
+ ["Кондуктивные воздействия","Помеха проходит по проводникам и портам.","CE, conducted immunity","LISN, CDN, токовые клещи","Испытания; Оборудование"],
+ ["Излучаемые воздействия","Связь энергией электромагнитного поля.","RE, radiated immunity","Антенна, усилитель, приёмник","Поля и антенны"],
+ ["Электростатический разряд","Кратковременный разряд на доступные части.","Контактный и воздушный ESD","Генератор ESD, плоскости связи","Испытания"],
+ ["Импульсные воздействия","Быстрые переходные процессы в цепях.","EFT/Burst, surge","Импульсный генератор, CDN","Испытания"],
+ ["Магнитные воздействия","Связь через постоянное или переменное магнитное поле.","Испытания магнитным полем","Катушка, датчик поля","Испытания; Калькуляторы"],
+ ["Качество электропитания","Изменения напряжения и непрерывности питания.","Провалы, прерывания, гармоники","Источник, анализатор мощности","Справочники"],
+ ["Инжекция РЧ-тока","Наведение контролируемого РЧ-тока в жгут.","BCI / current injection","Инжектор, монитор, усилитель","Калькулятор BCI"],
+ ["Измерения радиочастотных помех","Количественная оценка спектра помех.","CE/RE pre-scan и измерение","Приёмник, анализатор, антенна","Анализатор спектра"],
+];
+function CategoriesTab() { return <div><div style={{...styles.card,borderLeft:`3px solid ${C.cyan}`}}><div style={{fontSize:18,fontWeight:850}}>Инженерные категории EMC Toolkit</div><div style={{fontSize:13,color:C.textSec,marginTop:6}}>Это инженерная классификация EMC Toolkit, а не официальные категории конкретного ГОСТ.</div></div><div className="premium-list">{ENGINEERING_CATEGORIES.map(c=><div className="premium-card" key={c[0]}><div style={{fontWeight:850,color:C.text}}>{c[0]}</div><div style={{fontSize:13,color:C.textSec,margin:"6px 0"}}>{c[1]}</div><div style={{fontSize:12,lineHeight:1.65}}><b>Типичные испытания:</b> {c[2]}<br/><b>Оборудование:</b> {c[3]}<br/><b>Разделы Toolkit:</b> {c[4]}</div></div>)}</div><div style={{...styles.card,borderLeft:`3px solid ${C.warn}`,marginTop:16}}><div style={{fontSize:18,fontWeight:850}}>Нормативные категории</div>{["ГОСТ РВ 6601-001-2008","ГОСТ РВ 6601-002","КТ-160Г"].map(x=><div key={x} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`}}><b>{x}</b><div style={{fontSize:12,color:C.warn}}>Буквенно-цифровые категории требуют подтверждённого текста нормативного документа.</div></div>)}</div></div>; }
 
 // ─── АНАЛИЗ ПРИЧИН ОТКАЗА ────────────────────────────────────────────────────
 const FAIL_PATTERNS = [
@@ -5709,7 +5725,7 @@ const normalizeSpecs = (specs, fallback = "") => {
 };
 
 const normalizeEquipmentItem = (item, editPatch = {}) => {
-  const merged = { ...item, ...editPatch };
+  const merged = migrateEquipmentItem({ ...item, ...editPatch });
   const specs = normalizeSpecs(merged.specs, "Добавьте технические характеристики");
   return {
     ...merged,
@@ -5797,7 +5813,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
           <div style={{ width: 64, height: 64, minWidth: 64, borderRadius: 16, background: "rgba(30,91,232,0.15)", border: "1px solid rgba(30,91,232,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {getEquipSVG(e.type)}
+            {getEquipSVG(e.type, e.icon)}
           </div>
           <div>
             <input
@@ -5827,7 +5843,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
         <button onClick={() => setShowSpecsForm((v) => !v)} style={{ ...styles.btn(), marginTop: 8 }}>Добавить характеристики</button>
         {showSpecsForm && (
           <div style={{ marginTop: 10 }}>
-            <Field label="Тип"><input style={styles.input} value={editType} onChange={(ev) => setEditType(ev.target.value)} /></Field>
+            <Field label="Тип оборудования"><select style={styles.select} value={editType} onChange={(ev) => { setEditType(ev.target.value); onSaveChanges(e.id,{type:ev.target.value}); }}><option value="">Выберите тип</option>{EQUIPMENT_TYPES.map(type=><option key={type}>{type}</option>)}</select></Field><Field label="Иконка (можно выбрать независимо от типа)"><select style={styles.select} value={e.icon||"🔧"} onChange={ev=>onSaveChanges(e.id,{icon:ev.target.value})}>{["🔧","⚡","📡","📊","〰️","🔌","🧲","🛡️"].map(icon=><option key={icon}>{icon}</option>)}</select></Field>
             <Field label="Описание"><textarea style={{ ...styles.input, minHeight: 70 }} value={editDesc} onChange={(ev) => setEditDesc(ev.target.value)} /></Field>
             {specRows.map((row, idx) => (
               <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
@@ -5955,7 +5971,7 @@ const createEquipment = () => {
   const item = normalizeEquipmentItem({
     id: `custom_${Date.now()}`,
     name: "Новое оборудование",
-    type: "Тип оборудования",
+    type: "Другое",
     arm,
     desc: "",
     specs: [],
@@ -5979,7 +5995,8 @@ const deleteArm = () => { if(armFilter==="Все") return; if(allEquip.some(e=>e
   });
 
   // SVG icons by equipment type
-  const getEquipSVG = (type) => {
+  const getEquipSVG = (type, manualIcon = "") => {
+    if (manualIcon && manualIcon !== "🔧") return <span style={{fontSize:32}}>{manualIcon}</span>;
     if (type.includes("Антенна рупорная") || type.includes("рупорная")) return (
       <svg width="64" height="64" viewBox="0 0 64 64"><rect x="4" y="28" width="16" height="8" rx="2" fill="#1E5BE8"/><polygon points="20,20 20,44 52,52 52,12" fill="#1E3A6E" stroke="#1E5BE8" strokeWidth="1.5"/><line x1="4" y1="32" x2="0" y2="32" stroke="#E07B00" strokeWidth="2"/></svg>
     );
@@ -5995,7 +6012,7 @@ const deleteArm = () => { if(armFilter==="Все") return; if(allEquip.some(e=>e
     if (type.includes("Усилитель")) return (
       <svg width="64" height="64" viewBox="0 0 64 64"><rect x="8" y="16" width="48" height="32" rx="6" fill="#1E3A6E" stroke="#1E5BE8" strokeWidth="1.5"/><polygon points="22,24 22,40 42,32" fill="#1A9B5A"/><text x="32" y="52" textAnchor="middle" fontSize="9" fill="#8A9BB8">PWR AMP</text></svg>
     );
-    if (type.includes("Генератор") && type.includes("сигнал")) return (
+    if (type.includes("Генератор")) return (
       <svg width="64" height="64" viewBox="0 0 64 64"><rect x="8" y="16" width="48" height="32" rx="6" fill="#1E3A6E" stroke="#E07B00" strokeWidth="1.5"/><path d="M16 32 L24 32 L28 20 L32 44 L36 20 L40 44 L44 32 L52 32" stroke="#E07B00" strokeWidth="2" fill="none"/></svg>
     );
     if (type.includes("Генератор ЭСР") || type.includes("ЭСР")) return (
@@ -6007,13 +6024,13 @@ const deleteArm = () => { if(armFilter==="Все") return; if(allEquip.some(e=>e
     if (type.includes("Осциллограф")) return (
       <svg width="64" height="64" viewBox="0 0 64 64"><rect x="6" y="12" width="52" height="40" rx="4" fill="#1E3A6E" stroke="#1A9B5A" strokeWidth="1.5"/><rect x="10" y="16" width="36" height="24" rx="2" fill="#0D1627"/><path d="M12 28 L20 28 L24 20 L28 36 L32 20 L36 36 L40 28 L44 28" stroke="#1A9B5A" strokeWidth="1.5" fill="none"/></svg>
     );
-    if (type.includes("ЛИСН") || type.includes("эквивалент сети")) return (
+    if (type.includes("ЛИСН") || type.includes("LISN") || type.includes("эквивалент сети")) return (
       <svg width="64" height="64" viewBox="0 0 64 64"><rect x="8" y="18" width="48" height="28" rx="5" fill="#1E3A6E" stroke="#E07B00" strokeWidth="1.5"/><circle cx="24" cy="32" r="6" fill="none" stroke="#E07B00" strokeWidth="1.5"/><line x1="30" y1="32" x2="40" y2="32" stroke="#E07B00" strokeWidth="1.5"/><rect x="38" y="28" width="8" height="8" rx="1" fill="none" stroke="#E07B00" strokeWidth="1.5"/><line x1="8" y1="32" x2="18" y2="32" stroke="#4A9FFF" strokeWidth="1.5"/></svg>
     );
-    if (type.includes("Токосъёмник") || type.includes("Монитор тока")) return (
+    if (type.includes("Токосъёмник") || type.includes("Монитор тока") || type.includes("Токовый пробник")) return (
       <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="none" stroke="#1E5BE8" strokeWidth="3"/><circle cx="32" cy="32" r="12" fill="none" stroke="#4A9FFF" strokeWidth="1.5"/><line x1="32" y1="12" x2="32" y2="8" stroke="#E07B00" strokeWidth="2"/><line x1="32" y1="52" x2="32" y2="56" stroke="#E07B00" strokeWidth="2"/></svg>
     );
-    if (type.includes("Токовый инжектор") || type.includes("Инжекция тока")) return (
+    if (type.includes("Токовый инжектор") || type.includes("Инжекция тока") || type.includes("Инжектор") || type.includes("BCI")) return (
       <svg width="64" height="64" viewBox="0 0 64 64"><rect x="16" y="20" width="32" height="24" rx="5" fill="#1E3A6E" stroke="#1A9B5A" strokeWidth="1.5"/><line x1="8" y1="32" x2="16" y2="32" stroke="#4A9FFF" strokeWidth="2"/><line x1="48" y1="32" x2="56" y2="32" stroke="#4A9FFF" strokeWidth="2"/><path d="M24 32 Q32 24 40 32" stroke="#1A9B5A" strokeWidth="1.5" fill="none"/></svg>
     );
     if (type.includes("Источник питания") || type.includes("Трансформатор")) return (
@@ -6081,7 +6098,7 @@ const deleteArm = () => { if(armFilter==="Все") return; if(allEquip.some(e=>e
       <div className="premium-list">
         {filtered.map(e => (
           <button key={e.id} onClick={() => setSelected(e.id)} className="premium-card premium-card-action" style={{ width: "100%", display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto 20px", alignItems: "center", gap: 14, padding: "16px 18px" }}>
-            <div className="premium-icon-box" style={{ fontSize: 24 }}>{e.icon}</div>
+            <div className="premium-icon-box" style={{ fontSize: 24 }}>{getEquipSVG(e.type, e.icon)}</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 850, color: C.text, marginBottom: 4, letterSpacing: "-0.01em" }}>{e.name}</div>
               <div style={{ fontSize: 12, color: C.textSec, marginBottom: 5 }}>{e.type}</div>
@@ -6349,25 +6366,16 @@ function QualBasisTab() {
 }
 
 const LEARNING_EQUIPMENT_SCHEMES = [
-  {
-    id: "antenna",
-    title: "Антенна",
-    caption: "Излучение, направление поля, поляризация и область воздействия",
-    points: ["E-поле формируется перед антенной и контролируется датчиком поля", "Горизонтальная/вертикальная поляризация задаётся разворотом антенны", "Рабочая зона должна быть подтверждена методикой калибровки"],
-  },
-  {
-    id: "current-injector",
-    title: "Инжектор тока",
-    caption: "Наведение ВЧ-помехи в кабель без разрыва цепи",
-    points: ["Клещи охватывают провод/жгут", "Стрелка показывает наведённый ток помехи", "Уровень ограничивается калибровкой, мощностью усилителя и нагревом"],
-  },
-  {
-    id: "attenuator",
-    title: "Аттенюатор",
-    caption: "Ослабление сигнала между входом и выходом",
-    points: ["Сигнал проходит от входа к выходу", "Ослабление задаётся в dB", "Проверяйте допустимую мощность и частотный диапазон конкретного аттенюатора"],
-  },
-];
+  ["attenuator","Аттенюатор","Входной сигнал проходит через ослабляющую цепь к выходу."],
+  ["amplifier","Усилитель","Малый входной сигнал управляет усилительным каскадом и повышенной выходной мощностью."],
+  ["generator","Генератор","Источник формирует сигнал и направляет его в ВЧ-тракт."],
+  ["antenna","Антенна","Ток в антенне преобразуется в распространяющееся электромагнитное поле."],
+  ["current-injector","Инжектор / BCI probe","Магнитная связь наводит РЧ-энергию в проходящий через кольцо кабель."],
+  ["current-probe","Токовый пробник","Пробник снимает пропорциональный току сигнал без разрыва кабеля."],
+  ["lisn","LISN","Сеть стабилизирует импеданс между DUT и питанием и выводит помеху на RF measurement port."],
+  ["cdn","CDN","РЧ-сигнал суммируется с питанием/сигналом, развязывается от внешней сети и поступает к DUT."],
+  ["analyzer","Анализатор / приёмник","Входной тракт выделяет частотные составляющие и отображает их спектр."],
+].map(([id,title,caption])=>({id,title,caption,points:["Вход и выход отмечены стрелками направления сигнала","Внутренняя схема показывает только физический принцип без нормативных уровней","Вращайте модель мышью или касанием; кнопка возвращает исходный вид"]}));
 
 function LearningSchemeSvg({ id }) {
   if (id === "current-injector") return (
@@ -6418,17 +6426,17 @@ function LearningSchemeSvg({ id }) {
 
 function LearningEquipmentTab() {
   const [activeId, setActiveId] = useState(LEARNING_EQUIPMENT_SCHEMES[0].id);
+  const [rotation,setRotation]=useState({x:-6,y:0}); const drag=useRef(null);
+  const onMove=e=>{if(!drag.current)return; const p=e.touches?.[0]||e; setRotation({x:Math.max(-35,Math.min(35,drag.current.rx+p.clientY-drag.current.y)),y:drag.current.ry+p.clientX-drag.current.x})};
   const active = LEARNING_EQUIPMENT_SCHEMES.find((x) => x.id === activeId) || LEARNING_EQUIPMENT_SCHEMES[0];
   return (
     <div>
-      <SectionHeader title="Как работает оборудование" caption="Инженерные SVG-схемы без тяжёлых 3D-библиотек; список можно расширять новыми типами оборудования" count={`${LEARNING_EQUIPMENT_SCHEMES.length} схемы`} accent="#22D3EE" />
+      <SectionHeader title="Как работает оборудование" caption="Лёгкие интерактивные псевдо-3D модели физических принципов; mouse + touch" count={`${LEARNING_EQUIPMENT_SCHEMES.length} схемы`} accent="#22D3EE" />
       <PremiumPills items={LEARNING_EQUIPMENT_SCHEMES.map((x) => [x.id, x.title])} active={activeId} onSet={setActiveId} />
       <div style={{ ...styles.card, overflow: "hidden" }}>
         <div style={{ fontSize: 18, fontWeight: 850, color: C.text, marginBottom: 4 }}>{active.title}</div>
         <div style={{ fontSize: 13, color: C.textSec, marginBottom: 12 }}>{active.caption}</div>
-        <div style={{ background: "#020617", border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 12 }}>
-          <LearningSchemeSvg id={active.id} />
-        </div>
+        <div onMouseDown={e=>drag.current={x:e.clientX,y:e.clientY,...{rx:rotation.x,ry:rotation.y}}} onMouseMove={onMove} onMouseUp={()=>drag.current=null} onMouseLeave={()=>drag.current=null} onTouchStart={e=>{const p=e.touches[0];drag.current={x:p.clientX,y:p.clientY,rx:rotation.x,ry:rotation.y}}} onTouchMove={onMove} onTouchEnd={()=>drag.current=null} style={{ background: "#020617", border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 12, perspective:900, touchAction:"none",cursor:"grab",overflow:"hidden" }}><div style={{transform:`rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,transition:drag.current?"none":"transform .15s",transformStyle:"preserve-3d"}}><LearningSchemeSvg id={active.id} /></div></div><button style={styles.btn("secondary")} onClick={()=>setRotation({x:-6,y:0})}>Сбросить вид</button>
         {active.points.map((point, idx) => (
           <div key={idx} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: idx < active.points.length - 1 ? `1px solid ${C.border}` : "none" }}>
             <span style={{ color: C.cyan, fontWeight: 900 }}>{idx + 1}</span>
