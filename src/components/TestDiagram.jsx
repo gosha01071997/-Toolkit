@@ -28,13 +28,16 @@ function Connection({ value, nodes, markerId }) {
   if (!from || !to) return null;
   const a = center(from), b = center(to);
   const dx = b.x - a.x, dy = b.y - a.y;
+  const concentric = dx === 0 && dy === 0;
   const horizontal = Math.abs(dx) > Math.abs(dy);
-  const start = { x:a.x + (horizontal ? Math.sign(dx) * (from.w || 140) / 2 : 0), y:a.y + (!horizontal ? Math.sign(dy) * (from.h || 64) / 2 : 0) };
-  const end = { x:b.x - (horizontal ? Math.sign(dx) * (to.w || 140) / 2 : 0), y:b.y - (!horizontal ? Math.sign(dy) * (to.h || 64) / 2 : 0) };
+  const start = concentric ? { x:from.x + (from.w || 140), y:a.y } : { x:a.x + (horizontal ? Math.sign(dx) * (from.w || 140) / 2 : 0), y:a.y + (!horizontal ? Math.sign(dy) * (from.h || 64) / 2 : 0) };
+  const end = concentric ? { x:to.x + (to.w || 140), y:to.y } : { x:b.x - (horizontal ? Math.sign(dx) * (to.w || 140) / 2 : 0), y:b.y - (!horizontal ? Math.sign(dy) * (to.h || 64) / 2 : 0) };
+  const path = concentric ? `M${start.x} ${start.y} C${start.x + 52} ${start.y}, ${start.x + 52} ${end.y - 38}, ${end.x} ${end.y}` : `M${start.x} ${start.y} L${end.x} ${end.y}`;
+  const labelPosition = concentric ? { x:start.x + 50, y:end.y - 28 } : { x:(start.x + end.x) / 2, y:(start.y + end.y) / 2 - 8 };
   const color = COLORS[value.kind] || COLORS.cable;
   return <g>
-    <path className={`test-diagram__connection is-${value.kind}`} d={`M${start.x} ${start.y} L${end.x} ${end.y}`} stroke={color} markerEnd={`url(#${markerId}-${value.kind})`} />
-    {value.label && <text className="test-diagram__connection-label" x={(start.x + end.x) / 2} y={(start.y + end.y) / 2 - 8} textAnchor="middle" fill={color}>{value.label}</text>}
+    <path className={`test-diagram__connection is-${value.kind}`} d={path} stroke={color} markerEnd={`url(#${markerId}-${value.kind})`} />
+    {value.label && <text className="test-diagram__connection-label" x={labelPosition.x} y={labelPosition.y} textAnchor="middle" fill={color}>{value.label}</text>}
   </g>;
 }
 
