@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
+import Button from "./components/Button";
 import { AntennaEngineeringCalc, NormativeLimitsCalc, ReverberationChamberCalc, ShieldingCalc } from "./features/engineering/EngineeringCalculators";
 import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
 import { SUPPORT_URL } from "./config/support";
@@ -1207,7 +1208,7 @@ function QuizScreen({ onClose }) {
           <div style={{ fontSize:12,color:C.pass,fontWeight:600 }}>✓ Правильно: {h.rightAns}</div>
         </div>
       ))}
-      <button onClick={onClose} style={{ padding:"11px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.card,color:C.textSec,cursor:"pointer",fontWeight:600,width:"100%",marginTop:4,fontSize:13,fontFamily:"inherit" }}>Закрыть тест</button>
+      <Button onClick={onClose} variant="secondary" style={{ width:"100%", marginTop:4 }}>Закрыть тест</Button>
     </div>
   );
 
@@ -4604,15 +4605,15 @@ function StepsTab({ testId, initialSteps = [] }) {
   return (
     <div>
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginBottom:10 }}>
-        {steps.length > 0 && <button onClick={() => setEditing(value => !value)} style={styles.btn("secondary")}>{editing ? "Готово" : "Редактировать"}</button>}
-        <button onClick={() => { setAdding(true); setAddError(""); }} disabled={adding} style={styles.btn("primary")}>+ Добавить шаг</button>
+        {steps.length > 0 && <Button onClick={() => setEditing(value => !value)} variant="secondary">{editing ? "Готово" : "Редактировать"}</Button>}
+        <Button onClick={() => { setAdding(true); setAddError(""); }} disabled={adding}>+ Добавить шаг</Button>
       </div>
       {adding && <div style={{...styles.card, borderLeft:`3px solid ${C.accent}`}}>
         <div style={{fontWeight:800,marginBottom:10}}>Новый шаг</div>
         <Field label="Этап"><select aria-label="Этап нового шага" style={styles.select} value={newStep.phase} onChange={e=>setNewStep({...newStep,phase:e.target.value})}>{STEP_PHASES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></Field>
         <Field label="Описание"><textarea aria-label="Описание нового шага" autoFocus style={{...styles.input,minHeight:70}} value={newStep.text} onChange={e=>{setNewStep({...newStep,text:e.target.value});setAddError("")}} /></Field>
         {addError && <div role="alert" style={{color:C.fail,fontSize:12,marginBottom:8}}>{addError}</div>}
-        <div style={{display:"flex",gap:8}}><button onClick={submitStep} style={styles.btn("primary")}>Добавить</button><button onClick={()=>{setAdding(false);setNewStep({phase:"подготовка",text:""});setAddError("")}} style={styles.btn("secondary")}>Отмена</button></div>
+        <div style={{display:"flex",gap:8}}><Button onClick={submitStep}>Добавить</Button><Button onClick={()=>{setAdding(false);setNewStep({phase:"подготовка",text:""});setAddError("")}} variant="secondary">Отмена</Button></div>
       </div>}
       {/* Progress */}
       <div style={{ ...styles.card, background: "linear-gradient(135deg, #0D1627 0%, #1C2D50 100%)", border: "none", marginBottom: 12 }}>
@@ -4643,15 +4644,15 @@ function StepsTab({ testId, initialSteps = [] }) {
               <div style={{ flex: 1 }}>
                 {editing ? <><select aria-label={`Этап шага ${step.n}`} style={{...styles.select,marginBottom:7}} value={phase} onChange={e=>saveSteps(updateStep(steps,i,{phase:e.target.value}))}>{STEP_PHASES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><textarea aria-label={`Текст шага ${step.n}`} style={{...styles.input,minHeight:58}} value={step.text} onChange={e=>saveSteps(updateStep(steps,i,{text:e.target.value}))}/></> : <div style={{ fontSize: 13, color: done[i] ? C.textSec : C.text, lineHeight: 1.65, textDecoration: done[i] ? "line-through" : "none" }}>{step.text}</div>}
               </div>
-              {editing && <div style={{display:"flex",gap:4}}><button aria-label="Переместить вверх" disabled={phasePosition===0} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition-1].index))} style={styles.btn("secondary")}>↑</button><button aria-label="Переместить вниз" disabled={phasePosition===phaseSteps.length-1} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition+1].index))} style={styles.btn("secondary")}>↓</button><button onClick={()=>saveSteps(removeStep(steps,i))} style={styles.btn("fail")}>Удалить</button></div>}
+              {editing && <div style={{display:"flex",gap:4}}><Button aria-label="Переместить вверх" title="Переместить вверх" size="icon" variant="secondary" disabled={phasePosition===0} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition-1].index))}>↑</Button><Button aria-label="Переместить вниз" title="Переместить вниз" size="icon" variant="secondary" disabled={phasePosition===phaseSteps.length-1} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition+1].index))}>↓</Button><Button onClick={()=>saveSteps(removeStep(steps,i))} variant="danger" size="small">Удалить</Button></div>}
             </div>
           </div>})}
         </section>;
       })}
 
-      <button onClick={() => setDone(Array(steps.length).fill(false))} style={{ width: "100%", padding: "10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.textSec, fontSize: 12, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>
+      <Button onClick={() => setDone(Array(steps.length).fill(false))} variant="ghost" size="small" style={{ width: "100%", marginTop: 4 }}>
         Сбросить прогресс
-      </button>
+      </Button>
     </div>
   );
 }
@@ -4775,7 +4776,7 @@ function TestDetail({ test, onBack }) {
       <InnerTabs tabs={innerTabs} active={tab} onSet={setTab} className="test-detail-tabs" />
 
       {["before","during","after","schema"].includes(tab) && <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginBottom:10}}>
-        {!editingContent ? <button style={styles.btn("secondary")} onClick={()=>{setContentDraft(content);setEditingContent(true)}}>Редактировать</button> : <><button style={styles.btn("primary")} onClick={saveContent}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditingContent(false)}>Отмена</button></>}
+        {!editingContent ? <Button variant="secondary" onClick={()=>{setContentDraft(content);setEditingContent(true)}}>Редактировать</Button> : <><Button onClick={saveContent}>Сохранить</Button><Button variant="secondary" onClick={()=>setEditingContent(false)}>Отмена</Button></>}
       </div>}
 
       {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} />}
@@ -5203,9 +5204,9 @@ function TestsScreen() {
   if(selected)return <TestDetail test={selected} onBack={()=>setSelected(null)}/>;
   const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["normDoc","Нормативный документ"],["criteria","Критерии качества функционирования"],["range","Диапазон / тип"],["desc","Описание"],["setup","Состав испытательного оборудования (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
   return <PageContainer><SectionHero title="Испытания" subtitle="Встроенные нормативные шаблоны и пользовательские методики." stats={[{value:allTests.length,label:"шаблонов"},{value:customTests.length,label:"пользовательских"},{value:"ГОСТ РВ",label:"активный стандарт"}]}/>
-  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button style={styles.btn()} onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</button></div>
-  {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<Field label="Схема стенда"><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setDraft(x=>({...x,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{draft.schemaImage&&<span style={{marginLeft:10,color:C.pass}}>✓ Изображение выбрано</span>}</Field><div style={{display:"flex",gap:8}}><button style={styles.btn()} onClick={saveTest}>Сохранить</button><button style={styles.btn("secondary")} onClick={()=>setEditing(null)}>Отмена</button></div></div>}
-  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Разделы 16–20 являются редактируемыми пользовательскими шаблонами без придуманных нормативных значений" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><button style={styles.btn("secondary")} onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</button>{t.custom&&<button style={styles.btn("fail")} onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</button>}</div></div>)}</div></PageContainer>;
+  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><Button onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</Button></div>
+  {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<Field label="Схема стенда"><label className="emc-button emc-button--secondary emc-button--medium">Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setDraft(x=>({...x,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{draft.schemaImage&&<span style={{marginLeft:10,color:C.pass}}>✓ Изображение выбрано</span>}</Field><div style={{display:"flex",gap:8}}><Button onClick={saveTest}>Сохранить</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Отмена</Button></div></div>}
+  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Разделы 16–20 являются редактируемыми пользовательскими шаблонами без придуманных нормативных значений" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><Button variant="secondary" onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</Button>{t.custom&&<Button variant="danger" onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</Button>}</div></div>)}</div></PageContainer>;
 }
 
 // ─── REFERENCE SCREEN ─────────────────────────────────────────────────────
@@ -6442,8 +6443,8 @@ function LogEntry({ entry, onEdit, onDelete }) {
       {entry.comment && <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>💬 {entry.comment}</div>}
       {entry.photos?.length > 0 && <div style={{display:"flex",gap:8,overflowX:"auto",marginTop:8}}>{entry.photos.map((p,i)=><img key={p.id||i} src={p.data||p} alt={`Фото ${i+1}`} style={{width:110,height:80,objectFit:"cover",borderRadius:8}}/>)}</div>}
       <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" }}>
-        <button onClick={() => onEdit(entry)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10 }}>Редактировать</button>
-        <button onClick={() => onDelete(entry.id)} style={{ ...styles.btn("secondary"), fontSize: 12, padding: "7px 14px", borderRadius: 10, color: C.fail }}>Удалить</button>
+        <Button onClick={() => onEdit(entry)} variant="secondary" size="small">Редактировать</Button>
+        <Button onClick={() => onDelete(entry.id)} variant="danger" size="small">Удалить</Button>
       </div>
     </div>
   );
@@ -7730,9 +7731,9 @@ function ProUpgradeModal({ onClose, onActivate }) {
       <div style={{ fontSize:22, fontWeight:800, marginBottom:12 }}>Доступно в EMC Toolkit Pro</div>
       <div style={{ color:C.textSec, lineHeight:1.65, marginBottom:8 }}>Эта возможность входит в расширенную версию EMC Toolkit Pro.</div>
       <div style={{ color:C.textSec, lineHeight:1.65, marginBottom:18 }}>Если бесплатная версия оказалась полезной, вы можете поддержать развитие проекта от 300 ₽ и получить бессрочный Pro-ключ.</div>
-      <a href={SUPPORT_URL} target="_blank" rel="noreferrer" style={{ ...styles.btn("primary"), display:"block", boxSizing:"border-box", width:"100%", textAlign:"center", textDecoration:"none", marginBottom:10 }}>Поддержать проект</a>
-      <button onClick={onActivate} style={{ ...styles.btn(), width:"100%", marginBottom:10 }}>У меня уже есть ключ</button>
-      <button onClick={onClose} style={{ ...styles.btn("secondary"), width:"100%" }}>Закрыть</button>
+      <Button as="a" href={SUPPORT_URL} target="_blank" rel="noreferrer" style={{ width:"100%", marginBottom:10 }}>Поддержать проект</Button>
+      <Button onClick={onActivate} variant="secondary" style={{ width:"100%", marginBottom:10 }}>У меня уже есть ключ</Button>
+      <Button onClick={onClose} variant="ghost" style={{ width:"100%" }}>Закрыть</Button>
     </div>
   </div>;
 }

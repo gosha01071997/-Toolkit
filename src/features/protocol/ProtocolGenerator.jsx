@@ -12,6 +12,7 @@
  *   {page === 'protocol' && <ProtocolGenerator />}
  */
 import React, { useEffect, useState } from 'react';
+import Button from '../../components/Button';
 import { renderProtocolHtml } from './protocolTemplate';
 import { store, printHtml } from '../../services/storage';
 
@@ -333,10 +334,9 @@ export default function ProtocolGenerator() {
                 <button onClick={doExport} style={{ ...btn(T.accent), padding: '7px 14px', fontSize: 13 }}>
                   Сохранить в PDF
                 </button>
-                <button onClick={() => setPreviewHtml(null)}
-                  style={{ ...btn('transparent', T.text, T.border), padding: '7px 14px', fontSize: 13 }}>
+                <Button onClick={() => setPreviewHtml(null)} variant="secondary" size="small">
                   Закрыть (Esc)
-                </button>
+                </Button>
               </div>
             </div>
             <iframe
