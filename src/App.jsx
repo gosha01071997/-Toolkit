@@ -2864,9 +2864,9 @@ const ANTENNAS = [
 // Испытания
 const TESTS_CAL = [
   { id: "p205", name: "п.20.5 — Восприимчивость к излучению (RI)", hasAntenna: true, hasPol: true },
-  { id: "p215", name: "п.21.5 — Восприимчивость к излучению, повышенные уровни (RI)", hasAntenna: true, hasPol: true },
+  { id: "p215", name: "п.21.5 — Излучаемые радиочастотные помехи", hasAntenna: true, hasPol: true },
   { id: "p204", name: "п.20.4 — Восприимчивость к инжекции тока", hasAntenna: false, hasPol: false },
-  { id: "p214", name: "п.21.4 — Восприимчивость к инжекции тока, повышенные уровни", hasAntenna: false, hasPol: false },
+  { id: "p214", name: "п.21.4 — Кондуктивные радиочастотные помехи", hasAntenna: false, hasPol: false },
   { id: "p21ce", name: "п.21 — Кондуктивные помехи (CE)", hasAntenna: false, hasPol: false },
   { id: "p21re", name: "п.21 — Излучаемые помехи (RE)", hasAntenna: true, hasPol: true },
   { id: "custom", name: "✏️ Произвольный диапазон", hasAntenna: false, hasPol: false },
@@ -3567,184 +3567,112 @@ const STEP_PHASES = [
 // user steps still take precedence in StepsTab and are never migrated away.
 const STEPS_DATA = {};
 
+const PARAMETER_NOTE = "Значение определяется категорией изделия и действующей нормативной документацией.";
+
 const TESTS_DATA = [
   {
-    id: "p15",
-    name: "Магнитное воздействие",
-    short: "п.15",
-    standard: "ГОСТ РВ 20.57.306 п.15",
-    range: "50 Гц / постоянное поле",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию внешнего магнитного поля промышленной частоты 50 Гц и/или постоянного магнитного поля. Оцениваются функциональные параметры Изделия во время и после воздействия.",
-    normDoc: "ГОСТ РВ 20.57.306-98, п.15. Степень жёсткости 1–5 по напряжённости поля.",
-    criteria: "Работоспособность Изделия сохраняется в течение воздействия и после его прекращения.",
-    setup: [
-      "Источник питания (регулируемый AC/DC)",
-      "Катушка Гельмгольца или индукционная катушка",
-      "Компас прецизионный Датчик поля A (калиброванный, с поверкой)",
-      "Магнитометр портативный Измеритель магнитного поля A (с поверкой)",
-      "ИРИ (изделие — объект испытаний)",
-      "Монитор работоспособности Изделия",
-      "Опорная плоскость заземления",
-    ]
+    id: "p15", short: "п.15", name: "Магнитное воздействие",
+    simpleDescription: "Проверяем, сохраняет ли изделие нормальную работу при воздействии внешнего постоянного или переменного магнитного поля.",
+    desc: "Воздействие магнитного поля на изделие и чувствительные элементы.",
+    standard: "КТ-160G / 14G · раздел 15", relatedStandards: [], diagram: "magnetic", parameters: PARAMETER_NOTE,
+    setup: ["Источник или генератор испытательного сигнала", "Усилитель при необходимости", "Испытательная катушка", "Датчик или измеритель магнитного поля", "Средства контроля изделия"],
   },
   {
-    id: "p204",
-    name: "РЧ-восприимчивость — помехи проводимости",
-    short: "п.20.4",
-    standard: "Шаблон испытания 01 · Раздел 01",
-    range: "0,15 – 400 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к радиочастотным помехам, распространяемым по цепям питания и сигнальным кабелям (кондуктивная восприимчивость). Воздействие производится через сеть связи/развязки (CDN) или токовыми клещами (инжекция тока).",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 01. Уровни воздействия по степеням 1–4.",
-    criteria: "Изделие сохраняет работоспособность во время воздействия (критерий I) или самовосстанавливается (критерий II).",
-    setup: [
-      "Генератор сигналов Генератор A (10 кГц – 1200 МГц, AM/IM)",
-      "Усилитель мощности Усилитель A (9 кГц – 400 МГц, 230 Вт)",
-      "Токовый инжектор Токосъёмник A с калибровочным устройством",
-      "Монитор тока Токосъёмник A (10 кГц – 400 МГц, диаметр 46 мм)",
-      "Комплект инжекции тока A (нагрузки 50 Ом, аттенюаторы, кабели СВЧ)",
-      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия",
-      "ПО программа BCI-LAB",
-    ]
+    id: "p16_placeholder", short: "п.16", name: "Входное электропитание",
+    simpleDescription: "Изменяем параметры питания изделия и проверяем, продолжает ли оно нормально работать.",
+    desc: "Проверяются применимые изменения напряжения и частоты для переменного тока, искажения формы напряжения, пульсации, кратковременные провалы, прерывания питания и переходные режимы этого раздела.",
+    standard: "КТ-160G / 14G · раздел 16", relatedStandards: [], diagram: "power", parameters: PARAMETER_NOTE,
+    setup: ["Программируемый источник переменного/постоянного тока (AC/DC)", "Анализатор или измеритель параметров питания", "Осциллограф", "Средства контроля изделия"],
   },
   {
-    id: "p205",
-    name: "РЧ-восприимчивость — помехи излучению",
-    short: "п.20.5",
-    standard: "Шаблон испытания 01 · Раздел 02",
-    range: "20 МГц – 1000 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию радиочастотного электромагнитного поля (радиационная восприимчивость). Изделие облучается нормированным полем в безэховой камере или с использованием TEM-ячейки.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 02. Напряжённость поля 1–20 В/м.",
-    criteria: "Изделие сохраняет работоспособность во время облучения (критерий I) или самовосстанавливается (критерий II).",
-    setup: [
-      "Генератор сигналов Генератор A (9 кГц – 2,1 ГГц)",
-      "Усилитель мощности Усилитель A (2–250 МГц, 1000 Вт)",
-      "Усилитель мощности Усилитель A (80–1000 МГц, 1 кВт)",
-      "РЧ коммутатор коммутатор A (до 6 ГГц, 3 модуля SP3T)",
-      "Измеритель мощности Измерительный приёмник A (8 кГц – 6 ГГц, ±23 дБм)",
-      "Пробник поля Измерительный приёмник B (9 кГц – 18 ГГц, 1-1000 В/м, оптоволоконный кабель)",
-      "Антенна рупорная Антенна A (200 МГц – 2,8 ГГц)",
-      "Антенна логопериодическая Антенна A (60–3000 МГц, 3 кВт)",
-      "Линия излучающая симметричная Антенна A (1–200 МГц, 2 кВт)",
-      "Мачта антенная Стенд A с антенным адаптером",
-      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия",
-      "ПО PROVE-EMC RF-LAB",
-    ]
+    id: "p17_placeholder", short: "п.17", name: "Выбросы напряжения",
+    simpleDescription: "На цепь питания подают кратковременный импульс напряжения и проверяют устойчивость изделия.",
+    desc: "Проверяется устойчивость изделия к кратковременному импульсу в цепи питания.",
+    standard: "КТ-160G / 14G · раздел 17", relatedStandards: [], diagram: "voltageSpike", parameters: PARAMETER_NOTE,
+    setup: ["Источник питания", "Генератор импульса", "Устройство ввода импульса", "Измерительная и контрольная цепь", "Испытуемое изделие"],
   },
   {
-    id: "p25",
-    name: "Генератор электростатических разрядов",
-    short: "п.25",
-    standard: "Шаблон испытания 02 · Раздел 01",
-    range: "Контактный / воздушный разряд",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию электростатических разрядов (ЭСР). Моделируется разряд наэлектризованного человека или предмета на корпус и доступные части Изделия. Воздействие: контактный и воздушный разряды заданных уровней напряжения.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 03. Уровни напряжения по шаблону испытаний.",
-    criteria: "Изделие сохраняет работоспособность во время воздействия и после него.",
-    setup: [
-      "Генератор ЭСР Модуль питания A (до 30 кВ, 150пФ/330 Ом, разрядные наконечники)",
-      "Делитель напряжения калибровочный РН-5000 (до 30 кВ)",
-      "Калибровочная мишень ИШ-2,0 ВЧ (2 Ом, 30 кВ)",
-      "Осциллограф цифровой Контроллер Alpha (4 кан., 2 ГГц, 10 ГВыб/с)",
-      "Стол испытательный деревянный 2,5×0,9×0,9 м (лиственница)",
-      "Горизонтальная опорная металлическая плита (оцинкованная сталь 2 мм)",
-      "Вертикальная пластина связи 0,5×0,5 м + кабель 2 м с резисторами 2×470 кОм",
-      "Изолирующая подставка под Изделие (10 см от ОПЗ)",
-      "Изделие",
-    ]
+    id: "p18_placeholder", short: "п.18", name: "Восприимчивость к кондуктивным помехам звуковой частоты по цепям электропитания",
+    simpleDescription: "На питание изделия накладывают низкочастотную помеху и проверяют, не нарушается ли его работа.",
+    desc: "Проверяется устойчивость цепей электропитания к применимым кондуктивным помехам звуковой частоты.",
+    standard: "КТ-160G / 14G · раздел 18", relatedStandards: ["ГОСТ РВ 6601-001-2008 — при применимости"], diagram: "audioPower", parameters: PARAMETER_NOTE,
+    setup: ["Источник штатного питания", "Генератор сигнала", "Усилитель или устройство ввода при необходимости", "Цепь связи/развязки", "Измерительные средства", "Средства контроля изделия"],
   },
   {
-    id: "p21",
-    name: "Генерация радиочастотной энергии",
-    short: "п.21",
-    standard: "Шаблон испытания 01 · Раздел 03",
-    range: "0,15 – 1000 МГц",
-    gost: true,
-    desc: "Измерение уровня радиочастотных помех, генерируемых Изделием и распространяемых по цепям питания (кондуктивные помехи) и излучаемых в пространство (радиационные помехи). Проверяется соответствие нормам допустимых значений помех.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 04. Нормы по степеням и видам помех.",
-    criteria: "Уровни кондуктивных и радиационных помех не превышают допустимых значений для данной степени жёсткости.",
-    setup: [
-      "Измерительный приёмник Измерительный приёмник A (10 кГц – 6000 МГц)",
-      "Анализатор спектра Анализатор спектра A (9 кГц – 22 ГГц, -99,7 дБн/Гц)",
-      "ЛИСН ЛИСН A (70/100 А, 600В DC/270В AC, до 400 МГц)",
-      "ЛИСН ЛИСН B (50 мкГн+5 Ом, 9 кГц–100 МГц, двухканальный)",
-      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц)",
-      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц, до 2А CW/100А имп.)",
-      "Пробник Измерительный приёмник A (100 Гц – 1000 МГц)",
-      "Антенна штыревая активная Антенна A (9 кГц – 30 МГц)",
-      "Антенна биконическая Антенна A (30–300 МГц)",
-      "Антенна логопериодическая Антенна A (300–6000 МГц)",
-      "Антенна рупорная двухгребневая Антенна A (0,8–18 ГГц)",
-      "Мачта антенная Стенд A с антенным адаптером",
-      "ПО Лаборант ЭМС",
-      "Изделие в рабочем режиме",
-    ]
+    id: "p19_placeholder", short: "п.19", name: "Восприимчивость к индуцированным сигналам",
+    simpleDescription: "Проверяем влияние сигналов, которые могут наводиться в проводах изделия от соседних цепей, электрических и магнитных полей.",
+    desc: "Проверяется влияние индуцированных сигналов в проводах изделия с учётом применимого способа связи.",
+    standard: "КТ-160G / 14G · раздел 19", relatedStandards: [], diagram: "induced", parameters: PARAMETER_NOTE,
+    setup: ["Генератор сигнала", "Усилитель", "Устройство связи или индукции", "Испытательные кабели или жгут", "Измеритель или осциллограф", "Средства контроля изделия"],
   },
   {
-    id: "p214",
-    name: "РЧ-восприимчивость — помехи проводимости",
-    short: "п.21.4",
-    standard: "Шаблон испытания 01 · Раздел 03.4",
-    range: "0,15 – 400 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к радиочастотным кондуктивным помехам, наводимым на цепи питания и сигнальные кабели. Воздействие осуществляется через сеть связи/развязки (CDN) или методом токовой инжекции (инжекция тока) с модуляцией AM 80% / 1 кГц. Отличие от п.20.4 — иные уровни воздействия и область применения согласно программе испытаний.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 05. Уровни воздействия степени 1–4, метод замещения/прямого замера.",
-    criteria: "Изделие сохраняет работоспособность во время воздействия (критерий I) или самовосстанавливается после его прекращения без вмешательства оператора (критерий II).",
-    setup: [
-      "Генератор сигналов (CW + AM 80% / 1 кГц)",
-      "Усилитель мощности широкополосный (50 Ом)",
-      "Направленный ответвитель (для контроля прямой/отражённой мощности)",
-      "CDN (сеть связи/развязки) — для цепей питания и сигнальных портов",
-      "Токовые инжекционные клещи инжекция тока (для кабельных жгутов)",
-      "Монитор тока (контрольные токовые клещи)",
-      "Нагрузка 50 Ом на конце жгута",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия",
-      "Опорная металлическая плоскость заземления (ОМПЗ)",
-    ]
+    id: "p20_placeholder", short: "п.20", name: "Радиочастотная восприимчивость", parent: true,
+    simpleDescription: "Проверяем устойчивость изделия к радиочастотным помехам, которые приходят через провода или непосредственно через электромагнитное поле.",
+    desc: "Общий раздел для испытаний на помехи проводимости и помехи излучения.",
+    standard: "КТ-160G / 14G · раздел 20", relatedStandards: [], diagram: "rfParent", parameters: PARAMETER_NOTE,
+    setup: ["Источник радиочастотного сигнала", "Средства формирования воздействия", "Измерительные средства", "Средства контроля изделия"],
   },
   {
-    id: "p215",
-    name: "РЧ-восприимчивость — помехи излучению",
-    short: "п.21.5",
-    standard: "Шаблон испытания 01 · Раздел 03.5",
-    range: "20 МГц – 1000 МГц",
-    gost: true,
-    desc: "Проверка устойчивости Изделия к воздействию радиочастотного электромагнитного поля (радиационная восприимчивость). Изделие облучается нормированным полем в безэховой (полубезэховой) камере или TEM-ячейке. Антенна и Изделие располагаются на одной оси, испытание проводится при горизонтальной и вертикальной поляризации. Отличие от п.20.5 — в иных уровнях поля и условиях применения.",
-    normDoc: "Стандарт ЭМС A, Методика A, Раздел 06. Поле 1–20 В/м, AM 80% / 1 кГц, шаг ≤1%.",
-    criteria: "Изделие сохраняет работоспособность во время облучения (критерий I) или самовосстанавливается после прекращения воздействия без вмешательства оператора (критерий II).",
-    setup: [
-      "Генератор сигналов (CW + AM 80% / 1 кГц)",
-      "Усилитель мощности широкополосный",
-      "Направленный ответвитель",
-      "Антенна излучающая (рупорная для >200 МГц, bilog / логопериодическая для 20–1000 МГц)",
-      "Датчик (изотропный монитор) напряжённости поля — контроль уровня в реальном времени",
-      "Безэховая или полубезэховая камера (SAC / FAR)",
-      "Изделие в рабочем режиме",
-      "Монитор работоспособности Изделия (вне камеры)",
-      "Фильтры и ферриты на кабелях управления/мониторинга",
-    ]
+    id: "p204", short: "п.20.4", name: "РЧ-восприимчивость — помехи проводимости",
+    simpleDescription: "В кабельный жгут изделия вводят контролируемую радиочастотную помеху и проверяют работу изделия.",
+    alternateName: "BCI — Bulk Current Injection (ввод РЧ-тока в кабель)",
+    desc: "Проверяется устойчивость изделия к радиочастотной помехе, вводимой в кабельный жгут.",
+    standard: "КТ-160G / 14G · раздел 20.4", relatedStandards: ["ГОСТ РВ 6601-001-2008 — при применимости"], diagram: "bci", calibration: "Перед испытанием калибруют тракт ввода и контроля тока в соответствии с применимой методикой.", parameters: PARAMETER_NOTE,
+    setup: ["Генератор РЧ-сигнала", "РЧ-усилитель", "Инжекционный пробник — вводит РЧ-ток в кабель; BCI probe", "Контрольный токовый пробник", "Измеритель мощности/тока или измерительный приёмник", "Кабельный жгут", "Испытуемое изделие"],
   },
-  ...Object.entries({
-    16: "Провалы и прерывания напряжения питания",
-    17: "Импульсные помехи в цепях питания",
-    18: "Низкочастотные кондуктивные помехи",
-    19: "Электростатические разряды",
-    20: "Радиочастотная восприимчивость",
-  }).map(([section, name]) => ({
-    id: `p${section}_placeholder`, short: `п.${section}`, name,
-    standard: `ГОСТ РВ 20.57.306, раздел ${section}`, range: "Требует заполнения по нормативному документу",
-    gost: true, placeholder: true, desc: "Требует заполнения по нормативному документу",
-    normDoc: "Подтверждённые данные в репозитории отсутствуют. Заполните карточку по нормативному документу.",
-    criteria: "Требует заполнения по нормативному документу", setup: [],
-  })),
-];
+  {
+    id: "p205", short: "п.20.5", name: "РЧ-восприимчивость — помехи излучения",
+    simpleDescription: "На изделие и его кабельный жгут воздействуют радиочастотным электромагнитным полем и проверяют работу изделия.",
+    desc: "Проверяется устойчивость изделия и кабельного жгута к радиочастотному электромагнитному полю.",
+    standard: "КТ-160G / 14G · раздел 20.5", relatedStandards: ["ГОСТ РВ 6601-001-2008 — при применимости"], diagram: "radiatedImmunity", calibration: "До испытания подтверждают параметры испытательного поля по применимой методике.", parameters: PARAMETER_NOTE,
+    setup: ["Генератор РЧ-сигнала", "Усилитель", "Испытательная антенна или предусмотренная методикой полеобразующая система", "Датчик или измеритель поля", "Средства контроля изделия"],
+  },
+  {
+    id: "p21", short: "п.21", name: "Генерация радиочастотной энергии", parent: true,
+    simpleDescription: "Измеряем радиочастотные помехи, которые создаёт само испытуемое изделие.",
+    desc: "Общий раздел измерений помех по проводам и помех, излучаемых в пространство. Это испытания на эмиссию, а не на восприимчивость.",
+    standard: "КТ-160G / 14G · раздел 21", relatedStandards: [], diagram: "emissionParent", parameters: PARAMETER_NOTE,
+    setup: ["Испытуемое изделие", "Измерительный приёмник или анализатор", "Измерительные цепи и датчики", "Кабели и средства регистрации"],
+  },
+  {
+    id: "p214", short: "п.21.4", name: "Кондуктивные радиочастотные помехи",
+    simpleDescription: "Измеряем радиочастотные помехи, которые изделие создаёт в подключённых проводах и цепях питания.",
+    alternateName: "LISN — Line Impedance Stabilization Network (эквивалент сети, предусмотренный методикой)",
+    desc: "Измеряются радиочастотные помехи от изделия в подключённых проводах и цепях питания.",
+    standard: "КТ-160G / 14G · раздел 21.4", relatedStandards: ["ГОСТ РВ 6601-002-2008 — при применимости"], diagram: "conductedEmission", parameters: PARAMETER_NOTE,
+    setup: ["Измерительный приёмник или анализатор", "Эквивалент сети (LISN) или другая предусмотренная измерительная цепь", "Токовый пробник при соответствующей методике", "Кабели", "Испытуемое изделие"],
+  },
+  {
+    id: "p215", short: "п.21.5", name: "Излучаемые радиочастотные помехи",
+    simpleDescription: "Измеряем радиочастотную энергию, которую работающее изделие излучает в окружающее пространство.",
+    desc: "Измеряются радиочастотные помехи, излучаемые работающим изделием в окружающее пространство.",
+    standard: "КТ-160G / 14G · раздел 21.5", relatedStandards: ["ГОСТ РВ 6601-002-2008 — при применимости"], diagram: "radiatedEmission", parameters: PARAMETER_NOTE,
+    setup: ["Измерительный приёмник или анализатор спектра", "Измерительная антенна", "Кабельный тракт", "Предусилитель при необходимости", "Испытательная площадка или камера", "Испытуемое изделие"],
+  },
+  {
+    id: "p25", short: "п.25", name: "Электростатический разряд",
+    simpleDescription: "Имитируем разряд статического электричества на доступные части изделия или рядом с ним и проверяем его работу.",
+    alternateName: "ESD — Electrostatic Discharge (электростатический разряд)",
+    desc: "Проверяется устойчивость изделия к прямому или непрямому электростатическому разряду по применимой методике.",
+    standard: "КТ-160G / 14G · раздел 25", relatedStandards: [], diagram: "esd", parameters: PARAMETER_NOTE,
+    setup: ["Генератор электростатического разряда", "Предусмотренные испытательной установкой опорные и связующие плоскости", "Средства контроля изделия"],
+  },
+].map(test => ({
+  ...test,
+  gost: true,
+  range: test.parameters,
+  normDoc: [test.standard, ...(test.relatedStandards || [])].join(". "),
+  criteria: test.parameters,
+  before: ["Определить применимую категорию и программу испытаний", "Проверить конфигурацию стенда, соединения и актуальность измерительных средств", "Зафиксировать исходную работоспособность и режим изделия"],
+  during: ["Контролировать заданный параметр воздействия или измерения", "Наблюдать за работоспособностью изделия и фиксировать отклонения", "Записывать конфигурацию и результаты в протокол"],
+  after: ["Проверить работоспособность изделия после испытания", "Сохранить результаты, наблюдения и конфигурацию стенда", "Оценить результат по критериям применимой программы испытаний"],
+  steps: [
+    { n: 1, phase: "подготовка", text: "Определить применимую категорию, параметры и критерии по действующей документации и программе испытаний." },
+    ...(test.calibration ? [{ n: 2, phase: "калибровка", text: test.calibration }] : []),
+    { n: test.calibration ? 3 : 2, phase: "испытание", text: "Провести испытание по утверждённой программе, контролируя параметры стенда и работу изделия." },
+    { n: test.calibration ? 4 : 3, phase: "завершение", text: "Проверить изделие после воздействия и оформить результаты." },
+  ],
+}));
 
 const CHECKLIST_BEFORE = [
   "Оборудование включено и прогрето",
@@ -4141,15 +4069,49 @@ function DiagVDI() {
   );
 }
 
-const TEST_DIAGRAMS = {
-  p15:  DiagPFMF,
-  p204: DiagCI,
-  p205: DiagRI,
-  p25:  DiagESD,
-  p21:  DiagCE,
-  p214: DiagBCI,
-  p215: DiagRI,
+const TEST_SETUP_DIAGRAMS = {
+  magnetic: [["Источник сигнала", "Усилитель", "Испытательная катушка", "Испытуемое изделие"], ["Датчик магнитного поля", "Измеритель / контроль"]],
+  power: [["Программируемый источник AC/DC", "Измерительная цепь", "Испытуемое изделие"], ["Осциллограф", "Контроль изделия"]],
+  voltageSpike: [["Источник питания", "Устройство ввода импульса", "Испытуемое изделие"], ["Генератор импульса", "Устройство ввода импульса"]],
+  audioPower: [["Источник питания", "Цепь связи / развязки", "Испытуемое изделие"], ["Генератор сигнала", "Усилитель / ввод", "Цепь связи / развязки"]],
+  induced: [["Генератор сигнала", "Усилитель", "Устройство связи / индукции", "Кабельный жгут", "Испытуемое изделие"], ["Измеритель", "Контроль изделия"]],
+  rfParent: [["Источник РЧ-сигнала", "Воздействие через провод или поле", "Испытуемое изделие"], ["Измерение воздействия", "Контроль изделия"]],
+  bci: [["Генератор РЧ", "РЧ-усилитель", "Инжекционный пробник", "Кабельный жгут", "Испытуемое изделие"], ["Контрольный пробник", "Измеритель"]],
+  radiatedImmunity: [["Генератор РЧ", "Усилитель", "Испытательная антенна", "Электромагнитное поле", "Изделие + жгут"], ["Датчик поля", "Измеритель / контроль"]],
+  emissionParent: [["Испытуемое изделие", "Помеха по проводам или в пространстве", "Измерительная система"]],
+  conductedEmission: [["Испытуемое изделие", "Кабели / цепи питания", "Эквивалент сети или пробник", "Приёмник / анализатор"]],
+  radiatedEmission: [["Испытуемое изделие", "Излучаемая помеха", "Измерительная антенна", "Приёмник / анализатор"]],
+  esd: [["Генератор электростатического разряда", "Точка воздействия", "Испытуемое изделие"], ["Связующая плоскость", "Средства контроля"]],
 };
+
+function TestSetupDiagram({ type, equipment = {} }) {
+  const lanes = TEST_SETUP_DIAGRAMS[type] || [];
+  const width = 900;
+  const nodeWidth = 150;
+  const nodeHeight = 54;
+  const height = 44 + lanes.length * 96;
+  const label = value => equipment[value] || value;
+  return <svg role="img" aria-label="Инженерная схема подключения испытательного оборудования" viewBox={`0 0 ${width} ${height}`} width="100%" style={{display:"block",minWidth:620}}>
+    <defs><marker id={`test-arrow-${type}`} markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#7C8CFF"/></marker></defs>
+    {lanes.map((lane, laneIndex) => {
+      const gap = (width - 40 - lane.length * nodeWidth) / Math.max(1, lane.length - 1);
+      const y = 24 + laneIndex * 96;
+      return <g key={laneIndex}>
+        {lane.map((item, index) => {
+          const x = 20 + index * (nodeWidth + gap);
+          const nextX = x + nodeWidth + gap;
+          const words = label(item).split(" ");
+          const midpoint = Math.ceil(words.length / 2);
+          return <g key={`${item}-${index}`}>
+            {index < lane.length - 1 && <line x1={x + nodeWidth} y1={y + nodeHeight/2} x2={nextX - 10} y2={y + nodeHeight/2} stroke="#7C8CFF" strokeWidth="2" markerEnd={`url(#test-arrow-${type})`}/>}
+            <rect x={x} y={y} width={nodeWidth} height={nodeHeight} rx="12" fill="#111C35" stroke={item.includes("Издел") ? "#22D3EE" : "#6D5CE7"} strokeWidth="2"/>
+            <text x={x + nodeWidth/2} y={y + 23} textAnchor="middle" fill="#F2F5FF" fontSize="13" fontWeight="700"><tspan x={x + nodeWidth/2}>{words.slice(0, midpoint).join(" ")}</tspan>{words.length > midpoint && <tspan x={x + nodeWidth/2} dy="17">{words.slice(midpoint).join(" ")}</tspan>}</text>
+          </g>;
+        })}
+      </g>;
+    })}
+  </svg>;
+}
 
 
 // ─── PROTOCOL TEMPLATES per test id ──────────────────────────────────────────
@@ -4763,11 +4725,11 @@ function TestDetail({ test, onBack }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ background: "#C0392B22", color: "#FF6B6B", borderRadius: 5, padding: "2px 9px", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>ГОСТ РВ</span>
+              <span style={{ background: "#6D5CE733", color: "#B8B1FF", borderRadius: 5, padding: "2px 9px", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>{test.custom ? "ПОЛЬЗОВАТЕЛЬСКОЕ" : "КТ-160G / 14G"}</span>
               <span style={{ fontSize: 11, color: "#8A9BB8", letterSpacing: 0.5 }}>{test.standard}</span>
             </div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginTop: 2, lineHeight: 1.3 }}>{test.name}</div>
-            <div style={{ fontSize: 12, color: "#8A9BB8", marginTop: 6 }}>Диапазон: {test.range}</div>
+            <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 7, lineHeight: 1.55 }}>{test.simpleDescription || test.desc}</div>
           </div>
           <div style={{ background: "#C0392B", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 800, textAlign: "center", minWidth: 52, lineHeight: 1.2 }}>{test.short}</div>
         </div>
@@ -4782,98 +4744,34 @@ function TestDetail({ test, onBack }) {
       {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} />}
       {tab === "info" && (
         <div>
-          {/* Description */}
           <div style={styles.card}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>Описание испытания</div>
-            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.65 }}>{test.desc}</div>
+            <div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>1. Что проверяем</div>
+            <div style={{fontSize:14,color:C.text,lineHeight:1.65}}>{test.desc}</div>
           </div>
-
-          {/* Normative doc + criteria */}
-          {(test.normDoc || test.criteria) && (
-            <div style={{ ...styles.card, borderLeft: "3px solid #C0392B" }}>
-              {test.normDoc && (
-                <div style={{ marginBottom: test.criteria ? 10 : 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#C0392B", letterSpacing: 1, marginBottom: 4 }}>НОРМАТИВНЫЙ ДОКУМЕНТ</div>
-                  <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{test.normDoc}</div>
-                </div>
-              )}
-              {test.criteria && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.pass, letterSpacing: 1, marginBottom: 4 }}>КРИТЕРИЙ КАЧЕСТВА ФУНКЦИОНИРОВАНИЯ</div>
-                  <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{test.criteria}</div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* SVG Connection Diagram */}
-          {TEST_DIAGRAMS[test.id] && (() => {
-            const DiagramComp = TEST_DIAGRAMS[test.id];
-            return (
-              <div style={styles.card}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Схема подключения</div>
-                <div style={{ background: "#F8FAFD", borderRadius: 8, border: `1px solid ${C.border}`, padding: "10px 6px 6px", overflowX: "auto" }}>
-                  <DiagramComp />
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
-                  {[
-                    { color: "#E6F7EE", stroke: "#1A9B5A", label: "ИРИ (объект)" },
-                    { color: "#EAF0FD", stroke: "#1E5BE8", label: "ВЧ-тракт / CDN" },
-                    { color: "#FDECEA", stroke: "#D93025", label: "Воздействие" },
-                    { color: "#FFF4E5", stroke: "#E07B00", label: "Питание / поле" },
-                    { color: "#BDC3CC", stroke: "#7A8494", label: "Земля / ОМПЗ" },
-                  ].map(l => (
-                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      <div style={{ width: 14, height: 14, borderRadius: 3, background: l.color, border: `1.5px solid ${l.stroke}` }} />
-                      <span style={{ fontSize: 10, color: C.textSec }}>{l.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Equipment list — editable */}
+          <div style={{...styles.card,borderLeft:`3px solid ${C.cyan}`}}>
+            <div style={{fontSize:11,fontWeight:800,color:C.cyan,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>2. Простыми словами</div>
+            <div style={{fontSize:14,color:C.text,lineHeight:1.65}}>{test.simpleDescription || test.desc}</div>
+            {test.alternateName && <div style={{fontSize:12,color:C.textSec,marginTop:8}}>Дополнительное обозначение: {test.alternateName}</div>}
+          </div>
+          {test.diagram && <div style={styles.card}>
+            <div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:10,textTransform:"uppercase"}}>3. Схема подключения</div>
+            <div style={{background:"#071021",borderRadius:12,border:`1px solid ${C.border}`,padding:8,overflowX:"auto"}}><TestSetupDiagram type={test.diagram} /></div>
+            <div style={{fontSize:11,color:C.textSec,marginTop:8}}>Авторская принципиальная схема EMC Toolkit показывает типы оборудования; конкретный состав определяется методикой.</div>
+          </div>}
           <div style={styles.card}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: C.textSec, letterSpacing: 1, textTransform: "uppercase" }}>Состав испытательного оборудования</div>
-              <div style={{ display:"flex", gap:6 }}>
-                <button onClick={() => setEditingSetup(!editingSetup)} style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${editingSetup?C.accent:C.border}`, background:editingSetup?C.accentLight:"transparent", color:editingSetup?C.accent:C.textSec, cursor:"pointer", fontFamily:"inherit" }}>
-                  {editingSetup ? "✓ Готово" : "✏️ Изменить"}
-                </button>
-                {editingSetup && (
-                  <button onClick={resetSetup} style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${C.border}`, background:"transparent", color:C.warn, cursor:"pointer", fontFamily:"inherit" }}>↺ Сброс</button>
-                )}
-              </div>
-            </div>
-            {setupItems.map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < setupItems.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#FDECEA", color: "#C0392B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, minWidth: 24 }}>{i + 1}</div>
-                <span style={{ fontSize: 13, color: C.text, flex:1 }}>{s}</span>
-                {editingSetup && (
-                  <button onClick={() => removeEquipLine(i)} style={{ fontSize:11, padding:"2px 8px", borderRadius:5, border:`1px solid ${C.fail}`, background:"transparent", color:C.fail, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>✕</button>
-                )}
-              </div>
-            ))}
-            {editingSetup && (
-              <div style={{ marginTop:10, display:"flex", gap:8 }}>
-                <input
-                  style={{ ...styles.input, flex:1, fontSize:13 }}
-                  value={newEquipLine}
-                  onChange={e => setNewEquipLine(e.target.value)}
-                  onKeyDown={e => e.key==="Enter" && addEquipLine()}
-                  placeholder="Добавить оборудование..."
-                />
-                <button onClick={addEquipLine} disabled={!newEquipLine.trim()} style={{ padding:"0 14px", borderRadius:8, border:"none", background:newEquipLine.trim()?C.accent:C.border, color:"#fff", fontWeight:700, cursor:newEquipLine.trim()?"pointer":"not-allowed", fontFamily:"inherit", fontSize:13, flexShrink:0 }}>+ Добавить</button>
-              </div>
-            )}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:10}}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,textTransform:"uppercase"}}>4. Что понадобится</div><div style={{display:"flex",gap:6}}><Button size="small" variant="secondary" onClick={()=>setEditingSetup(!editingSetup)}>{editingSetup?"Готово":"Изменить"}</Button>{editingSetup&&<Button size="small" variant="ghost" onClick={resetSetup}>Сбросить</Button>}</div></div>
+            {setupItems.map((item,index)=><div key={index} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",borderBottom:index<setupItems.length-1?`1px solid ${C.border}`:"none"}}><span style={{color:C.cyan,fontWeight:900}}>•</span><span style={{fontSize:13,color:C.text,flex:1}}>{item}</span>{editingSetup&&<Button size="small" variant="danger" onClick={()=>removeEquipLine(index)}>Удалить</Button>}</div>)}
+            {editingSetup&&<div style={{display:"flex",gap:8,marginTop:10}}><input style={{...styles.input,flex:1}} value={newEquipLine} onChange={e=>setNewEquipLine(e.target.value)} placeholder="Добавить оборудование"/><Button size="small" onClick={addEquipLine} disabled={!newEquipLine.trim()}>Добавить</Button></div>}
           </div>
-          {setupAdminModal && <AdminModal title={setupAdminModal.title} onConfirm={setupAdminModal.action} onCancel={()=>setSetupAdminModal(null)} />}
-
-          {/* Warning */}
-          <div style={{ background: C.warnLight, border: `1px solid #FACEAA`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.warn, lineHeight: 1.5 }}>
-            ⚠️ Данные справочные. Перед проведением испытания сверяйтесь с действующей редакцией ГОСТ РВ 20.57.306 и программой испытаний изделия.
-          </div>
+          <div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>5. Подготовка</div>{content.before.map((item,index)=><div key={index} style={{fontSize:13,color:C.text,padding:"5px 0"}}>• {item}</div>)}</div>
+          {test.calibration&&<div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>6. Калибровка</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{test.calibration}</div></div>}
+          <div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{test.calibration?"7":"6"}. Проведение испытания</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>Провести испытание по утверждённой программе, сохраняя выбранную конфигурацию и фиксируя результаты.</div></div>
+          <div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{test.calibration?"8":"7"}. Что контролировать во время испытания</div>{content.during.map((item,index)=><div key={index} style={{fontSize:13,color:C.text,padding:"5px 0"}}>• {item}</div>)}</div>
+          <div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{test.calibration?"9":"8"}. Что проверить после испытания</div>{content.after.map((item,index)=><div key={index} style={{fontSize:13,color:C.text,padding:"5px 0"}}>• {item}</div>)}</div>
+          <div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{test.calibration?"10":"9"}. Параметры испытания</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{test.parameters || PARAMETER_NOTE}</div></div>
+          <div style={{...styles.card,borderLeft:`3px solid ${C.accent}`}}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{test.calibration?"11":"10"}. Нормативная база</div><div style={{fontSize:13,color:C.text}}>{test.standard}</div>{(test.relatedStandards||[]).map(item=><div key={item} style={{fontSize:12,color:C.textSec,marginTop:6}}>Связанный документ: {item}</div>)}</div>
+          {setupAdminModal&&<AdminModal title={setupAdminModal.title} onConfirm={setupAdminModal.action} onCancel={()=>setSetupAdminModal(null)}/>}
+          {!test.custom&&<div style={{background:"rgba(124,140,255,.06)",border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",fontSize:12,color:C.textSec,lineHeight:1.6}}>EMC Toolkit является инженерным вспомогательным инструментом и не заменяет действующую нормативную документацию. Параметры, категории и критерии конкретного испытания необходимо определять по применимой редакции нормативного документа и программе испытаний.</div>}
         </div>
       )}
       {tab === "schema" && <><SchemaEditor testId={test.id} setupItems={setupItems} /><div style={styles.card}><div style={{fontWeight:800,marginBottom:8}}>Пользовательское изображение схемы</div>{(editingContent?contentDraft:content).schemaImage && <img src={(editingContent?contentDraft:content).schemaImage} alt="Пользовательская схема" style={{maxWidth:"100%",maxHeight:420,borderRadius:10,display:"block",marginBottom:10}}/>}{editingContent && <div style={{display:"flex",gap:8}}><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setContentDraft(p=>({...p,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{contentDraft.schemaImage && <button style={styles.btn("fail")} onClick={()=>setContentDraft(p=>({...p,schemaImage:""}))}>Удалить изображение</button>}</div>}{!(editingContent?contentDraft:content).schemaImage && !editingContent && <div style={{color:C.textSec}}>Пользовательское изображение не загружено.</div>}</div></>}
@@ -5189,25 +5087,19 @@ function TestsScreen() {
   const [draft,setDraft]=useState(blank);
   const lines=k=>String(draft[k]||"").split("\n").map(x=>x.trim()).filter(Boolean);
   const toTest=()=>({...draft,setup:lines("setup"),steps:lines("steps").map((text,n)=>({n:n+1,phase:"during",text})),before:lines("before"),during:lines("during"),after:lines("after")});
-  const saveTest=()=>{
-    const value=toTest();
-    if(editing?.custom || !editing?.id){
-      const item=createUserTest(value,editing?.id?Number(editing.id.replace(/\D/g,""))||Date.now():Date.now());
-      const next=editing?.id?customTests.map(x=>x.id===editing.id?{...item,id:x.id}:x):[...customTests,item];
-      setCustomTests(next);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(next));
-    } else {
-      const next={...overrides,[editing.id]:value};setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));
-    }
-    setEditing(null);setDraft(blank);
-  };
+  const saveTest=()=>{ const value=toTest(); if(editing?.custom||!editing?.id){const item=createUserTest(value,editing?.id?Number(editing.id.replace(/\D/g,""))||Date.now():Date.now());const next=editing?.id?customTests.map(x=>x.id===editing.id?{...item,id:x.id}:x):[...customTests,item];setCustomTests(next);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(next));}else{const next={...overrides,[editing.id]:value};setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));}setEditing(null);setDraft(blank);};
   const openEdit=t=>{setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||STEPS_DATA[t.id]||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
   if(selected)return <TestDetail test={selected} onBack={()=>setSelected(null)}/>;
   const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["normDoc","Нормативный документ"],["criteria","Критерии качества функционирования"],["range","Диапазон / тип"],["desc","Описание"],["setup","Состав испытательного оборудования (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
-  return <PageContainer><SectionHero title="Испытания" subtitle="Встроенные нормативные шаблоны и пользовательские методики." stats={[{value:allTests.length,label:"шаблонов"},{value:customTests.length,label:"пользовательских"},{value:"ГОСТ РВ",label:"активный стандарт"}]}/>
-  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><Button onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</Button></div>
-  {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<Field label="Схема стенда"><label className="emc-button emc-button--secondary emc-button--medium">Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setDraft(x=>({...x,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{draft.schemaImage&&<span style={{marginLeft:10,color:C.pass}}>✓ Изображение выбрано</span>}</Field><div style={{display:"flex",gap:8}}><Button onClick={saveTest}>Сохранить</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Отмена</Button></div></div>}
-  <SectionHeader title="ГОСТ РВ 20.57.306 и пользовательские" caption="Разделы 16–20 являются редактируемыми пользовательскими шаблонами без придуманных нормативных значений" count={`${allTests.length} карточек`} accent="#F59E0B"/><div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:`3px solid ${t.custom?C.cyan:"#F59E0B"}`}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:12,color:C.textSec,marginTop:5}}>{t.standard} · {t.range}</div><div style={{fontSize:12,color:t.placeholder?C.warn:C.textSec,marginTop:5}}>{t.desc}</div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><Button variant="secondary" onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</Button>{t.custom&&<Button variant="danger" onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</Button>}</div></div>)}</div></PageContainer>;
+  return <PageContainer>
+    <SectionHero title="КТ-160G / 14G — испытания бортового оборудования" subtitle="Инженерные методики EMC Toolkit для подготовки и проведения испытаний. Конкретные режимы и уровни определяются действующей нормативной документацией и категорией оборудования." stats={[{value:TESTS_DATA.length,label:"встроенных"},{value:customTests.length,label:"пользовательских"},{value:"КТ-160G / 14G",label:"основной стандарт"}]}/>
+    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><Button onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</Button></div>
+    {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<div style={{display:"flex",gap:8}}><Button onClick={saveTest}>Сохранить</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Отмена</Button></div></div>}
+    <SectionHeader title="Встроенные авиационные испытания" caption="Пользовательские методики сохраняются отдельно; каждый встроенный шаблон можно редактировать" count={`${allTests.length} карточек`} accent="#7C8CFF"/>
+    <div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:"3px solid "+(t.custom?C.cyan:t.parent?"#A78BFA":"#7C8CFF"),marginLeft:!t.custom&&["p204","p205","p214","p215"].includes(t.id)?16:0}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:13,color:C.text,marginTop:6,lineHeight:1.5}}>Простыми словами: {t.simpleDescription||t.desc}</div><div style={{fontSize:12,color:C.textSec,marginTop:6}}>{t.custom?(t.standard||"Пользовательская методика"):t.standard}</div>{t.alternateName&&<div style={{fontSize:11,color:C.textSec,marginTop:4}}>Также встречается обозначение: {t.alternateName}</div>}</div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><Button variant="secondary" onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</Button>{t.custom&&<Button variant="danger" onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</Button>}</div></div>)}</div>
+  </PageContainer>;
 }
+
 
 // ─── REFERENCE SCREEN ─────────────────────────────────────────────────────
 function AbbreviationsTab() {
@@ -5289,18 +5181,18 @@ function StandardsTab() {
 }
 
 const ENGINEERING_CATEGORIES = [
- ["Помехоэмиссия","Нежелательная энергия, создаваемая изделием.","Кондуктивная и излучаемая эмиссия","Приёмник, LISN, антенна","Испытания; Нормы"],
- ["Помехоустойчивость","Способность изделия работать при воздействии помех.","ESD, RF immunity, EFT, surge","Генераторы, усилители, пробники","Испытания"],
- ["Кондуктивные воздействия","Помеха проходит по проводникам и портам.","CE, conducted immunity","LISN, CDN, токовые клещи","Испытания; Оборудование"],
- ["Излучаемые воздействия","Связь энергией электромагнитного поля.","RE, radiated immunity","Антенна, усилитель, приёмник","Поля и антенны"],
- ["Электростатический разряд","Кратковременный разряд на доступные части.","Контактный и воздушный ESD","Генератор ESD, плоскости связи","Испытания"],
- ["Импульсные воздействия","Быстрые переходные процессы в цепях.","EFT/Burst, surge","Импульсный генератор, CDN","Испытания"],
- ["Магнитные воздействия","Связь через постоянное или переменное магнитное поле.","Испытания магнитным полем","Катушка, датчик поля","Испытания; Калькуляторы"],
- ["Качество электропитания","Изменения напряжения и непрерывности питания.","Провалы, прерывания, гармоники","Источник, анализатор мощности","Справочники"],
- ["Инжекция РЧ-тока","Наведение контролируемого РЧ-тока в жгут.","BCI / current injection","Инжектор, монитор, усилитель","Калькулятор BCI"],
- ["Измерения радиочастотных помех","Количественная оценка спектра помех.","CE/RE pre-scan и измерение","Приёмник, анализатор, антенна","Анализатор спектра"],
+  { title:"Помехи от оборудования", description:"Помехи, которые создаёт само работающее изделие.", typical:"Помехи по проводам и излучаемые помехи.", related:"Раздел 21." },
+  { title:"Устойчивость к помехам", description:"Способность изделия продолжать нормально работать при внешнем электромагнитном воздействии.", related:"Разделы 15, 18, 19, 20, 25." },
+  { title:"Помехи по проводам", description:"Электромагнитная помеха распространяется через кабели, жгуты, цепи питания или сигнальные линии.", extra:"Также используется термин: кондуктивное воздействие." },
+  { title:"Воздействие электромагнитным полем", description:"Помеха воздействует на изделие и кабельный жгут через электромагнитное поле.", extra:"Дополнительный термин: излучаемое воздействие." },
+  { title:"Электростатический разряд", description:"Кратковременный разряд статического электричества на изделие или рядом с ним.", extra:"Дополнительное обозначение: ESD — Electrostatic Discharge." },
+  { title:"Импульсные воздействия", description:"Кратковременные выбросы и переходные процессы в электрических цепях." },
+  { title:"Магнитные воздействия", description:"Воздействие постоянного или переменного магнитного поля." },
+  { title:"Нестабильное электропитание", description:"Изменение напряжения, частоты, формы сигнала, провалы и прерывания питания." },
+  { title:"Ввод РЧ-тока в кабель", description:"Контролируемая радиочастотная помеха вводится непосредственно в кабельный жгут.", extra:"Дополнительное обозначение: BCI — Bulk Current Injection." },
+  { title:"Измерение радиочастотных помех", description:"Измерение радиочастотных помех, которые изделие создаёт в проводах или излучает в пространство.", extra:"Дополнительные обозначения: CE — помехи по проводам; RE — излучаемые помехи." },
 ];
-function CategoriesTab() { return <div><div style={{...styles.card,borderLeft:`3px solid ${C.cyan}`}}><div style={{fontSize:18,fontWeight:850}}>Инженерные категории EMC Toolkit</div><div style={{fontSize:13,color:C.textSec,marginTop:6}}>Это инженерная классификация EMC Toolkit, а не официальные категории конкретного ГОСТ.</div></div><div className="category-grid">{ENGINEERING_CATEGORIES.map(c=><article className="premium-card category-card" key={c[0]}><div style={{fontSize:17,fontWeight:850,color:C.text,marginBottom:10}}>{c[0]}</div><div className="category-row"><b>ОПИСАНИЕ</b>{c[1]}</div><div className="category-row"><b>ТИПИЧНЫЕ ИСПЫТАНИЯ</b>{c[2]}</div><div className="category-row"><b>ОБОРУДОВАНИЕ</b>{c[3]}</div><div className="category-row"><b>СВЯЗАННЫЕ РАЗДЕЛЫ</b>{c[4]}</div></article>)}</div><div style={{...styles.card,borderLeft:`3px solid ${C.warn}`,marginTop:16}}><div style={{fontSize:18,fontWeight:850}}>Нормативные категории</div>{["ГОСТ РВ 6601-001-2008","ГОСТ РВ 6601-002","КТ-160Г"].map(x=><div key={x} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`}}><b>{x}</b><div style={{fontSize:13,color:C.warn,lineHeight:1.55}}>Буквенно-цифровые категории требуют подтверждённого текста нормативного документа.</div></div>)}</div></div>; }
+function CategoriesTab() { return <div><div style={{...styles.card,borderLeft:`3px solid ${C.cyan}`}}><div style={{fontSize:18,fontWeight:850}}>Виды воздействий</div><div style={{fontSize:13,color:C.textSec,marginTop:6}}>Это инженерная классификация EMC Toolkit, а не официальные категории КТ-160 или ГОСТ.</div></div><div className="category-grid">{ENGINEERING_CATEGORIES.map(item=><article className="premium-card category-card" key={item.title}><div style={{fontSize:17,fontWeight:850,color:C.text,marginBottom:10}}>{item.title}</div><div className="category-row"><b>ОПИСАНИЕ</b>{item.description}</div>{item.typical&&<div className="category-row"><b>ТИПИЧНЫЕ ИСПЫТАНИЯ</b>{item.typical}</div>}{item.related&&<div className="category-row"><b>СВЯЗАНО</b>{item.related}</div>}{item.extra&&<div style={{fontSize:12,color:C.textSec,marginTop:12,lineHeight:1.55}}>{item.extra}</div>}</article>)}</div></div>; }
 
 // ─── АНАЛИЗ ПРИЧИН ОТКАЗА ────────────────────────────────────────────────────
 const FAIL_PATTERNS = [
@@ -6045,7 +5937,7 @@ const NORMS_DATA = [
     {sj:"3", val:"10 мА / 3 В", note:"п.20.4 макс."},
     {sj:"4", val:"30 мА / 10 В", note:"п.21.4 макс."},
   ]},
-  { id:"p205", name:"п.20.5 / п.21.5 — Восприимчивость к излучению", unit:"В/м", rows:[
+  { id:"p205", name:"п.20.5 — РЧ-восприимчивость; п.21.5 — излучаемые помехи", unit:"В/м", rows:[
     {sj:"1", val:"1", note:""},
     {sj:"2", val:"3", note:""},
     {sj:"3", val:"10", note:"п.20.5 макс."},
@@ -6144,8 +6036,8 @@ const QUAL_GROUPS = [
     desc: "Изделия группы M предназначены для эксплуатации в условиях морского климата — солевой туман, повышенная влажность, качка.",
     conditions: ["Температура: −10°С ... +55°С", "Относительная влажность: до 100% при конденсации", "Солевой туман: концентрация NaCl 5%", "Вибрация и удары от морских волн"],
     tests: [
-      { name: "РЧ-восприимчивость — помехи проводимости", point: "п.20.4 / п.21.4", std: "ГОСТ РВ 20.57.306" },
-      { name: "РЧ-восприимчивость — помехи излучения", point: "п.20.5 / п.21.5", std: "ГОСТ РВ 20.57.306" },
+      { name: "РЧ-восприимчивость — помехи проводимости; кондуктивные радиочастотные помехи", point: "п.20.4 / п.21.4", std: "Применимый нормативный документ" },
+      { name: "РЧ-восприимчивость — помехи излучения; излучаемые радиочастотные помехи", point: "п.20.5 / п.21.5", std: "Применимый нормативный документ" },
       { name: "Генерация РЧ-энергии", point: "п.21", std: "ГОСТ РВ 20.57.306" },
       { name: "Магнитное воздействие", point: "п.15", std: "ГОСТ РВ 20.57.306" },
       { name: "ЭСР", point: "п.25", std: "ГОСТ РВ 20.57.306" },
@@ -6157,8 +6049,8 @@ const QUAL_GROUPS = [
     desc: "Изделия группы P предназначены для эксплуатации в полевых условиях — широкий диапазон температур, пыль, дождь, механические воздействия.",
     conditions: ["Температура: −50°С ... +70°С", "Относительная влажность: до 98% при +40°С", "Пыль и песок по ГОСТ 15150", "Механические удары и вибрация"],
     tests: [
-      { name: "РЧ-восприимчивость — помехи проводимости", point: "п.20.4 / п.21.4", std: "ГОСТ РВ 20.57.306" },
-      { name: "РЧ-восприимчивость — помехи излучения", point: "п.20.5 / п.21.5", std: "ГОСТ РВ 20.57.306" },
+      { name: "РЧ-восприимчивость — помехи проводимости; кондуктивные радиочастотные помехи", point: "п.20.4 / п.21.4", std: "Применимый нормативный документ" },
+      { name: "РЧ-восприимчивость — помехи излучения; излучаемые радиочастотные помехи", point: "п.20.5 / п.21.5", std: "Применимый нормативный документ" },
       { name: "Генерация РЧ-энергии", point: "п.21", std: "ГОСТ РВ 20.57.306" },
       { name: "Магнитное воздействие", point: "п.15", std: "ГОСТ РВ 20.57.306" },
       { name: "ЭСР", point: "п.25", std: "ГОСТ РВ 20.57.306" },
@@ -6182,8 +6074,8 @@ const QUAL_GROUPS = [
     desc: "Изделия группы B — для установки на борт воздушных, морских, наземных транспортных средств. Наиболее полный объём испытаний.",
     conditions: ["Температура: −60°С ... +85°С (зависит от места установки)", "Вибрация: до 10g широкополосная", "Удары: до 40g / 11 мс", "Давление: от 7 кПа (высота 35 км) до 106 кПа"],
     tests: [
-      { name: "РЧ-восприимчивость — помехи проводимости", point: "п.20.4 / п.21.4", std: "ГОСТ РВ 20.57.306" },
-      { name: "РЧ-восприимчивость — помехи излучения", point: "п.20.5 / п.21.5", std: "ГОСТ РВ 20.57.306" },
+      { name: "РЧ-восприимчивость — помехи проводимости; кондуктивные радиочастотные помехи", point: "п.20.4 / п.21.4", std: "Применимый нормативный документ" },
+      { name: "РЧ-восприимчивость — помехи излучения; излучаемые радиочастотные помехи", point: "п.20.5 / п.21.5", std: "Применимый нормативный документ" },
       { name: "Генерация РЧ-энергии", point: "п.21", std: "ГОСТ РВ 20.57.306" },
       { name: "Магнитное воздействие", point: "п.15", std: "ГОСТ РВ 20.57.306" },
       { name: "ЭСР", point: "п.25", std: "ГОСТ РВ 20.57.306" },
@@ -6365,7 +6257,7 @@ function LearningEquipmentTab() {
 function ReferenceScreen({ refTab, setRefTab }) {
   const tabs = [
     { id: "abbr", label: "Сокращения" },
-    { id: "categories", label: "Категории" },
+    { id: "categories", label: "Виды воздействий" },
     { id: "learn", label: "🎓 Как работает" },
     { id: "norms", label: "📊 Нормы" },
     { id: "qual", label: "⭐ Базис T/M/P" },
