@@ -1,0 +1,34 @@
+.test-diagram { color:#0f172a; }
+.test-diagram__canvas { overflow-x:auto; border:1px solid #d9e2ef; border-radius:16px; background:#f8fbff; }
+.test-diagram__canvas svg { display:block; min-width:780px; width:100%; height:auto; }
+.test-diagram__sheet { fill:#f8fbff; stroke:#d9e2ef; }
+.test-diagram__title { fill:#334155; font-size:15px; font-weight:800; letter-spacing:.02em; }
+.test-diagram__node rect { fill:#fff; stroke:#64748b; stroke-width:1.8; filter:drop-shadow(0 4px 6px rgba(15,23,42,.08)); }
+.test-diagram__node circle { fill:#e8eef8; stroke:#94a3b8; }
+.test-diagram__node.is-eut rect { fill:#e1f7f5; stroke:#0f9f95; stroke-width:3; }
+.test-diagram__node.is-eut circle { fill:#0f9f95; stroke:#087a72; }
+.test-diagram__label { fill:#172033; font:700 13px Inter,system-ui,sans-serif; }
+.test-diagram__type { fill:#718096; font:600 8px ui-monospace,SFMono-Regular,monospace; }
+.test-diagram__number { fill:#334155; font:800 10px Inter,system-ui,sans-serif; }
+.test-diagram__node.is-eut .test-diagram__number { fill:white; }
+.test-diagram__connection { fill:none; stroke-width:3; }
+.test-diagram__connection.is-field,.test-diagram__connection.is-measure,.test-diagram__connection.is-emission { stroke-dasharray:8 6; }
+.test-diagram__connection-label { paint-order:stroke; stroke:#f8fbff; stroke-width:6px; font:700 10px Inter,system-ui,sans-serif; }
+.test-diagram__zone { fill:#eef5ff; stroke:#b8c7db; stroke-width:1.5; stroke-dasharray:7 5; }
+.test-diagram__ground { fill:#94a3b8; }
+.test-diagram__horizontal-plane { fill:#cbd5e1; stroke:#64748b; }
+.test-diagram__plane-label { fill:#64748b; font:700 10px Inter,system-ui,sans-serif; }
+.test-diagram__note { fill:#be123c; font:700 11px Inter,system-ui,sans-serif; }
+.test-diagram__inset { margin-top:10px; padding:10px 12px; border-left:3px solid #7c8cff; color:#334155; background:#eef2ff; font-size:12px; }
+.test-diagram__legend { display:flex; flex-wrap:wrap; gap:10px 18px; padding:12px 4px 16px; color:#64748b; font-size:11px; }
+.test-diagram__legend span { display:flex; align-items:center; gap:6px; }
+.test-diagram__legend i { width:28px; border-top:3px solid #475569; }
+.test-diagram__legend i.is-stimulus { border-color:#e85d3f; }.test-diagram__legend i.is-field { border-color:#9b5de5; border-style:dashed; }.test-diagram__legend i.is-measure { border-color:#168aad; border-style:dashed; }.test-diagram__legend i.is-cable { border-color:#475569; }
+.test-diagram__legend b { width:22px; height:14px; border-radius:4px; background:#e1f7f5; border:2px solid #0f9f95; }
+.test-diagram__equipment { border-top:1px solid #dbe4ef; padding-top:16px; }
+.test-diagram__equipment h3 { margin:0 0 12px; color:#172033; font-size:16px; }
+.test-diagram__equipment ol { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 20px; margin:0; padding-left:28px; }
+.test-diagram__equipment li { padding:7px 8px; border-bottom:1px solid #e2e8f0; color:#334155; font-size:13px; }
+.test-diagram__equipment li::marker { color:#2563eb; font-weight:800; }
+.test-diagram__equipment code { display:block; margin-top:3px; color:#8290a4; font-size:9px; }
+@media (max-width:640px) { .test-diagram__equipment ol { grid-template-columns:1fr; }.test-diagram__canvas svg { min-width:720px; } }
