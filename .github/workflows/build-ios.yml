@@ -1,0 +1,52 @@
+name: Build iOS simulator app
+
+on:
+  push:
+    branches:
+      - feature/upgrade-modules
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Add and sync iOS platform
+        run: |
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Build unsigned iOS simulator app
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Upload unsigned simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: EMC-Toolkit-iOS-Simulator
+          path: ios/build/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: error
+          retention-days: 30
