@@ -3569,6 +3569,95 @@ const STEPS_DATA = {};
 
 const PARAMETER_NOTE = "Значение определяется категорией изделия и действующей нормативной документацией.";
 
+const LEGACY_TEST_SETUPS = {
+  p15: [
+      "Источник питания (регулируемый AC/DC)",
+      "Катушка Гельмгольца или индукционная катушка",
+      "Компас прецизионный Датчик поля A (калиброванный, с поверкой)",
+      "Магнитометр портативный Измеритель магнитного поля A (с поверкой)",
+      "ИРИ (изделие — объект испытаний)",
+      "Монитор работоспособности Изделия",
+      "Опорная плоскость заземления",
+    ],
+  p204: [
+      "Генератор сигналов Генератор A (10 кГц – 1200 МГц, AM/IM)",
+      "Усилитель мощности Усилитель A (9 кГц – 400 МГц, 230 Вт)",
+      "Токовый инжектор Токосъёмник A с калибровочным устройством",
+      "Монитор тока Токосъёмник A (10 кГц – 400 МГц, диаметр 46 мм)",
+      "Комплект инжекции тока A (нагрузки 50 Ом, аттенюаторы, кабели СВЧ)",
+      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
+      "Изделие в рабочем режиме",
+      "Монитор работоспособности Изделия",
+      "ПО программа BCI-LAB",
+    ],
+  p205: [
+      "Генератор сигналов Генератор A (9 кГц – 2,1 ГГц)",
+      "Усилитель мощности Усилитель A (2–250 МГц, 1000 Вт)",
+      "Усилитель мощности Усилитель A (80–1000 МГц, 1 кВт)",
+      "РЧ коммутатор коммутатор A (до 6 ГГц, 3 модуля SP3T)",
+      "Измеритель мощности Измерительный приёмник A (8 кГц – 6 ГГц, ±23 дБм)",
+      "Пробник поля Измерительный приёмник B (9 кГц – 18 ГГц, 1-1000 В/м, оптоволоконный кабель)",
+      "Антенна рупорная Антенна A (200 МГц – 2,8 ГГц)",
+      "Антенна логопериодическая Антенна A (60–3000 МГц, 3 кВт)",
+      "Линия излучающая симметричная Антенна A (1–200 МГц, 2 кВт)",
+      "Мачта антенная Стенд A с антенным адаптером",
+      "Стол испытательный деревянный 2,5×0,9×0,9 м с ПЗ 2 мм",
+      "Изделие в рабочем режиме",
+      "Монитор работоспособности Изделия",
+      "ПО PROVE-EMC RF-LAB",
+    ],
+  p25: [
+      "Генератор ЭСР Модуль питания A (до 30 кВ, 150пФ/330 Ом, разрядные наконечники)",
+      "Делитель напряжения калибровочный РН-5000 (до 30 кВ)",
+      "Калибровочная мишень ИШ-2,0 ВЧ (2 Ом, 30 кВ)",
+      "Осциллограф цифровой Контроллер Alpha (4 кан., 2 ГГц, 10 ГВыб/с)",
+      "Стол испытательный деревянный 2,5×0,9×0,9 м (лиственница)",
+      "Горизонтальная опорная металлическая плита (оцинкованная сталь 2 мм)",
+      "Вертикальная пластина связи 0,5×0,5 м + кабель 2 м с резисторами 2×470 кОм",
+      "Изолирующая подставка под Изделие (10 см от ОПЗ)",
+      "Изделие",
+    ],
+  p21: [
+      "Измерительный приёмник Измерительный приёмник A (10 кГц – 6000 МГц)",
+      "Анализатор спектра Анализатор спектра A (9 кГц – 22 ГГц, -99,7 дБн/Гц)",
+      "ЛИСН ЛИСН A (70/100 А, 600В DC/270В AC, до 400 МГц)",
+      "ЛИСН ЛИСН B (50 мкГн+5 Ом, 9 кГц–100 МГц, двухканальный)",
+      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц)",
+      "Токосъёмник Токосъёмник A (9 кГц – 400 МГц, до 2А CW/100А имп.)",
+      "Пробник Измерительный приёмник A (100 Гц – 1000 МГц)",
+      "Антенна штыревая активная Антенна A (9 кГц – 30 МГц)",
+      "Антенна биконическая Антенна A (30–300 МГц)",
+      "Антенна логопериодическая Антенна A (300–6000 МГц)",
+      "Антенна рупорная двухгребневая Антенна A (0,8–18 ГГц)",
+      "Мачта антенная Стенд A с антенным адаптером",
+      "ПО Лаборант ЭМС",
+      "Изделие в рабочем режиме",
+    ],
+  p214: [
+      "Генератор сигналов (CW + AM 80% / 1 кГц)",
+      "Усилитель мощности широкополосный (50 Ом)",
+      "Направленный ответвитель (для контроля прямой/отражённой мощности)",
+      "CDN (сеть связи/развязки) — для цепей питания и сигнальных портов",
+      "Токовые инжекционные клещи инжекция тока (для кабельных жгутов)",
+      "Монитор тока (контрольные токовые клещи)",
+      "Нагрузка 50 Ом на конце жгута",
+      "Изделие в рабочем режиме",
+      "Монитор работоспособности Изделия",
+      "Опорная металлическая плоскость заземления (ОМПЗ)",
+    ],
+  p215: [
+      "Генератор сигналов (CW + AM 80% / 1 кГц)",
+      "Усилитель мощности широкополосный",
+      "Направленный ответвитель",
+      "Антенна излучающая (рупорная для >200 МГц, bilog / логопериодическая для 20–1000 МГц)",
+      "Датчик (изотропный монитор) напряжённости поля — контроль уровня в реальном времени",
+      "Безэховая или полубезэховая камера (SAC / FAR)",
+      "Изделие в рабочем режиме",
+      "Монитор работоспособности Изделия (вне камеры)",
+      "Фильтры и ферриты на кабелях управления/мониторинга",
+    ],
+};
+
 const TESTS_DATA = [
   {
     id: "p15", short: "п.15", name: "Магнитное воздействие",
@@ -3659,6 +3748,7 @@ const TESTS_DATA = [
   },
 ].map(test => ({
   ...test,
+  setup: LEGACY_TEST_SETUPS[test.id] || test.setup,
   gost: true,
   range: test.parameters,
   normDoc: [test.standard, ...(test.relatedStandards || [])].join(". "),
@@ -4069,49 +4159,11 @@ function DiagVDI() {
   );
 }
 
-const TEST_SETUP_DIAGRAMS = {
-  magnetic: [["Источник сигнала", "Усилитель", "Испытательная катушка", "Испытуемое изделие"], ["Датчик магнитного поля", "Измеритель / контроль"]],
-  power: [["Программируемый источник AC/DC", "Измерительная цепь", "Испытуемое изделие"], ["Осциллограф", "Контроль изделия"]],
-  voltageSpike: [["Источник питания", "Устройство ввода импульса", "Испытуемое изделие"], ["Генератор импульса", "Устройство ввода импульса"]],
-  audioPower: [["Источник питания", "Цепь связи / развязки", "Испытуемое изделие"], ["Генератор сигнала", "Усилитель / ввод", "Цепь связи / развязки"]],
-  induced: [["Генератор сигнала", "Усилитель", "Устройство связи / индукции", "Кабельный жгут", "Испытуемое изделие"], ["Измеритель", "Контроль изделия"]],
-  rfParent: [["Источник РЧ-сигнала", "Воздействие через провод или поле", "Испытуемое изделие"], ["Измерение воздействия", "Контроль изделия"]],
-  bci: [["Генератор РЧ", "РЧ-усилитель", "Инжекционный пробник", "Кабельный жгут", "Испытуемое изделие"], ["Контрольный пробник", "Измеритель"]],
-  radiatedImmunity: [["Генератор РЧ", "Усилитель", "Испытательная антенна", "Электромагнитное поле", "Изделие + жгут"], ["Датчик поля", "Измеритель / контроль"]],
-  emissionParent: [["Испытуемое изделие", "Помеха по проводам или в пространстве", "Измерительная система"]],
-  conductedEmission: [["Испытуемое изделие", "Кабели / цепи питания", "Эквивалент сети или пробник", "Приёмник / анализатор"]],
-  radiatedEmission: [["Испытуемое изделие", "Излучаемая помеха", "Измерительная антенна", "Приёмник / анализатор"]],
-  esd: [["Генератор электростатического разряда", "Точка воздействия", "Испытуемое изделие"], ["Связующая плоскость", "Средства контроля"]],
+const TEST_DIAGRAMS = {
+  p15: DiagPFMF, p16_placeholder: DiagVDI, p17_placeholder: DiagSurge,
+  p18_placeholder: DiagCI, p19_placeholder: DiagBCI, p20_placeholder: DiagRI,
+  p204: DiagCI, p205: DiagRI, p21: DiagCE, p214: DiagBCI, p215: DiagRI, p25: DiagESD,
 };
-
-function TestSetupDiagram({ type, equipment = {} }) {
-  const lanes = TEST_SETUP_DIAGRAMS[type] || [];
-  const width = 900;
-  const nodeWidth = 150;
-  const nodeHeight = 54;
-  const height = 44 + lanes.length * 96;
-  const label = value => equipment[value] || value;
-  return <svg role="img" aria-label="Инженерная схема подключения испытательного оборудования" viewBox={`0 0 ${width} ${height}`} width="100%" style={{display:"block",minWidth:620}}>
-    <defs><marker id={`test-arrow-${type}`} markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#7C8CFF"/></marker></defs>
-    {lanes.map((lane, laneIndex) => {
-      const gap = (width - 40 - lane.length * nodeWidth) / Math.max(1, lane.length - 1);
-      const y = 24 + laneIndex * 96;
-      return <g key={laneIndex}>
-        {lane.map((item, index) => {
-          const x = 20 + index * (nodeWidth + gap);
-          const nextX = x + nodeWidth + gap;
-          const words = label(item).split(" ");
-          const midpoint = Math.ceil(words.length / 2);
-          return <g key={`${item}-${index}`}>
-            {index < lane.length - 1 && <line x1={x + nodeWidth} y1={y + nodeHeight/2} x2={nextX - 10} y2={y + nodeHeight/2} stroke="#7C8CFF" strokeWidth="2" markerEnd={`url(#test-arrow-${type})`}/>}
-            <rect x={x} y={y} width={nodeWidth} height={nodeHeight} rx="12" fill="#111C35" stroke={item.includes("Издел") ? "#22D3EE" : "#6D5CE7"} strokeWidth="2"/>
-            <text x={x + nodeWidth/2} y={y + 23} textAnchor="middle" fill="#F2F5FF" fontSize="13" fontWeight="700"><tspan x={x + nodeWidth/2}>{words.slice(0, midpoint).join(" ")}</tspan>{words.length > midpoint && <tspan x={x + nodeWidth/2} dy="17">{words.slice(midpoint).join(" ")}</tspan>}</text>
-          </g>;
-        })}
-      </g>;
-    })}
-  </svg>;
-}
 
 
 // ─── PROTOCOL TEMPLATES per test id ──────────────────────────────────────────
@@ -4753,14 +4805,19 @@ function TestDetail({ test, onBack }) {
             <div style={{fontSize:14,color:C.text,lineHeight:1.65}}>{test.simpleDescription || test.desc}</div>
             {test.alternateName && <div style={{fontSize:12,color:C.textSec,marginTop:8}}>Дополнительное обозначение: {test.alternateName}</div>}
           </div>
-          {test.diagram && <div style={styles.card}>
-            <div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:10,textTransform:"uppercase"}}>3. Схема подключения</div>
-            <div style={{background:"#071021",borderRadius:12,border:`1px solid ${C.border}`,padding:8,overflowX:"auto"}}><TestSetupDiagram type={test.diagram} /></div>
-            <div style={{fontSize:11,color:C.textSec,marginTop:8}}>Авторская принципиальная схема EMC Toolkit показывает типы оборудования; конкретный состав определяется методикой.</div>
-          </div>}
+          {TEST_DIAGRAMS[test.id] && (() => {
+            const DiagramComp = TEST_DIAGRAMS[test.id];
+            return <div style={styles.card}>
+              <div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:10,textTransform:"uppercase"}}>3. Схема подключения</div>
+              <div style={{background:"#F8FAFD",borderRadius:8,border:`1px solid ${C.border}`,padding:"10px 6px 6px",overflowX:"auto"}}><DiagramComp /></div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:10}}>{[
+                {color:"#E6F7EE",stroke:"#1A9B5A",label:"ИРИ (объект)"},{color:"#EAF0FD",stroke:"#1E5BE8",label:"ВЧ-тракт / CDN"},{color:"#FDECEA",stroke:"#D93025",label:"Воздействие"},{color:"#FFF4E5",stroke:"#E07B00",label:"Питание / поле"},{color:"#BDC3CC",stroke:"#7A8494",label:"Земля / ОМПЗ"},
+              ].map(item=><div key={item.label} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:14,height:14,borderRadius:3,background:item.color,border:`1.5px solid ${item.stroke}`}}/><span style={{fontSize:10,color:C.textSec}}>{item.label}</span></div>)}</div>
+            </div>;
+          })()}
           <div style={styles.card}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:10}}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,textTransform:"uppercase"}}>4. Что понадобится</div><div style={{display:"flex",gap:6}}><Button size="small" variant="secondary" onClick={()=>setEditingSetup(!editingSetup)}>{editingSetup?"Готово":"Изменить"}</Button>{editingSetup&&<Button size="small" variant="ghost" onClick={resetSetup}>Сбросить</Button>}</div></div>
-            {setupItems.map((item,index)=><div key={index} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",borderBottom:index<setupItems.length-1?`1px solid ${C.border}`:"none"}}><span style={{color:C.cyan,fontWeight:900}}>•</span><span style={{fontSize:13,color:C.text,flex:1}}>{item}</span>{editingSetup&&<Button size="small" variant="danger" onClick={()=>removeEquipLine(index)}>Удалить</Button>}</div>)}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:10}}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,textTransform:"uppercase"}}>Состав испытательного оборудования</div><div style={{display:"flex",gap:6}}><Button size="small" variant="secondary" onClick={()=>setEditingSetup(!editingSetup)}>{editingSetup?"Готово":"Изменить"}</Button>{editingSetup&&<Button size="small" variant="ghost" onClick={resetSetup}>Сбросить</Button>}</div></div>
+            {setupItems.map((item,index)=><div key={index} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",borderBottom:index<setupItems.length-1?`1px solid ${C.border}`:"none"}}><span style={{width:24,height:24,borderRadius:"50%",background:"#FDECEA",color:"#C0392B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,minWidth:24}}>{index+1}</span><span style={{fontSize:13,color:C.text,flex:1}}>{item}</span>{editingSetup&&<Button size="small" variant="danger" onClick={()=>removeEquipLine(index)}>Удалить</Button>}</div>)}
             {editingSetup&&<div style={{display:"flex",gap:8,marginTop:10}}><input style={{...styles.input,flex:1}} value={newEquipLine} onChange={e=>setNewEquipLine(e.target.value)} placeholder="Добавить оборудование"/><Button size="small" onClick={addEquipLine} disabled={!newEquipLine.trim()}>Добавить</Button></div>}
           </div>
           <div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>5. Подготовка</div>{content.before.map((item,index)=><div key={index} style={{fontSize:13,color:C.text,padding:"5px 0"}}>• {item}</div>)}</div>
