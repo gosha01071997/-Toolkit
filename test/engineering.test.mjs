@@ -8,6 +8,7 @@ import { EMC_LIMITS, evaluateLimit } from "../src/data/limits/emcLimits.mjs";
 import { MMHG_TO_PA, convertPressure } from "../src/calculations/pressure.mjs";
 import { addStep, createUserTest, deleteUserTest, migrateEquipmentItem, moveStep, removeStep, updateStep } from "../src/data/userData.mjs";
 import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "../src/data/catalog.mjs";
+import { CALIBRATION_STORAGE_KEY, calibrationBackup, calculateCorrectedValue, createCalibrationPoint, createCalibrationSet, exportCalibrationCsv, exportCalibrationJson, findCalibrationPoint, getCalibrationUnitRule, importCalibrationCsv, loadCalibrationSets, parseCalibrationCsv, restoreCalibrationBackup, saveCalibrationSets, sortCalibrationPoints } from "../src/data/calibration.mjs";
 import { readFileSync } from "node:fs";
 
 const close = (actual, expected, tolerance = 1e-10) => assert.ok(Math.abs(actual - expected) <= tolerance * Math.max(1, Math.abs(expected)), `${actual} ≉ ${expected}`);
@@ -83,6 +84,42 @@ test("общая форма оборудования сохраняет все �
   assert.equal(Object.keys(patch).length,7); assert.equal(patch.name,"Генератор A"); assert.equal(patch.photo,"data:image/png;base64,x");
 });
 test("выбранная иконка входит в общую транзакцию оборудования",()=>assert.equal(createEquipmentPatch({icon:"📡"}).icon,"📡"));
+
+test("набор раздела 21 сохраняет, загружает и обрабатывает 700+ точек", () => {
+  const points=Array.from({length:725},(_,i)=>createCalibrationPoint({frequency:.15+i*.01,frequencyUnit:"MHz",correction:i/10,correctionUnit:"dB",comment:`Точка ${i+1}`},i));
+  const set=createCalibrationSet({name:"Рабочий тракт",testType:"21.4",laboratory:"Лаборатория",workplace:"Стенд 2",equipmentIds:["e2","e5"],points},"2026-09-14T00:00:00.000Z");
+  const values=new Map(); const storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};
+  saveCalibrationSets(storage,[set]); const loaded=loadCalibrationSets(storage);
+  assert.equal(loaded[0].points.length,725); assert.deepEqual(loaded[0].equipmentIds,["e2","e5"]); assert.ok(values.has(CALIBRATION_STORAGE_KEY));
+  assert.equal(findCalibrationPoint(loaded[0],1.15,"MHz").comment,"Точка 101");
+  assert.equal(findCalibrationPoint(loaded[0],1150,"kHz").comment,"Точка 101");
+  assert.equal(findCalibrationPoint(loaded[0],1.151,"MHz"),null);
+});
+test("точки сортируются, изменяются и удаляются без изменения исходного массива",()=>{
+  const a=createCalibrationPoint({id:"a",frequency:30,correction:1},0),b=createCalibrationPoint({id:"b",frequency:10,correction:2},1);
+  assert.deepEqual(sortCalibrationPoints([a,b]).map(x=>x.id),["b","a"]);
+  const changed=[a,b].map(x=>x.id==="a"?{...x,correction:7}:x); assert.equal(changed[0].correction,7);
+  assert.deepEqual(changed.filter(x=>x.id!=="b").map(x=>x.id),["a"]);
+});
+test("CSV допускает ручное сопоставление лабораторных колонок и сообщает ошибки",()=>{
+  const parsed=parseCalibrationCsv("F;Cable;Total;Note\n30;1,2;3,4;ok\nbad;1;2;error\n40;;4,5;ok2");
+  const result=importCalibrationCsv(parsed,{frequency:0,cableLoss:1,correction:2,comment:3},{frequencyUnit:"MHz",correctionUnit:"dB"});
+  assert.equal(result.imported,2); assert.equal(result.errorCount,1); assert.equal(result.points[0].cableLoss,"1,2");
+  const csv=exportCalibrationCsv(createCalibrationSet({name:"T",testType:"21.5",points:result.points})); assert.match(csv,/frequencyUnit/); assert.match(csv,/ok2/);
+  const json=JSON.parse(exportCalibrationJson(createCalibrationSet({name:"T",testType:"21.5",equipmentIds:["e3"],points:result.points}))); assert.equal(json.calibrationSet.equipmentIds[0],"e3");
+});
+test("backup/restore содержит calibrationSets, а старый backup без поля совместим",()=>{
+  const set=createCalibrationSet({name:"T",testType:"21.5",points:[{frequency:1,correction:2}]});
+  assert.equal(restoreCalibrationBackup(calibrationBackup([set]))[0].name,"T");
+  assert.deepEqual(restoreCalibrationBackup({data:{legacy:true}}),[]);
+});
+test("поправка применяется только к совместимым единицам, предел необязателен",()=>{
+  assert.deepEqual(calculateCorrectedValue({measured:40,measuredUnit:"dB",correction:3,correctionUnit:"dB"}),{compatible:true,corrected:43,margin:null});
+  assert.deepEqual(calculateCorrectedValue({measured:40,measuredUnit:"dBµV",correction:3,correctionUnit:"dB"}),{compatible:true,corrected:43,margin:null});
+  assert.ok(getCalibrationUnitRule("dBμV/m","dB"));
+  assert.deepEqual(calculateCorrectedValue({measured:40,measuredUnit:"V",correction:3,correctionUnit:"dB"}),{compatible:false,corrected:null,margin:null});
+  assert.equal(calculateCorrectedValue({measured:40,measuredUnit:"dB",correction:3,correctionUnit:"dB",limit:50}).margin,7);
+});
 test("список журнала формируется из единого каталога, включая пользовательские испытания",()=>{
   const catalog=buildTestCatalog([{id:"p15",short:"п.15",name:"Магнитное воздействие"}],[{id:"u1",short:"U-1",name:"Пользовательское"}],{});
   assert.deepEqual(buildJournalTestOptions(catalog).map(x=>x.displayValue),["п.15 — Магнитное воздействие","U-1 — Пользовательское"]);
