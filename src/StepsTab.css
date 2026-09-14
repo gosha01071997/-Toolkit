@@ -1,0 +1,49 @@
+.steps-tab__card {
+  min-width: 0;
+}
+
+.steps-tab__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.steps-tab__drag-handle {
+  flex: 0 0 auto;
+}
+
+.steps-tab__content {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.steps-tab__content select,
+.steps-tab__content textarea {
+  max-width: 100%;
+}
+
+.steps-tab__text {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.steps-tab__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+@media (max-width: 600px) {
+  .steps-tab__content {
+    flex-basis: calc(100% - 52px);
+  }
+
+  .steps-tab__actions {
+    flex-basis: 100%;
+  }
+}
