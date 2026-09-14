@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import "./StepsTab.css";
 
 import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
@@ -4652,16 +4653,16 @@ function StepsTab({ testId, initialSteps = [] }) {
           {phaseSteps.length===0 && <div style={{...styles.card,color:C.textSec,fontSize:12,padding:12}}>Шагов пока нет</div>}
           {phaseSteps.map(({step,index:i}, phasePosition) => {
             const phaseColor = PHASE_COLORS[phase];
-            return <div key={`${step.n}-${i}`} onDragOver={editing ? e=>e.preventDefault() : undefined} onDrop={editing ? e=>dropStep(e,i,phase) : undefined} onClick={!editing ? () => toggle(i) : undefined} style={{ ...styles.card, cursor: editing ? "default" : "pointer", marginBottom: 8, borderLeft: `3px solid ${done[i] ? "#1A9B5A" : phaseColor}`, opacity: done[i] ? 0.6 : 1 }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-              {editing && <span draggable onDragStart={e=>{e.stopPropagation();e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i))}} title="Перетащить шаг" aria-label="Перетащить шаг" style={{cursor:"grab",fontSize:20,color:C.textSec,userSelect:"none"}}>⋮⋮</span>}
+            return <div className="steps-tab__card" key={`${step.n}-${i}`} onDragOver={editing ? e=>e.preventDefault() : undefined} onDrop={editing ? e=>dropStep(e,i,phase) : undefined} onClick={!editing ? () => toggle(i) : undefined} style={{ ...styles.card, cursor: editing ? "default" : "pointer", marginBottom: 8, borderLeft: `3px solid ${done[i] ? "#1A9B5A" : phaseColor}`, opacity: done[i] ? 0.6 : 1 }}>
+            <div className="steps-tab__row">
+              {editing && <span className="steps-tab__drag-handle" draggable onDragStart={e=>{e.stopPropagation();e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i))}} title="Перетащить шаг" aria-label="Перетащить шаг" style={{cursor:"grab",fontSize:20,color:C.textSec,userSelect:"none"}}>⋮⋮</span>}
               <div style={{ width: 28, height: 28, minWidth: 28, borderRadius: "50%", background: done[i] ? "#1A9B5A" : phaseColor, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, marginTop: 1 }}>
                 {done[i] ? "✓" : step.n}
               </div>
-              <div style={{ flex: 1 }}>
-                {editing ? <><select aria-label={`Этап шага ${step.n}`} style={{...styles.select,marginBottom:7}} value={phase} onChange={e=>saveSteps(updateStep(steps,i,{phase:e.target.value}))}>{STEP_PHASES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><textarea aria-label={`Текст шага ${step.n}`} style={{...styles.input,minHeight:58}} value={step.text} onChange={e=>saveSteps(updateStep(steps,i,{text:e.target.value}))}/></> : <div style={{ fontSize: 13, color: done[i] ? C.textSec : C.text, lineHeight: 1.65, textDecoration: done[i] ? "line-through" : "none" }}>{step.text}</div>}
+              <div className="steps-tab__content">
+                {editing ? <><select aria-label={`Этап шага ${step.n}`} style={{...styles.select,marginBottom:7}} value={phase} onChange={e=>saveSteps(updateStep(steps,i,{phase:e.target.value}))}>{STEP_PHASES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><textarea aria-label={`Текст шага ${step.n}`} style={{...styles.input,minHeight:58}} value={step.text} onChange={e=>saveSteps(updateStep(steps,i,{text:e.target.value}))}/></> : <div className="steps-tab__text" style={{ fontSize: 13, color: done[i] ? C.textSec : C.text, lineHeight: 1.65, textDecoration: done[i] ? "line-through" : "none" }}>{step.text}</div>}
               </div>
-              {editing && <div style={{display:"flex",gap:4}}><Button aria-label="Переместить вверх" title="Переместить вверх" size="icon" variant="secondary" disabled={phasePosition===0} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition-1].index))}>↑</Button><Button aria-label="Переместить вниз" title="Переместить вниз" size="icon" variant="secondary" disabled={phasePosition===phaseSteps.length-1} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition+1].index))}>↓</Button><Button onClick={()=>saveSteps(removeStep(steps,i))} variant="danger" size="small">Удалить</Button></div>}
+              {editing && <div className="steps-tab__actions"><Button aria-label="Переместить вверх" title="Переместить вверх" size="icon" variant="secondary" disabled={phasePosition===0} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition-1].index))}>↑</Button><Button aria-label="Переместить вниз" title="Переместить вниз" size="icon" variant="secondary" disabled={phasePosition===phaseSteps.length-1} onClick={()=>saveSteps(moveStep(steps,i,phaseSteps[phasePosition+1].index))}>↓</Button><Button onClick={()=>saveSteps(removeStep(steps,i))} variant="danger" size="small">Удалить</Button></div>}
             </div>
           </div>})}
         </section>;
