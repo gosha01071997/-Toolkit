@@ -4696,6 +4696,9 @@ function TestDetail({ test, onBack }) {
   });
   const [editingSetup, setEditingSetup] = useState(false);
   const [newEquipLine, setNewEquipLine] = useState("");
+  const [editingEquipIndex, setEditingEquipIndex] = useState(null);
+  const [editingEquipValue, setEditingEquipValue] = useState("");
+  const [editingEquipError, setEditingEquipError] = useState("");
   const [setupAdminModal, setSetupAdminModal] = useState(null);
 
   const saveSetup = (items) => {
@@ -4715,13 +4718,42 @@ function TestDetail({ test, onBack }) {
   };
 
   const removeEquipLine = (idx) => {
+    cancelEquipLineEdit();
     requestSetupAdmin("Удаление строки оборудования", () => {
       saveSetup(setupItems.filter((_, i) => i !== idx));
       setSetupAdminModal(null);
     });
   };
 
+  const startEquipLineEdit = (idx) => {
+    setEditingEquipIndex(idx);
+    setEditingEquipValue(setupItems[idx]);
+    setEditingEquipError("");
+  };
+
+  const cancelEquipLineEdit = () => {
+    setEditingEquipIndex(null);
+    setEditingEquipValue("");
+    setEditingEquipError("");
+  };
+
+  const saveEquipLineEdit = () => {
+    const value = editingEquipValue.trim();
+    if (!value) {
+      setEditingEquipError("Введите название оборудования");
+      return;
+    }
+    const idx = editingEquipIndex;
+    if (idx === null || idx < 0 || idx >= setupItems.length) return;
+    requestSetupAdmin("Редактирование строки оборудования", () => {
+      saveSetup(setupItems.map((item, index) => index === idx ? value : item));
+      cancelEquipLineEdit();
+      setSetupAdminModal(null);
+    });
+  };
+
   const resetSetup = () => {
+    cancelEquipLineEdit();
     requestSetupAdmin("Сброс к стандартному составу", () => {
       saveSetup([...test.setup]);
       setSetupAdminModal(null);
@@ -4821,9 +4853,18 @@ function TestDetail({ test, onBack }) {
             </div>;
           })()}
           <div style={styles.card}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:10}}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,textTransform:"uppercase"}}>Состав испытательного оборудования</div><div style={{display:"flex",gap:6}}><Button size="small" variant="secondary" onClick={()=>setEditingSetup(!editingSetup)}>{editingSetup?"Готово":"Изменить"}</Button>{editingSetup&&<Button size="small" variant="ghost" onClick={resetSetup}>Сбросить</Button>}</div></div>
-            {setupItems.map((item,index)=><div key={index} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",borderBottom:index<setupItems.length-1?`1px solid ${C.border}`:"none"}}><span style={{width:24,height:24,borderRadius:"50%",background:"#FDECEA",color:"#C0392B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,minWidth:24}}>{index+1}</span><span style={{fontSize:13,color:C.text,flex:1}}>{item}</span>{editingSetup&&<Button size="small" variant="danger" onClick={()=>removeEquipLine(index)}>Удалить</Button>}</div>)}
-            {editingSetup&&<div style={{display:"flex",gap:8,marginTop:10}}><input style={{...styles.input,flex:1}} value={newEquipLine} onChange={e=>setNewEquipLine(e.target.value)} placeholder="Добавить оборудование"/><Button size="small" onClick={addEquipLine} disabled={!newEquipLine.trim()}>Добавить</Button></div>}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,textTransform:"uppercase"}}>Состав испытательного оборудования</div><div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Button size="small" variant="secondary" onClick={()=>{setEditingSetup(value=>!value);cancelEquipLineEdit()}}>{editingSetup?"Готово":"Изменить"}</Button>{editingSetup&&<Button size="small" variant="ghost" onClick={resetSetup}>Сбросить</Button>}</div></div>
+            {setupItems.map((item,index)=><div key={index} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",borderBottom:index<setupItems.length-1?`1px solid ${C.border}`:"none",flexWrap:"wrap"}}>
+              <span style={{width:24,height:24,borderRadius:"50%",background:"#FDECEA",color:"#C0392B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,minWidth:24}}>{index+1}</span>
+              {editingEquipIndex===index ? <div style={{flex:"1 1 240px",minWidth:0}}>
+                <input aria-label={`Оборудование ${index+1}`} autoFocus style={{...styles.input,width:"100%",boxSizing:"border-box"}} value={editingEquipValue} onChange={e=>{setEditingEquipValue(e.target.value);setEditingEquipError("")}} onKeyDown={e=>{if(e.key==="Escape")cancelEquipLineEdit()}} />
+                {editingEquipError&&<div role="alert" style={{color:C.fail,fontSize:12,marginTop:5}}>{editingEquipError}</div>}
+              </div> : <span style={{fontSize:13,color:C.text,flex:"1 1 200px",minWidth:0,overflowWrap:"anywhere"}}>{item}</span>}
+              {editingSetup&&(editingEquipIndex===index
+                ? <div style={{display:"flex",gap:6,flexWrap:"wrap",marginLeft:"auto"}}><Button size="small" onClick={saveEquipLineEdit}>Сохранить</Button><Button size="small" variant="secondary" onClick={cancelEquipLineEdit}>Отмена</Button></div>
+                : <div style={{display:"flex",gap:6,flexWrap:"wrap",marginLeft:"auto"}}><Button size="small" variant="secondary" onClick={()=>startEquipLineEdit(index)}>✎ Редактировать</Button><Button size="small" variant="danger" onClick={()=>removeEquipLine(index)}>Удалить</Button></div>)}
+            </div>)}
+            {editingSetup&&<div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}><input style={{...styles.input,flex:"1 1 220px",minWidth:0}} value={newEquipLine} onChange={e=>setNewEquipLine(e.target.value)} placeholder="Добавить оборудование"/><Button size="small" onClick={addEquipLine} disabled={!newEquipLine.trim()}>Добавить</Button></div>}
           </div>
           <div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>5. Подготовка</div>{content.before.map((item,index)=><div key={index} style={{fontSize:13,color:C.text,padding:"5px 0"}}>• {item}</div>)}</div>
           {test.calibration&&<div style={styles.card}><div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>6. Калибровка</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{test.calibration}</div></div>}
