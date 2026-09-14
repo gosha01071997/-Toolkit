@@ -14,6 +14,7 @@ import { getActiveLicense, removeLicense, saveLicense } from "./license";
 import { convertPressure, formatEngineeringPressure } from "./calculations/pressure.mjs";
 import { EQUIPMENT_TYPES, addStep, moveStep, removeStep, updateStep, createUserTest, migrateEquipmentItem } from "./data/userData.mjs";
 import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "./data/catalog.mjs";
+import P204Scenario from "./features/tests/P204Scenario";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -4586,7 +4587,12 @@ ${h1("1. ОБЩИЕ СВЕДЕНИЯ")}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-function StepsTab({ testId, initialSteps = [] }) {
+function StepsTab({ testId, initialSteps = [], equipment = [], notes = "" }) {
+  if (testId === "p204") return <><P204Scenario view="steps" equipment={equipment} userSteps={initialSteps} notes={notes} /><LegacyStepsTab testId={testId} initialSteps={initialSteps} /></>;
+  return <LegacyStepsTab testId={testId} initialSteps={initialSteps} />;
+}
+
+function LegacyStepsTab({ testId, initialSteps = [] }) {
   const originalSteps = STEPS_DATA[testId] || initialSteps || [];
   const stepsKey = `emc_test_steps_${testId}`;
   const [steps, setSteps] = useState(() => {
@@ -4830,10 +4836,11 @@ function TestDetail({ test, onBack }) {
         {!editingContent ? <Button variant="secondary" onClick={()=>{setContentDraft(content);setEditingContent(true)}}>Редактировать</Button> : <><Button onClick={saveContent}>Сохранить</Button><Button variant="secondary" onClick={()=>setEditingContent(false)}>Отмена</Button></>}
       </div>}
 
-      {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} />}
+      {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} equipment={EQUIPMENT_DATA} notes={notes} />}
       {tab === "calibration" && test.id === "p215" && <CalibrationManager equipment={EQUIPMENT_DATA} initialTestType="21.5" />}
       {tab === "info" && (
         <div>
+          {test.id === "p204" && <P204Scenario equipment={EQUIPMENT_DATA} userSteps={test.steps} notes={notes} />}
           <div style={styles.card}>
             <div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>1. Что проверяем</div>
             <div style={{fontSize:14,color:C.text,lineHeight:1.65}}>{test.desc}</div>
@@ -4878,10 +4885,10 @@ function TestDetail({ test, onBack }) {
           {!test.custom&&<div style={{background:"rgba(124,140,255,.06)",border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",fontSize:12,color:C.textSec,lineHeight:1.6}}>EMC Toolkit является инженерным вспомогательным инструментом и не заменяет действующую нормативную документацию. Параметры, категории и критерии конкретного испытания необходимо определять по применимой редакции нормативного документа и программе испытаний.</div>}
         </div>
       )}
-      {tab === "schema" && <><SchemaEditor testId={test.id} setupItems={setupItems} /><div style={styles.card}><div style={{fontWeight:800,marginBottom:8}}>Пользовательское изображение схемы</div>{(editingContent?contentDraft:content).schemaImage && <img src={(editingContent?contentDraft:content).schemaImage} alt="Пользовательская схема" style={{maxWidth:"100%",maxHeight:420,borderRadius:10,display:"block",marginBottom:10}}/>}{editingContent && <div style={{display:"flex",gap:8}}><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setContentDraft(p=>({...p,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{contentDraft.schemaImage && <button style={styles.btn("fail")} onClick={()=>setContentDraft(p=>({...p,schemaImage:""}))}>Удалить изображение</button>}</div>}{!(editingContent?contentDraft:content).schemaImage && !editingContent && <div style={{color:C.textSec}}>Пользовательское изображение не загружено.</div>}</div></>}
-      {tab === "before" && (editingContent ? <EditableChecklist section="before" title="До испытания"/> : <CheckList items={content.before} checks={checksBefore} setChecks={setChecksBefore} title="Чек-лист ДО испытания" />)}
-      {tab === "during" && (editingContent ? <EditableChecklist section="during" title="Во время испытания"/> : <CheckList items={content.during} checks={checksDuring} setChecks={setChecksDuring} title="Чек-лист ВО ВРЕМЯ испытания" />)}
-      {tab === "after" && (editingContent ? <EditableChecklist section="after" title="После испытания"/> : <CheckList items={content.after} checks={checksAfter} setChecks={setChecksAfter} title="Чек-лист ПОСЛЕ испытания" />)}
+      {tab === "schema" && <>{test.id === "p204" && <P204Scenario view="schema" equipment={EQUIPMENT_DATA} userSteps={test.steps} notes={notes} />}<SchemaEditor testId={test.id} setupItems={setupItems} /><div style={styles.card}><div style={{fontWeight:800,marginBottom:8}}>Пользовательское изображение схемы</div>{(editingContent?contentDraft:content).schemaImage && <img src={(editingContent?contentDraft:content).schemaImage} alt="Пользовательская схема" style={{maxWidth:"100%",maxHeight:420,borderRadius:10,display:"block",marginBottom:10}}/>}{editingContent && <div style={{display:"flex",gap:8}}><label style={styles.btn("secondary")}>Загрузить / заменить<input type="file" accept="image/*" hidden onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setContentDraft(p=>({...p,schemaImage:String(r.result||"")}));r.readAsDataURL(f)}}/></label>{contentDraft.schemaImage && <button style={styles.btn("fail")} onClick={()=>setContentDraft(p=>({...p,schemaImage:""}))}>Удалить изображение</button>}</div>}{!(editingContent?contentDraft:content).schemaImage && !editingContent && <div style={{color:C.textSec}}>Пользовательское изображение не загружено.</div>}</div></>}
+      {tab === "before" && <>{test.id === "p204" && <P204Scenario view="before" equipment={EQUIPMENT_DATA} userSteps={test.steps} notes={notes} />}{editingContent ? <EditableChecklist section="before" title="До испытания"/> : <CheckList items={content.before} checks={checksBefore} setChecks={setChecksBefore} title="Чек-лист ДО испытания" />}</>}
+      {tab === "during" && <>{test.id === "p204" && <P204Scenario view="during" equipment={EQUIPMENT_DATA} userSteps={test.steps} notes={notes} />}{editingContent ? <EditableChecklist section="during" title="Во время испытания"/> : <CheckList items={content.during} checks={checksDuring} setChecks={setChecksDuring} title="Чек-лист ВО ВРЕМЯ испытания" />}</>}
+      {tab === "after" && <>{test.id === "p204" && <P204Scenario view="after" equipment={EQUIPMENT_DATA} userSteps={test.steps} notes={notes} />}{editingContent ? <EditableChecklist section="after" title="После испытания"/> : <CheckList items={content.after} checks={checksAfter} setChecks={setChecksAfter} title="Чек-лист ПОСЛЕ испытания" />}</>}
       {tab === "notes" && (
         <div style={styles.card}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>Заметки по испытанию</div>
