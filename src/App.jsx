@@ -4,6 +4,7 @@ import SpectrumAnalyzer from "./features/spectrum/SpectrumAnalyzer";
 import ProtocolGenerator from "./features/protocol/ProtocolGenerator";
 import CommandPalette, { useCommandPalette } from "./components/CommandPalette";
 import Button from "./components/Button";
+import CalibrationManager from "./features/calibration/CalibrationManager";
 import { AntennaEngineeringCalc, NormativeLimitsCalc, ReverberationChamberCalc, ShieldingCalc } from "./features/engineering/EngineeringCalculators";
 import { AI_MODEL, AI_UNAVAILABLE_MESSAGE } from "./config/ai";
 import { SUPPORT_URL } from "./config/support";
@@ -37,7 +38,7 @@ const C = {
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
-const APP_DATA_SCHEMA_VERSION = "2026-09-emc-tests-pressure-equipment-v2";
+const APP_DATA_SCHEMA_VERSION = "2026-09-section21-calibration-v1";
 const USER_DATA_BACKUP_KEY = "emc_user_backups_v1";
 const USER_DATA_SCHEMA_KEY = "emc_user_data_schema_version_v1";
 const USER_DATA_KEY_PREFIXES = ["emc_", "emcdb:"];
@@ -76,6 +77,7 @@ const createUserDataBackup = (reason = "manual") => {
     appDataSchemaVersion: APP_DATA_SCHEMA_VERSION,
     keys: Object.keys(snapshot).sort(),
     data: snapshot,
+    calibrationSets: (() => { try { const value = JSON.parse(snapshot.emc_calibration_sets_v1 || "[]"); return Array.isArray(value) ? value : []; } catch { return []; } })(),
   };
   try {
     const next = [entry, ...readBackupLog()].slice(0, 10);
@@ -87,11 +89,12 @@ const createUserDataBackup = (reason = "manual") => {
 };
 
 const restoreUserDataBackup = (entry) => {
-  if (!entry?.data) return { ok: false, error: "Резервная копия не выбрана" };
+  if (!entry?.data && !Array.isArray(entry?.calibrationSets)) return { ok: false, error: "Резервная копия не выбрана" };
   try {
-    Object.entries(entry.data).forEach(([key, value]) => {
+    Object.entries(entry.data || {}).forEach(([key, value]) => {
       if (isUserDataStorageKey(key) && value !== null && value !== undefined) localStorage.setItem(key, value);
     });
+    if (Array.isArray(entry.calibrationSets)) localStorage.setItem("emc_calibration_sets_v1", JSON.stringify(entry.calibrationSets));
     localStorage.setItem(USER_DATA_SCHEMA_KEY, entry.appDataSchemaVersion || APP_DATA_SCHEMA_VERSION);
     return { ok: true };
   } catch (e) {
@@ -4767,6 +4770,7 @@ function TestDetail({ test, onBack }) {
     { id: "during", label: "Во время" },
     { id: "after", label: "После" },
     { id: "notes", label: "Заметки" },
+    ...(test.id === "p215" ? [{ id: "calibration", label: "Калибровка измерительного тракта" }] : []),
   ];
 
   return (
@@ -4794,6 +4798,7 @@ function TestDetail({ test, onBack }) {
       </div>}
 
       {tab === "steps" && <StepsTab testId={test.id} initialSteps={test.steps} />}
+      {tab === "calibration" && test.id === "p215" && <CalibrationManager equipment={EQUIPMENT_DATA} initialTestType="21.5" />}
       {tab === "info" && (
         <div>
           <div style={styles.card}>
@@ -5136,6 +5141,7 @@ function SchemaEditor({ testId, setupItems }) {
 
 function TestsScreen() {
   const [selected, setSelected] = useState(null);
+  const [calibrationOpen, setCalibrationOpen] = useState(false);
   const [customTests, setCustomTests] = useState(()=>{try{return JSON.parse(localStorage.getItem("emc_custom_tests_v1")||"[]")}catch(e){return []}});
   const [overrides, setOverrides] = useState(()=>{try{return JSON.parse(localStorage.getItem("emc_test_overrides_v1")||"{}")}catch(e){return {}}});
   const [editing, setEditing] = useState(null);
@@ -5147,10 +5153,11 @@ function TestsScreen() {
   const saveTest=()=>{ const value=toTest(); if(editing?.custom||!editing?.id){const item=createUserTest(value,editing?.id?Number(editing.id.replace(/\D/g,""))||Date.now():Date.now());const next=editing?.id?customTests.map(x=>x.id===editing.id?{...item,id:x.id}:x):[...customTests,item];setCustomTests(next);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(next));}else{const next={...overrides,[editing.id]:value};setOverrides(next);localStorage.setItem("emc_test_overrides_v1",JSON.stringify(next));}setEditing(null);setDraft(blank);};
   const openEdit=t=>{setEditing(t);setDraft({...t,setup:(t.setup||[]).join("\n"),steps:(t.steps||STEPS_DATA[t.id]||[]).map(x=>x.text).join("\n"),before:(t.before||[]).join("\n"),during:(t.during||[]).join("\n"),after:(t.after||[]).join("\n")})};
   if(selected)return <TestDetail test={selected} onBack={()=>setSelected(null)}/>;
+  if(calibrationOpen)return <PageContainer><CalibrationManager equipment={EQUIPMENT_DATA} onClose={()=>setCalibrationOpen(false)}/></PageContainer>;
   const fields=[["short","Номер / обозначение"],["name","Название"],["standard","Стандарт"],["normDoc","Нормативный документ"],["criteria","Критерии качества функционирования"],["range","Диапазон / тип"],["desc","Описание"],["setup","Состав испытательного оборудования (по строке)"],["steps","Шаги (по строке)"],["before","До (по строке)"],["during","Во время (по строке)"],["after","После (по строке)"],["notes","Заметки"]];
   return <PageContainer>
     <SectionHero title="КТ-160G / 14G — испытания бортового оборудования" subtitle="Инженерные методики EMC Toolkit для подготовки и проведения испытаний. Конкретные режимы и уровни определяются действующей нормативной документацией и категорией оборудования." stats={[{value:TESTS_DATA.length,label:"встроенных"},{value:customTests.length,label:"пользовательских"},{value:"КТ-160G / 14G",label:"основной стандарт"}]}/>
-    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><Button onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</Button></div>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12}}><Button variant="secondary" onClick={()=>setCalibrationOpen(true)}>Калибровка измерительного тракта</Button><Button onClick={()=>{setEditing({custom:true});setDraft(blank)}}>+ Добавить испытание</Button></div>
     {editing&&<div style={styles.card}><div style={{fontSize:18,fontWeight:800,marginBottom:12}}>{editing.id?"Редактировать испытание":"Новое испытание"}</div>{fields.map(([k,l])=><Field key={k} label={l}>{["desc","normDoc","criteria","setup","steps","before","during","after","notes"].includes(k)?<textarea style={{...styles.input,minHeight:64}} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>:<input style={styles.input} value={draft[k]||""} onChange={e=>setDraft({...draft,[k]:e.target.value})}/>}</Field>)}<div style={{display:"flex",gap:8}}><Button onClick={saveTest}>Сохранить</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Отмена</Button></div></div>}
     <SectionHeader title="Встроенные авиационные испытания" caption="Пользовательские методики сохраняются отдельно; каждый встроенный шаблон можно редактировать" count={`${allTests.length} карточек`} accent="#7C8CFF"/>
     <div className="premium-list">{allTests.map(t=><div key={t.id} className="premium-card premium-card-action" onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"64px minmax(0,1fr) auto",gap:16,alignItems:"center",padding:16,borderLeft:"3px solid "+(t.custom?C.cyan:t.parent?"#A78BFA":"#7C8CFF"),marginLeft:!t.custom&&["p204","p205","p214","p215"].includes(t.id)?16:0}}><div className="premium-icon-box">{t.short}</div><div><div style={{fontSize:16,fontWeight:850}}>{t.name}</div><div style={{fontSize:13,color:C.text,marginTop:6,lineHeight:1.5}}>Простыми словами: {t.simpleDescription||t.desc}</div><div style={{fontSize:12,color:C.textSec,marginTop:6}}>{t.custom?(t.standard||"Пользовательская методика"):t.standard}</div>{t.alternateName&&<div style={{fontSize:11,color:C.textSec,marginTop:4}}>Также встречается обозначение: {t.alternateName}</div>}</div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}><Button variant="secondary" onClick={e=>{e.stopPropagation();openEdit(t)}}>Редактировать</Button>{t.custom&&<Button variant="danger" onClick={e=>{e.stopPropagation();if(window.confirm("Удалить пользовательское испытание?")){const n=customTests.filter(x=>x.id!==t.id);setCustomTests(n);localStorage.setItem("emc_custom_tests_v1",JSON.stringify(n))}}}>Удалить</Button>}</div></div>)}</div>
