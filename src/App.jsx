@@ -15,6 +15,7 @@ import { convertPressure, formatEngineeringPressure } from "./calculations/press
 import { EQUIPMENT_TYPES, addStep, moveStep, removeStep, updateStep, createUserTest, migrateEquipmentItem } from "./data/userData.mjs";
 import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "./data/catalog.mjs";
 import P204Scenario from "./features/tests/P204Scenario";
+import P215RadiatedLimitCalculator from "./features/tests/P215RadiatedLimitCalculator";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -4841,6 +4842,7 @@ function TestDetail({ test, onBack }) {
       {tab === "info" && (
         <div>
           {test.id === "p204" && <P204Scenario equipment={EQUIPMENT_DATA} userSteps={test.steps} notes={notes} />}
+          {test.id === "p215" && <P215RadiatedLimitCalculator />}
           <div style={styles.card}>
             <div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>1. Что проверяем</div>
             <div style={{fontSize:14,color:C.text,lineHeight:1.65}}>{test.desc}</div>
