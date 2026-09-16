@@ -7,6 +7,7 @@
   "main": "electron.js",
   "scripts": {
     "dev": "vite",
+    "test": "node --test test/*.test.*",
     "build": "vite build",
     "build:community": "VITE_APP_EDITION=community vite build",
     "build:personal": "VITE_APP_EDITION=personal vite build",
