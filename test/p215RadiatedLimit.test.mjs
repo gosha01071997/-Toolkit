@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateP215RadiatedLimit, generateP215RadiatedLimitTable } from "../src/calculations/p215RadiatedLimit.mjs";
+import { calculateP215RadiatedLimit, generateP215RadiatedLimitChartPoints, generateP215RadiatedLimitTable, P215_CATEGORY_LIMITS } from "../src/calculations/p215RadiatedLimit.mjs";
 
 const expected = {
   L: [[200,49.4179438808],[300,52.2292408316],[400,54.2238877616],[1000,60.577],[6000,73.0001847124]],
@@ -36,4 +36,105 @@ test("п.21.5: таблица из 701 точки сохраняет полну�
 test("п.21.5: некорректный диапазон таблицы безопасно отклоняется", () => {
   assert.deepEqual(generateP215RadiatedLimitTable({ category: "B", startMHz: 300, endMHz: 100, stepMHz: 1 }), []);
   assert.deepEqual(generateP215RadiatedLimitTable({ category: "B", startMHz: 100, endMHz: 300, stepMHz: 0 }), []);
+});
+
+test("п.21.5: M/P/Q описаны piecewise-архитектурой, но не рассчитываются до подтверждения сегментов", () => {
+  for (const category of ["M", "P", "Q"]) {
+    const definition = P215_CATEGORY_LIMITS[category];
+    assert.deepEqual(definition.baseCurve, { type: "log10", slope: 15.965, intercept: 12.682 });
+    assert.deepEqual(definition.piecewiseSegments, []);
+    assert.equal(definition.calculationAvailable, false);
+    assert.deepEqual(calculateP215RadiatedLimit(200, category), {
+      frequencyMHz: 200, category, limitDbUvM: null, inRange: true, calculationAvailable: false,
+    });
+  }
+});
+
+test("п.21.5: H рассчитывает endpoints всех пяти notch-сегментов", () => {
+  for (const { frequencyMHz, limitDbUvM } of P215_CATEGORY_LIMITS.H.verifiedPoints) {
+    const result = calculateP215RadiatedLimit(frequencyMHz, "H");
+    assert.equal(result.calculationAvailable, true);
+    assert.ok(Math.abs(result.limitDbUvM - limitDbUvM) < 1e-12);
+  }
+});
+
+test("п.21.5: H интерполирует середины сегментов линейно по log10(frequency)", () => {
+  for (const segment of P215_CATEGORY_LIMITS.H.piecewiseSegments) {
+    const midpointMHz = Math.sqrt(segment.startMHz * segment.endMHz);
+    const expectedLimit = (segment.startLimitDbUvM + segment.endLimitDbUvM) / 2;
+    assert.ok(Math.abs(calculateP215RadiatedLimit(midpointMHz, "H").limitDbUvM - expectedLimit) < 1e-12);
+  }
+});
+
+test("п.21.5: H использует базовую кривую вне notch-сегментов", () => {
+  for (const frequencyMHz of [100, 200, 500, 1400, 3000, 6000]) {
+    const expectedLimit = 15.965 * Math.log10(frequencyMHz) + 12.682;
+    assert.ok(Math.abs(calculateP215RadiatedLimit(frequencyMHz, "H").limitDbUvM - expectedLimit) < 1e-12);
+  }
+});
+
+test("п.21.5: H переключается на endpoints notch без сглаживания границ", () => {
+  const deltaMHz = 1e-6;
+  for (const segment of P215_CATEGORY_LIMITS.H.piecewiseSegments) {
+    const beforeStart = calculateP215RadiatedLimit(segment.startMHz - deltaMHz, "H");
+    const atStart = calculateP215RadiatedLimit(segment.startMHz, "H");
+    const afterStart = calculateP215RadiatedLimit(segment.startMHz + deltaMHz, "H");
+    const beforeEnd = calculateP215RadiatedLimit(segment.endMHz - deltaMHz, "H");
+    const atEnd = calculateP215RadiatedLimit(segment.endMHz, "H");
+    const afterEnd = calculateP215RadiatedLimit(segment.endMHz + deltaMHz, "H");
+
+    assert.ok(Math.abs(beforeStart.limitDbUvM - (15.965 * Math.log10(segment.startMHz - deltaMHz) + 12.682)) < 1e-9);
+    assert.equal(atStart.limitDbUvM, segment.startLimitDbUvM);
+    assert.ok(Math.abs(afterStart.limitDbUvM - segment.startLimitDbUvM) < 1e-6);
+    assert.ok(Math.abs(beforeEnd.limitDbUvM - segment.endLimitDbUvM) < 1e-6);
+    assert.equal(atEnd.limitDbUvM, segment.endLimitDbUvM);
+    assert.ok(Math.abs(afterEnd.limitDbUvM - (15.965 * Math.log10(segment.endMHz + deltaMHz) + 12.682)) < 1e-9);
+  }
+});
+
+test("п.21.5: график H содержит вертикальные переходы на каждой границе notch", () => {
+  const points = generateP215RadiatedLimitChartPoints("H");
+  for (const segment of P215_CATEGORY_LIMITS.H.piecewiseSegments) {
+    const startPoints = points.filter(point => point.frequencyMHz === segment.startMHz);
+    const endPoints = points.filter(point => point.frequencyMHz === segment.endMHz);
+    assert.deepEqual(startPoints.map(point => point.limitDbUvM), [
+      15.965 * Math.log10(segment.startMHz) + 12.682, segment.startLimitDbUvM,
+    ]);
+    assert.deepEqual(endPoints.map(point => point.limitDbUvM), [
+      segment.endLimitDbUvM, 15.965 * Math.log10(segment.endMHz) + 12.682,
+    ]);
+  }
+});
+
+test("п.21.5: H отклоняет частоты за пределами рабочего диапазона", () => {
+  for (const frequencyMHz of [99, 6001]) {
+    const result = calculateP215RadiatedLimit(frequencyMHz, "H");
+    assert.equal(result.inRange, false);
+    assert.equal(result.limitDbUvM, null);
+  }
+});
+
+test("п.21.5: таблица H использует тот же piecewise calculation engine", () => {
+  const rows = generateP215RadiatedLimitTable({ category: "H", startMHz: 108, endMHz: 152, stepMHz: 22 });
+  assert.equal(rows.length, 3);
+  for (const row of rows) assert.deepEqual(row, calculateP215RadiatedLimit(row.frequencyMHz, "H"));
+  assert.equal(rows[0].limitDbUvM, 25);
+  assert.equal(rows[2].limitDbUvM, 27.5);
+});
+
+test("п.21.5: H хранит только однозначно подтверждённые контрольные точки", () => {
+  assert.deepEqual(P215_CATEGORY_LIMITS.H.verifiedPoints, [
+    { frequencyMHz: 108, limitDbUvM: 25 }, { frequencyMHz: 152, limitDbUvM: 27.5 },
+    { frequencyMHz: 320, limitDbUvM: 37.7 }, { frequencyMHz: 340, limitDbUvM: 38.1 },
+    { frequencyMHz: 960, limitDbUvM: 45.3 }, { frequencyMHz: 1215, limitDbUvM: 47 },
+    { frequencyMHz: 1525, limitDbUvM: 48.5 }, { frequencyMHz: 1680, limitDbUvM: 49.2 },
+    { frequencyMHz: 5020, limitDbUvM: 56.8 }, { frequencyMHz: 5100, limitDbUvM: 56.9 },
+  ]);
+});
+
+test("п.21.5: уровни P/Q хранятся отдельно и не сопоставляются частотам", () => {
+  for (const category of ["P", "Q"]) {
+    assert.deepEqual(P215_CATEGORY_LIMITS[category].verifiedBreakpointsMHz, [108, 152, 320, 340, 960, 1164, 1215, 1525, 1559, 1610, 1680, 5020, 5100]);
+    assert.deepEqual(P215_CATEGORY_LIMITS[category].unmappedVerifiedLevelsDbUvM, [25, 27.5, 37.7, 38.1, 38, 38.5, 40, 40.2, 44.6, 45.3, 47, 48.5, 48.65, 48.7, 49.17, 56.8, 56.9, 73]);
+  }
 });
