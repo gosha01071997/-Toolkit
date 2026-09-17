@@ -22,6 +22,10 @@ const H_PIECEWISE_SEGMENTS = Object.freeze([
   [1525, 48.5, 1680, 49.2],
   [5020, 56.8, 5100, 56.9],
 ].map(([startMHz, startLimitDbUvM, endMHz, endLimitDbUvM]) => Object.freeze({
+  // Figure 21-9 uses a logarithmic frequency axis. A visually straight segment
+  // between its verified endpoints is therefore linear in log10(frequency).
+  // This reproduces the plotted geometry; it is not a claim that the text of
+  // DO-160G independently prescribes a general interpolation method.
   type: "log10-linear", startMHz, startLimitDbUvM, endMHz, endLimitDbUvM,
 })));
 
@@ -76,4 +80,33 @@ export function generateP215RadiatedLimitTable({ category, startMHz, endMHz, ste
   const frequencies = Array.from({ length: count + 1 }, (_, index) => start + index * step);
   if (frequencies.at(-1) < end - 1e-9) frequencies.push(end);
   return frequencies.map(frequency => calculateP215RadiatedLimit(frequency, category));
+}
+
+export function generateP215RadiatedLimitChartPoints(category, sampleCount = 181) {
+  const normalizedCategory = String(category || "").toUpperCase();
+  const categoryLimit = P215_CATEGORY_LIMITS[normalizedCategory];
+  if (!categoryLimit?.calculationAvailable || !Number.isInteger(sampleCount) || sampleCount < 2) return [];
+
+  const points = Array.from({ length: sampleCount }, (_, index) => {
+    const frequency = P215_MIN_FREQUENCY_MHZ
+      * (P215_MAX_FREQUENCY_MHZ / P215_MIN_FREQUENCY_MHZ) ** (index / (sampleCount - 1));
+    return { ...calculateP215RadiatedLimit(frequency, normalizedCategory), order: 0 };
+  });
+
+  for (const segment of categoryLimit.piecewiseSegments) {
+    const start = calculateP215RadiatedLimit(segment.startMHz, normalizedCategory);
+    const end = calculateP215RadiatedLimit(segment.endMHz, normalizedCategory);
+    const baseAtStart = categoryLimit.baseCurve.slope * Math.log10(segment.startMHz) + categoryLimit.baseCurve.intercept;
+    const baseAtEnd = categoryLimit.baseCurve.slope * Math.log10(segment.endMHz) + categoryLimit.baseCurve.intercept;
+    points.push(
+      { ...start, limitDbUvM: baseAtStart, order: -1 },
+      { ...start, order: 0 },
+      { ...end, order: 0 },
+      { ...end, limitDbUvM: baseAtEnd, order: 1 },
+    );
+  }
+
+  return points
+    .sort((left, right) => left.frequencyMHz - right.frequencyMHz || left.order - right.order)
+    .map(({ order, ...point }) => point);
 }

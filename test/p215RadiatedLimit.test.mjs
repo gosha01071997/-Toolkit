@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateP215RadiatedLimit, generateP215RadiatedLimitTable, P215_CATEGORY_LIMITS } from "../src/calculations/p215RadiatedLimit.mjs";
+import { calculateP215RadiatedLimit, generateP215RadiatedLimitChartPoints, generateP215RadiatedLimitTable, P215_CATEGORY_LIMITS } from "../src/calculations/p215RadiatedLimit.mjs";
 
 const expected = {
   L: [[200,49.4179438808],[300,52.2292408316],[400,54.2238877616],[1000,60.577],[6000,73.0001847124]],
@@ -70,6 +70,47 @@ test("п.21.5: H использует базовую кривую вне notch-�
   for (const frequencyMHz of [100, 200, 500, 1400, 3000, 6000]) {
     const expectedLimit = 15.965 * Math.log10(frequencyMHz) + 12.682;
     assert.ok(Math.abs(calculateP215RadiatedLimit(frequencyMHz, "H").limitDbUvM - expectedLimit) < 1e-12);
+  }
+});
+
+test("п.21.5: H переключается на endpoints notch без сглаживания границ", () => {
+  const deltaMHz = 1e-6;
+  for (const segment of P215_CATEGORY_LIMITS.H.piecewiseSegments) {
+    const beforeStart = calculateP215RadiatedLimit(segment.startMHz - deltaMHz, "H");
+    const atStart = calculateP215RadiatedLimit(segment.startMHz, "H");
+    const afterStart = calculateP215RadiatedLimit(segment.startMHz + deltaMHz, "H");
+    const beforeEnd = calculateP215RadiatedLimit(segment.endMHz - deltaMHz, "H");
+    const atEnd = calculateP215RadiatedLimit(segment.endMHz, "H");
+    const afterEnd = calculateP215RadiatedLimit(segment.endMHz + deltaMHz, "H");
+
+    assert.ok(Math.abs(beforeStart.limitDbUvM - (15.965 * Math.log10(segment.startMHz - deltaMHz) + 12.682)) < 1e-9);
+    assert.equal(atStart.limitDbUvM, segment.startLimitDbUvM);
+    assert.ok(Math.abs(afterStart.limitDbUvM - segment.startLimitDbUvM) < 1e-6);
+    assert.ok(Math.abs(beforeEnd.limitDbUvM - segment.endLimitDbUvM) < 1e-6);
+    assert.equal(atEnd.limitDbUvM, segment.endLimitDbUvM);
+    assert.ok(Math.abs(afterEnd.limitDbUvM - (15.965 * Math.log10(segment.endMHz + deltaMHz) + 12.682)) < 1e-9);
+  }
+});
+
+test("п.21.5: график H содержит вертикальные переходы на каждой границе notch", () => {
+  const points = generateP215RadiatedLimitChartPoints("H");
+  for (const segment of P215_CATEGORY_LIMITS.H.piecewiseSegments) {
+    const startPoints = points.filter(point => point.frequencyMHz === segment.startMHz);
+    const endPoints = points.filter(point => point.frequencyMHz === segment.endMHz);
+    assert.deepEqual(startPoints.map(point => point.limitDbUvM), [
+      15.965 * Math.log10(segment.startMHz) + 12.682, segment.startLimitDbUvM,
+    ]);
+    assert.deepEqual(endPoints.map(point => point.limitDbUvM), [
+      segment.endLimitDbUvM, 15.965 * Math.log10(segment.endMHz) + 12.682,
+    ]);
+  }
+});
+
+test("п.21.5: H отклоняет частоты за пределами рабочего диапазона", () => {
+  for (const frequencyMHz of [99, 6001]) {
+    const result = calculateP215RadiatedLimit(frequencyMHz, "H");
+    assert.equal(result.inRange, false);
+    assert.equal(result.limitDbUvM, null);
   }
 });
 

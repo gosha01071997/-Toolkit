@@ -1,10 +1,8 @@
 import React, { useMemo, useState } from "react";
 import {
   calculateP215RadiatedLimit,
+  generateP215RadiatedLimitChartPoints,
   generateP215RadiatedLimitTable,
-  P215_CATEGORY_LIMITS,
-  P215_MAX_FREQUENCY_MHZ,
-  P215_MIN_FREQUENCY_MHZ,
 } from "../../calculations/p215RadiatedLimit.mjs";
 
 const panel = { background: "#101827", border: "1px solid rgba(148,163,184,.18)", borderRadius: 12, padding: 16, marginBottom: 14 };
@@ -18,13 +16,7 @@ function LimitChart({ mode }) {
   const categories = mode === "BL" ? ["B", "L"] : [mode];
   const series = useMemo(() => categories.map(category => ({
     category,
-    points: [...new Set([
-      ...Array.from({ length: 181 }, (_, index) => {
-        const frequency = P215_MIN_FREQUENCY_MHZ * (P215_MAX_FREQUENCY_MHZ / P215_MIN_FREQUENCY_MHZ) ** (index / 180);
-        return frequency;
-      }),
-      ...P215_CATEGORY_LIMITS[category].piecewiseSegments.flatMap(segment => [segment.startMHz, segment.endMHz]),
-    ])].sort((left, right) => left - right).map(frequency => calculateP215RadiatedLimit(frequency, category)),
+    points: generateP215RadiatedLimitChartPoints(category),
   })), [mode]);
   const x = frequency => 50 + Math.log10(frequency / 100) / Math.log10(60) * 700;
   const minimumLimit = mode === "H" ? 20 : 40;
