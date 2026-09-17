@@ -38,8 +38,8 @@ test("п.21.5: некорректный диапазон таблицы безо
   assert.deepEqual(generateP215RadiatedLimitTable({ category: "B", startMHz: 100, endMHz: 300, stepMHz: 0 }), []);
 });
 
-test("п.21.5: M/H/P/Q описаны piecewise-архитектурой, но не рассчитываются до подтверждения сегментов", () => {
-  for (const category of ["M", "H", "P", "Q"]) {
+test("п.21.5: M/P/Q описаны piecewise-архитектурой, но не рассчитываются до подтверждения сегментов", () => {
+  for (const category of ["M", "P", "Q"]) {
     const definition = P215_CATEGORY_LIMITS[category];
     assert.deepEqual(definition.baseCurve, { type: "log10", slope: 15.965, intercept: 12.682 });
     assert.deepEqual(definition.piecewiseSegments, []);
@@ -48,6 +48,37 @@ test("п.21.5: M/H/P/Q описаны piecewise-архитектурой, но �
       frequencyMHz: 200, category, limitDbUvM: null, inRange: true, calculationAvailable: false,
     });
   }
+});
+
+test("п.21.5: H рассчитывает endpoints всех пяти notch-сегментов", () => {
+  for (const { frequencyMHz, limitDbUvM } of P215_CATEGORY_LIMITS.H.verifiedPoints) {
+    const result = calculateP215RadiatedLimit(frequencyMHz, "H");
+    assert.equal(result.calculationAvailable, true);
+    assert.ok(Math.abs(result.limitDbUvM - limitDbUvM) < 1e-12);
+  }
+});
+
+test("п.21.5: H интерполирует середины сегментов линейно по log10(frequency)", () => {
+  for (const segment of P215_CATEGORY_LIMITS.H.piecewiseSegments) {
+    const midpointMHz = Math.sqrt(segment.startMHz * segment.endMHz);
+    const expectedLimit = (segment.startLimitDbUvM + segment.endLimitDbUvM) / 2;
+    assert.ok(Math.abs(calculateP215RadiatedLimit(midpointMHz, "H").limitDbUvM - expectedLimit) < 1e-12);
+  }
+});
+
+test("п.21.5: H использует базовую кривую вне notch-сегментов", () => {
+  for (const frequencyMHz of [100, 200, 500, 1400, 3000, 6000]) {
+    const expectedLimit = 15.965 * Math.log10(frequencyMHz) + 12.682;
+    assert.ok(Math.abs(calculateP215RadiatedLimit(frequencyMHz, "H").limitDbUvM - expectedLimit) < 1e-12);
+  }
+});
+
+test("п.21.5: таблица H использует тот же piecewise calculation engine", () => {
+  const rows = generateP215RadiatedLimitTable({ category: "H", startMHz: 108, endMHz: 152, stepMHz: 22 });
+  assert.equal(rows.length, 3);
+  for (const row of rows) assert.deepEqual(row, calculateP215RadiatedLimit(row.frequencyMHz, "H"));
+  assert.equal(rows[0].limitDbUvM, 25);
+  assert.equal(rows[2].limitDbUvM, 27.5);
 });
 
 test("п.21.5: H хранит только однозначно подтверждённые контрольные точки", () => {

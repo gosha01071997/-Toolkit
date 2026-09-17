@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import {
   calculateP215RadiatedLimit,
   generateP215RadiatedLimitTable,
+  P215_CATEGORY_LIMITS,
   P215_MAX_FREQUENCY_MHZ,
   P215_MIN_FREQUENCY_MHZ,
 } from "../../calculations/p215RadiatedLimit.mjs";
@@ -17,17 +18,22 @@ function LimitChart({ mode }) {
   const categories = mode === "BL" ? ["B", "L"] : [mode];
   const series = useMemo(() => categories.map(category => ({
     category,
-    points: Array.from({ length: 181 }, (_, index) => {
-      const frequency = P215_MIN_FREQUENCY_MHZ * (P215_MAX_FREQUENCY_MHZ / P215_MIN_FREQUENCY_MHZ) ** (index / 180);
-      return calculateP215RadiatedLimit(frequency, category);
-    }),
+    points: [...new Set([
+      ...Array.from({ length: 181 }, (_, index) => {
+        const frequency = P215_MIN_FREQUENCY_MHZ * (P215_MAX_FREQUENCY_MHZ / P215_MIN_FREQUENCY_MHZ) ** (index / 180);
+        return frequency;
+      }),
+      ...P215_CATEGORY_LIMITS[category].piecewiseSegments.flatMap(segment => [segment.startMHz, segment.endMHz]),
+    ])].sort((left, right) => left - right).map(frequency => calculateP215RadiatedLimit(frequency, category)),
   })), [mode]);
   const x = frequency => 50 + Math.log10(frequency / 100) / Math.log10(60) * 700;
-  const y = limit => 260 - (limit - 40) / 60 * 220;
+  const minimumLimit = mode === "H" ? 20 : 40;
+  const y = limit => 260 - (limit - minimumLimit) / (100 - minimumLimit) * 220;
+  const yTicks = mode === "H" ? [20, 40, 60, 80, 100] : [40, 60, 80, 100];
 
   return <div style={{ overflowX: "auto" }}><svg role="img" aria-label={`График предельных линий ${mode === "BL" ? "B и L" : mode}`} viewBox="0 0 800 300" style={{ display: "block", minWidth: 620, width: "100%" }}>
     <rect x="50" y="40" width="700" height="220" fill="#0B1220" stroke="#334155" />
-    {[40, 60, 80, 100].map(value => <g key={value}><line x1="50" x2="750" y1={y(value)} y2={y(value)} stroke="#25324A"/><text x="43" y={y(value)+4} fill="#94A3B8" fontSize="11" textAnchor="end">{value}</text></g>)}
+    {yTicks.map(value => <g key={value}><line x1="50" x2="750" y1={y(value)} y2={y(value)} stroke="#25324A"/><text x="43" y={y(value)+4} fill="#94A3B8" fontSize="11" textAnchor="end">{value}</text></g>)}
     {[100, 300, 1000, 3000, 6000].map(value => <g key={value}><line x1={x(value)} x2={x(value)} y1="40" y2="260" stroke="#25324A"/><text x={x(value)} y="279" fill="#94A3B8" fontSize="11" textAnchor="middle">{value}</text></g>)}
     {series.map(item => item.points.every(point => point.calculationAvailable) && <polyline key={item.category} points={item.points.map(point => `${x(point.frequencyMHz)},${y(point.limitDbUvM)}`).join(" ")} fill="none" stroke={item.category === "B" ? "#60A5FA" : "#34D399"} strokeWidth="3" />)}
     <text x="400" y="297" fill="#94A3B8" fontSize="12" textAnchor="middle">Частота, MHz (логарифмическая шкала)</text>
@@ -65,7 +71,7 @@ export default function P215RadiatedLimitCalculator() {
 
     <h4>График</h4>
     <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>{["B","L","M","H","P","Q","BL"].map(mode => <button key={mode} aria-pressed={chartMode === mode} style={button(chartMode === mode)} onClick={() => setChartMode(mode)}>{mode === "BL" ? "B + L" : mode}</button>)}</div>
-    {!(["B", "L", "BL"].includes(chartMode)) && <p role="status" style={{ color: "#F59E0B" }}>{unavailableMessage}</p>}
+    {!(["B", "L", "H", "BL"].includes(chartMode)) && <p role="status" style={{ color: "#F59E0B" }}>{unavailableMessage}</p>}
     <LimitChart mode={chartMode}/>
   </section>;
 }
