@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculate, computeTableRows, createScenario, equipmentMatchesType, getVisibleStages, parseTablePaste, searchEquipment } from "../src/features/guidedTest/engine.mjs";
+import { calculate, computeTableRows, createScenario, equipmentMatchesType, equipmentOptionLabels, getVisibleStages, parseTablePaste, searchEquipment } from "../src/features/guidedTest/engine.mjs";
 import { deletePhoto, loadPhotos, loadProgress, readExistingEquipment, savePhoto, saveProgress } from "../src/features/guidedTest/persistence.mjs";
 import { demoScenario } from "../src/features/guidedTest/demoScenario.mjs";
 
@@ -52,4 +52,18 @@ test("чтение каталога обратно совместимо и не 
   const storage = memoryStorage({ emc_custom_equip_v1: JSON.stringify(original), legacy_unrelated_key: "keep" });
   assert.equal(readExistingEquipment(storage, [])[0].name, "Старый прибор");
   assert.equal(storage.getItem("legacy_unrelated_key"), "keep"); assert.deepEqual(JSON.parse(storage.getItem("emc_custom_equip_v1")), original);
+});
+
+test("безымянные записи оборудования получают различимые presentation fallback", () => {
+  const items = [{ id: "1", name: "Новое оборудование" }, { id: "2", name: "", manufacturer: "", model: "" }, { id: "3", name: "Компас", manufacturer: "Завод", model: "К-1" }];
+  const labels = equipmentOptionLabels(items);
+  assert.equal(labels.get("1"), "Оборудование без названия #1");
+  assert.equal(labels.get("2"), "Оборудование без названия #2");
+  assert.equal(labels.get("3"), "Компас · Завод · К-1");
+});
+
+test("DEMO по умолчанию сохраняет checklist и подтверждение этапа", () => {
+  assert.notEqual(demoScenario.showStageCompletion, false);
+  assert.notEqual(demoScenario.stages.preparation.showActionCompletion, false);
+  assert.equal(demoScenario.stages.preparation.actions[0].id, "inspect");
 });

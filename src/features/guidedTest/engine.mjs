@@ -54,6 +54,18 @@ export function searchEquipment(items, query = "") {
     .some(value => String(value || "").toLocaleLowerCase("ru").includes(needle)));
 }
 
+export function equipmentOptionLabels(items) {
+  const unnamed = array(items).filter(item => {
+    const name = String(item?.name || "").trim();
+    return (!name || name === "Новое оборудование") && !String(item?.manufacturer || "").trim() && !String(item?.model || "").trim();
+  });
+  return new Map(array(items).map(item => {
+    const unnamedIndex = unnamed.indexOf(item);
+    if (unnamedIndex >= 0) return [item.id, `Оборудование без названия${unnamed.length > 1 ? ` #${unnamedIndex + 1}` : ""}`];
+    return [item.id, `${item.name || "Оборудование без названия"} · ${item.manufacturer || "производитель не указан"} · ${item.model || "модель не указана"}`];
+  }));
+}
+
 const normalizedType = value => String(value || "").toLocaleLowerCase("ru").replace(/\s+/g, " ");
 export function equipmentMatchesType(item, requirement) {
   const type = normalizedType(item?.type);

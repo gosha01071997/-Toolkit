@@ -19,6 +19,24 @@ export function classifyMagneticEffect(distance, reachesControlDeflection = true
   return "C";
 }
 
+export const MAGNETIC_EFFECT_CATEGORY_RANGES = Object.freeze({
+  Y: "Контрольное отклонение Dc не достигается даже при минимально возможном расстоянии.",
+  Z: "0 < D ≤ 0,3 м",
+  A: "0,3 < D ≤ 1 м",
+  B: "1 < D ≤ 3 м",
+  C: "D > 3 м",
+});
+
+export function getMagneticEffectResult(values) {
+  const reaches = values.reachesDc !== "no";
+  const distance = reaches ? normalizeNumber(values.distance) : 0;
+  if (reaches && !Number.isFinite(distance)) return null;
+  const category = classifyMagneticEffect(distance, reaches);
+  let dc = null;
+  try { dc = calculateControlDeflection(values.h); } catch {}
+  return { category, distance, categoryRange: MAGNETIC_EFFECT_CATEGORY_RANGES[category], dc };
+}
+
 export function checkFieldUniformity(value) {
   const change = normalizeNumber(value);
   if (!Number.isFinite(change)) return { ok: false, invalid: true };
