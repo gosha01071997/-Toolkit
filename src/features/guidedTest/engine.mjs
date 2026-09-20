@@ -1,8 +1,8 @@
-export const STAGE_ORDER = ["conditions", "equipment", "preparation", "diagram", "settings", "calibration", "procedure", "result"];
+export const STAGE_ORDER = ["conditions", "equipment", "preparation", "diagram", "measurementSetup", "settings", "calibration", "procedure", "result"];
 
 export const STAGE_TITLES = {
   conditions: "Условия испытания", equipment: "Оборудование", preparation: "Подготовка",
-  diagram: "Схема", settings: "Настройка", calibration: "Калибровка",
+  diagram: "Схема", measurementSetup: "Подготовка измерительной системы", settings: "Настройка", calibration: "Калибровка",
   procedure: "Проведение испытания", result: "Результат",
 };
 
@@ -18,12 +18,22 @@ export function createScenario(source = {}) {
 }
 
 export function getVisibleStages(scenario) {
-  return STAGE_ORDER.filter(id => {
+  return (scenario.stageOrder || STAGE_ORDER).filter(id => {
     const stage = scenario.stages?.[id];
     if (stage?.hidden === true || stage?.enabled === false) return false;
     if (id === "calibration") return Boolean(stage?.required);
     return Boolean(stage);
   }).map(id => ({ id, title: scenario.stages[id].title || STAGE_TITLES[id], ...scenario.stages[id] }));
+}
+
+export function isVisible(definition, inputs) {
+  return typeof definition?.visibleWhen !== "function" || definition.visibleWhen(inputs);
+}
+
+export function validateField(definition, value, inputs = {}) {
+  if (!isVisible(definition, inputs)) return null;
+  if (typeof definition.validate === "function") return definition.validate(value, inputs);
+  return null;
 }
 
 export function normalizeNumber(value) {
