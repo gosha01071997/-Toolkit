@@ -1,9 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-labelledby="title desc">
- <title id="title">Схема установки для испытания на магнитное воздействие</title><desc id="desc">Компас слева, испытуемое изделие справа, между ними расстояние D.</desc>
- <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#60a5fa"/></marker><marker id="both" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto-start-reverse"><path d="M8 0L0 4L8 8z" fill="#fbbf24"/></marker></defs>
- <rect width="1000" height="520" rx="22" fill="#0b1220"/><path d="M90 420H910" stroke="#64748b" stroke-width="12"/><text x="500" y="458" text-anchor="middle" fill="#94a3b8" font-family="sans-serif">Немагнитная поверхность / опоры</text>
- <path d="M110 130V45" stroke="#60a5fa" stroke-width="5" marker-end="url(#arrow)"/><text x="110" y="30" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="22">Север</text><path d="M45 155H180" stroke="#60a5fa" stroke-width="4" marker-end="url(#arrow)"/><text x="112" y="185" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="18">Запад — Восток</text>
- <circle cx="280" cy="290" r="90" fill="#172554" stroke="#60a5fa" stroke-width="5"/><circle cx="280" cy="290" r="8" fill="#fbbf24"/><path d="M280 215L300 305L280 290L260 305z" fill="#f87171"/><text x="280" y="400" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="20">Компас / магнитный датчик</text><text x="280" y="320" text-anchor="middle" fill="#fbbf24" font-family="sans-serif">ось</text>
- <rect x="650" y="220" width="230" height="150" rx="12" fill="#163349" stroke="#34d399" stroke-width="5"/><text x="765" y="285" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="23">Испытуемое</text><text x="765" y="315" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="23">изделие</text><path d="M880 310C940 310 920 390 970 390" fill="none" stroke="#a78bfa" stroke-width="8"/><text x="900" y="285" fill="#c4b5fd" font-family="sans-serif">Жгут</text>
- <path d="M290 175V130M650 220V130M300 145H640" stroke="#fbbf24" stroke-width="4" marker-start="url(#both)" marker-end="url(#both)"/><text x="470" y="120" text-anchor="middle" fill="#fbbf24" font-family="sans-serif" font-weight="bold" font-size="28">D</text><text x="470" y="175" text-anchor="middle" fill="#fde68a" font-family="sans-serif" font-size="16">от оси до ближайшей части изделия</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">Схема установки для испытания на магнитное воздействие</title>
+  <desc id="desc">Вид сверху: магнитный индикатор слева, Испытуемое изделие справа, испытательный жгут отведён на восток вдоль линии Запад — Восток. Расстояние D показано от оси индикатора до ближайшей части изделия.</desc>
+  <defs>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#60a5fa"/></marker>
+    <marker id="goldArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#fbbf24"/></marker>
+    <pattern id="surface" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M0 24L24 0M-6 6L6-6M18 30L30 18" stroke="#334155" stroke-width="2"/></pattern>
+  </defs>
+  <rect width="1200" height="650" rx="24" fill="#0b1220"/>
+  <text x="45" y="48" fill="#94a3b8" font-family="sans-serif" font-size="18">ВИД СВЕРХУ</text>
+
+  <rect x="55" y="85" width="1090" height="485" rx="18" fill="url(#surface)" stroke="#64748b" stroke-width="3"/>
+  <text x="600" y="610" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="20">Немагнитная поверхность / немагнитные опоры</text>
+
+  <path d="M300 505V130" stroke="#60a5fa" stroke-width="4" stroke-dasharray="10 9" marker-end="url(#blueArrow)"/>
+  <text x="300" y="118" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="24" font-weight="bold">Север</text>
+  <text x="300" y="540" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="24" font-weight="bold">Юг</text>
+  <text x="320" y="175" fill="#93c5fd" font-family="sans-serif" font-size="18">ось магнитного индикатора (Север — Юг)</text>
+
+  <path d="M95 325H1100" stroke="#60a5fa" stroke-width="4" stroke-dasharray="12 9" marker-end="url(#blueArrow)"/>
+  <text x="95" y="305" fill="#fff" font-family="sans-serif" font-size="23" font-weight="bold">Запад</text>
+  <text x="1095" y="305" text-anchor="end" fill="#fff" font-family="sans-serif" font-size="23" font-weight="bold">Восток</text>
+  <text x="600" y="350" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="17">линия Запад — Восток</text>
+
+  <circle cx="300" cy="325" r="92" fill="#172554" stroke="#60a5fa" stroke-width="6"/>
+  <circle cx="300" cy="325" r="10" fill="#fbbf24" stroke="#fff" stroke-width="2"/>
+  <path d="M300 247L324 340L300 325L276 340Z" fill="#f87171"/>
+  <text x="300" y="430" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="20" font-weight="bold">Магнитный индикатор / компас</text>
+  <text x="300" y="460" text-anchor="middle" fill="#fbbf24" font-family="sans-serif" font-size="17">ось измерения D</text>
+
+  <rect x="650" y="240" width="245" height="170" rx="16" fill="#163349" stroke="#34d399" stroke-width="6"/>
+  <rect x="680" y="410" width="44" height="36" rx="5" fill="#475569"/><rect x="821" y="410" width="44" height="36" rx="5" fill="#475569"/>
+  <text x="772" y="310" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="25" font-weight="bold">Испытуемое</text>
+  <text x="772" y="342" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="25" font-weight="bold">изделие</text>
+  <text x="772" y="385" text-anchor="middle" fill="#a7f3d0" font-family="sans-serif" font-size="16">на немагнитных опорах</text>
+
+  <path d="M895 325H1080" fill="none" stroke="#c4b5fd" stroke-width="18" stroke-linecap="round"/>
+  <path d="M910 315H1080M910 325H1080M910 335H1080" fill="none" stroke="#7c3aed" stroke-width="3"/>
+  <text x="985" y="388" text-anchor="middle" fill="#ddd6fe" font-family="sans-serif" font-size="20" font-weight="bold">Испытательный жгут</text>
+  <text x="985" y="414" text-anchor="middle" fill="#c4b5fd" font-family="sans-serif" font-size="16">отведён на восток по линии Запад — Восток</text>
+
+  <path d="M300 210V185M650 240V185M312 198H638" stroke="#fbbf24" stroke-width="5" marker-start="url(#goldArrow)" marker-end="url(#goldArrow)"/>
+  <text x="475" y="178" text-anchor="middle" fill="#fbbf24" font-family="sans-serif" font-size="30" font-weight="bold">D</text>
+  <text x="475" y="225" text-anchor="middle" fill="#fde68a" font-family="sans-serif" font-size="17">от оси индикатора</text>
+  <text x="475" y="247" text-anchor="middle" fill="#fde68a" font-family="sans-serif" font-size="17">до ближайшей части изделия</text>
 </svg>

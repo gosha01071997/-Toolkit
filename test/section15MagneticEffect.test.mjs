@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { calculateControlDeflection, checkFieldUniformity, checkLaboratoryConditions, classifyMagneticEffect, getMagneticEffectResult } from "../src/features/guidedTest/section15Calculations.mjs";
 import { SECTION_15_SETUP_IMAGE, section15MagneticEffect } from "../src/features/guidedTest/scenarios/section15MagneticEffect.mjs";
@@ -38,15 +38,43 @@ test("при Y поле D скрыто и не требуется", () => {
 test("при перемещении индикатора отображается проверка однородности", () => {
   const stage = section15MagneticEffect.stages.distance;
   assert.equal(isVisible(stage.fields.find(field => field.id === "uniformity"), { method: "sensor" }), true);
-  assert.equal(isVisible(stage.notices[0], { method: "sensor" }), true);
-  assert.match(stage.notices[0].text, /±0,5°/);
+  assert.match(stage.fields.find(field => field.id === "uniformity").hint, /±0,5°/);
+});
+test("при неизвестном H переход требует средство измерения и корректное H", () => {
+  const stage = section15MagneticEffect.stages.magneticField;
+  assert.equal(stage.canAdvance({ hKnown: "no", h: "14,4" }, { equipment: {} }), false);
+  assert.equal(stage.canAdvance({ hKnown: "no", h: "14,4" }, { equipment: { magnetometer: "meter" } }), true);
+  assert.equal(stage.canAdvance({ hKnown: "no", h: "0" }, { equipment: { magnetometer: "meter" } }), false);
+});
+test("при известном H средство измерения не обязательно", () => {
+  assert.equal(section15MagneticEffect.stages.magneticField.canAdvance({ hKnown: "yes", h: "14,4" }, { equipment: {} }), true);
+});
+test("рабочая инструкция автоматически подставляет пересчитанное Dc", () => {
+  const stop = section15MagneticEffect.stages.distance.actions.find(action => action.id === "eutStop");
+  assert.match(stop.instruction({ h: "10" }), /Dc = 1,44°/);
+  assert.match(stop.instruction({ h: "20" }), /Dc = 0,72°/);
+});
+test("каждый метод D показывает физически соответствующие инструкции", () => {
+  const actions = section15MagneticEffect.stages.distance.actions;
+  const eut = actions.filter(action => isVisible(action, { method: "eut" }));
+  const sensor = actions.filter(action => isVisible(action, { method: "sensor" }));
+  assert.ok(eut.some(action => String(action.instruction).includes("приближайте изделие")));
+  assert.ok(!sensor.some(action => String(action.instruction).includes("приближайте изделие")));
+  assert.ok(sensor.some(action => String(action.instruction).includes("магнитный индикатор к неподвижному изделию")));
 });
 test("итог повторяет рассчитанную ранее категорию", () => {
   const inputs = { reachesDc: "yes", distance: "0,42", h: "14", temperature: "20", humidity: "50", pressure: "100" };
   assert.equal(section15MagneticEffect.stages.distance.measurementResult(inputs).category, "A");
   assert.equal(section15MagneticEffect.stages.result.result(inputs).category, getMagneticEffectResult(inputs).category);
 });
-test("схема Section 15 является импортируемым production-ресурсом", async () => { assert.match(SECTION_15_SETUP_IMAGE, /section15-setup\.svg/); await access(fileURLToPath(SECTION_15_SETUP_IMAGE)); });
+test("схема Section 15 является импортируемым production-ресурсом без сокращения «ИО»", async () => {
+  assert.match(SECTION_15_SETUP_IMAGE, /section15-setup\.svg/);
+  const path = fileURLToPath(SECTION_15_SETUP_IMAGE);
+  await access(path);
+  const svg = await readFile(path, "utf8");
+  assert.doesNotMatch(svg, /\bИО\b/);
+  for (const label of ["Север", "Юг", "Запад", "Восток", "Испытуемое изделие", "Испытательный жгут", "Немагнитная поверхность", ">D<"]) assert.match(svg, new RegExp(label));
+});
 test("структурированный прогресс Section 15 восстанавливается целиком", () => {
   const data = new Map(); const storage = { getItem: key => data.get(key) || null, setItem: (key, value) => data.set(key, value) };
   const progress = { currentStage: 4, completed: {}, inputs: { eutName: "Блок", eutModel: "Б-1", eutNote: "Стенд", temperature: "20", humidity: "50", pressure: "100", hKnown: "no", h: "14,4", maximumMode: "Рабочий", method: "sensor", uniformity: "0,2", distance: "0,42", reachesDc: "yes" }, equipment: { deflectionInstrument: "compass", magnetometer: "meter" } };
