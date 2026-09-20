@@ -48,5 +48,6 @@ export function createEquipmentPatch(draft = {}) {
     desc: String(draft.desc || ""), specs: Array.isArray(draft.specs) ? draft.specs : draft.specs || "",
     photo: String(draft.photo || ""), icon: String(draft.icon || "🔧"),
     ...(draft.antennaProfile ? { antennaProfile: draft.antennaProfile } : {}),
+    ...(draft.calibrationCharacteristic ? { calibrationCharacteristic: draft.calibrationCharacteristic } : {}),
   };
 }
