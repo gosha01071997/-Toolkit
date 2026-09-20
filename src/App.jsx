@@ -18,6 +18,8 @@ import P204Scenario from "./features/tests/P204Scenario";
 import P215RadiatedLimitCalculator from "./features/tests/P215RadiatedLimitCalculator";
 import P214ConductedRfLimitCalculator from "./features/tests/P214ConductedRfLimitCalculator";
 import CharacteristicTable from "./features/equipment/CharacteristicTable";
+import GuidedTestRunner from "./features/guidedTest/GuidedTestRunner";
+import { demoScenario } from "./features/guidedTest/demoScenario.mjs";
 import { characteristicDefinitionForEquipment, normalizeEquipmentCharacteristic } from "./data/equipmentCharacteristics.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
@@ -7835,6 +7837,7 @@ function AppInner() {
     { id: "home", title: "Главная", section: "Разделы", keywords: "home main старт", action: () => handleTab("home") },
     { id: "calc", title: "Калькуляторы", section: "Разделы", keywords: "расчёт db dbm vswr конвертер", action: () => handleTab("calc") },
     { id: "tests", title: "Испытания", section: "Разделы", keywords: "гост методика стенд", action: () => handleTab("tests") },
+    { id: "guided", title: "Пошаговое испытание", section: "Разделы", keywords: "сценарий процедура demo", action: () => handleTab("guided") },
     { id: "ref", title: "Справочники", section: "Разделы", keywords: "нормы единицы стандарты сокращения", action: () => handleTab("ref") },
     { id: "equip", title: "Оборудование", section: "Разделы", keywords: "арм приборы фотографии", action: () => handleTab("equip") },
     { id: "ai", title: "ИИ-помощник", section: "Разделы", keywords: "чат вопрос помощь ai ии", action: () => handleTab("ai") },
@@ -7864,6 +7867,7 @@ function AppInner() {
     { id: "home",   label: "Главная",      svgPath: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10" },
     { id: "calc",   label: "Калькуляторы", svgPath: "M4 6h16M4 10h16M4 14h16M4 18h16" },
     { id: "tests",  label: "Испытания",    svgPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+    { id: "guided", label: "Пошаговое испытание", svgPath: "M5 13l4 4L19 7 M5 5h14 M5 21h14" },
     { id: "ref",    label: "Справочники",  svgPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
     { id: "equip",  label: "Оборудование", svgPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0" },
     { id: "verify", label: "Проверка оборудования", svgPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0" },
@@ -7990,6 +7994,7 @@ function AppInner() {
               {tab === "home" && <HomeScreen setTab={handleTab} setCalcId={handleSetCalcId} onQuiz={() => setQuizOpen(true)} onErrors={() => setErrorsOpen(true)} onVerify={() => setVerifyOpen(true)} />}
               {tab === "calc" && <CalculatorsScreen calcId={calcId} setCalcId={setCalcId} />}
               {tab === "tests" && hasFeature("tests") && <TestsScreen />}
+              {tab === "guided" && <GuidedTestRunner scenario={demoScenario} onOpenEquipment={() => handleTab("equip")} />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
               {tab === "equip" && hasFeature("equipment") && <EquipmentTab />}
               {tab === "log" && hasFeature("advancedJournal") && <LogbookScreen />}
