@@ -17,6 +17,8 @@ import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrat
 import P204Scenario from "./features/tests/P204Scenario";
 import P215RadiatedLimitCalculator from "./features/tests/P215RadiatedLimitCalculator";
 import P214ConductedRfLimitCalculator from "./features/tests/P214ConductedRfLimitCalculator";
+import CharacteristicTable from "./features/equipment/CharacteristicTable";
+import { characteristicDefinitionForEquipment, normalizeEquipmentCharacteristic } from "./data/equipmentCharacteristics.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -5773,6 +5775,7 @@ const normalizeSpecs = (specs, fallback = "") => {
 const normalizeEquipmentItem = (item, editPatch = {}) => {
   const merged = migrateEquipmentItem({ ...item, ...editPatch });
   const specs = normalizeSpecs(merged.specs, "Добавьте технические характеристики");
+  const characteristicDefinition = characteristicDefinitionForEquipment(merged.type);
   return {
     ...merged,
     name: typeof merged.name === "string" ? merged.name : String(merged.name || ""),
@@ -5782,6 +5785,7 @@ const normalizeEquipmentItem = (item, editPatch = {}) => {
     photo: typeof merged.photo === "string" ? merged.photo : "",
     specs,
     antennaProfile: normalizeAntennaProfile(merged.antennaProfile),
+    ...(characteristicDefinition ? { calibrationCharacteristic: normalizeEquipmentCharacteristic(merged.calibrationCharacteristic, characteristicDefinition) } : {}),
     deleted: Boolean(merged.deleted),
   };
 };
@@ -5818,6 +5822,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
   const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
   const onPhotoChange=event=>{const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>set("photo",String(reader.result||""));reader.readAsDataURL(file);event.target.value=""};
   const save=()=>onSaveChanges(e.id,createEquipmentPatch({...draft,specs:normalizeSpecs(draft.specs,"")}));
+  const characteristicDefinition=characteristicDefinitionForEquipment(draft.type);
   return <div><BackBtn onBack={onBack}/>
     <div style={{...styles.card,background:"linear-gradient(135deg,#0D1627,#1C2D50)",border:"none"}}>
       <div style={{fontSize:18,fontWeight:850,marginBottom:14}}>Редактирование оборудования</div>
@@ -5828,6 +5833,7 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
       <Field label="Описание"><textarea style={{...styles.input,minHeight:72}} value={draft.desc||""} onChange={x=>set("desc",x.target.value)}/></Field>
       <Field label="Технические характеристики">{draft.specs.map((row,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8,marginBottom:8}}><input style={styles.input} placeholder="Параметр" value={row.key||""} onChange={x=>set("specs",draft.specs.map((v,j)=>j===i?{...v,key:x.target.value}:v))}/><input style={styles.input} placeholder="Значение" value={row.value||""} onChange={x=>set("specs",draft.specs.map((v,j)=>j===i?{...v,value:x.target.value}:v))}/><button style={styles.btn("fail")} onClick={()=>set("specs",draft.specs.filter((_,j)=>j!==i))}>Удалить</button></div>)}<button style={styles.btn("secondary")} onClick={()=>set("specs",[...draft.specs,{key:"",value:""}])}>+ Параметр</button></Field>
       <Field label="Фото">{draft.photo&&<img src={draft.photo} alt="Предпросмотр" style={{width:"100%",maxHeight:240,objectFit:"contain",borderRadius:12,marginBottom:8}}/>}<label style={styles.btn("secondary")}>{draft.photo?"Заменить фото":"Добавить фото"}<input type="file" accept="image/*" hidden onChange={onPhotoChange}/></label>{draft.photo&&<button style={{...styles.btn("fail"),marginLeft:8}} onClick={()=>set("photo","")}>Удалить фото</button>}</Field>
+      {characteristicDefinition&&<CharacteristicTable definition={characteristicDefinition} value={draft.calibrationCharacteristic} onSave={calibrationCharacteristic=>{set("calibrationCharacteristic",calibrationCharacteristic);onSaveChanges(e.id,{calibrationCharacteristic})}}/>}
       <button onClick={save} style={{...styles.btn(),width:"100%",padding:14,fontSize:15}}>Сохранить изменения</button>
     </div>
     {chooseIcon&&<div role="dialog" aria-modal="true" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.72)",display:"grid",placeItems:"center",padding:20}}><div className="premium-card" style={{maxWidth:620,width:"100%",padding:22}}><div style={{fontSize:18,fontWeight:850,marginBottom:14}}>Выберите иконку</div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>{EQUIPMENT_ICONS.map(([icon,label])=><button key={label} onClick={()=>{set("icon",icon);setChooseIcon(false)}} className="premium-card-action" style={{padding:14,border:`1px solid ${draft.icon===icon?C.cyan:C.border}`,borderRadius:12,background:C.card,color:C.text,cursor:"pointer",textAlign:"left"}}><span style={{fontSize:26,display:"block",marginBottom:6}}>{icon}</span>{label}</button>)}</div><button style={{...styles.btn("secondary"),marginTop:14,width:"100%"}} onClick={()=>setChooseIcon(false)}>Отмена</button></div></div>}
