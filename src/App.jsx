@@ -18,8 +18,7 @@ import P204Scenario from "./features/tests/P204Scenario";
 import P215RadiatedLimitCalculator from "./features/tests/P215RadiatedLimitCalculator";
 import P214ConductedRfLimitCalculator from "./features/tests/P214ConductedRfLimitCalculator";
 import CharacteristicTable from "./features/equipment/CharacteristicTable";
-import GuidedTestRunner from "./features/guidedTest/GuidedTestRunner";
-import { demoScenario } from "./features/guidedTest/demoScenario.mjs";
+import GuidedTestHub from "./features/guidedTest/GuidedTestHub";
 import { characteristicDefinitionForEquipment, normalizeEquipmentCharacteristic } from "./data/equipmentCharacteristics.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
@@ -7994,7 +7993,7 @@ function AppInner() {
               {tab === "home" && <HomeScreen setTab={handleTab} setCalcId={handleSetCalcId} onQuiz={() => setQuizOpen(true)} onErrors={() => setErrorsOpen(true)} onVerify={() => setVerifyOpen(true)} />}
               {tab === "calc" && <CalculatorsScreen calcId={calcId} setCalcId={setCalcId} />}
               {tab === "tests" && hasFeature("tests") && <TestsScreen />}
-              {tab === "guided" && <GuidedTestRunner scenario={demoScenario} onOpenEquipment={() => handleTab("equip")} />}
+              {tab === "guided" && <GuidedTestHub onOpenEquipment={() => handleTab("equip")} />}
               {tab === "ref" && <ReferenceScreen refTab={refTab} setRefTab={setRefTab} />}
               {tab === "equip" && hasFeature("equipment") && <EquipmentTab />}
               {tab === "log" && hasFeature("advancedJournal") && <LogbookScreen />}
