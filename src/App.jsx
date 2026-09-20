@@ -16,6 +16,7 @@ import { EQUIPMENT_TYPES, addStep, moveStep, removeStep, updateStep, createUserT
 import { buildTestCatalog, buildJournalTestOptions, createEquipmentPatch, migrateJournalEntry, snapshotJournalSelection } from "./data/catalog.mjs";
 import P204Scenario from "./features/tests/P204Scenario";
 import P215RadiatedLimitCalculator from "./features/tests/P215RadiatedLimitCalculator";
+import P214ConductedRfLimitCalculator from "./features/tests/P214ConductedRfLimitCalculator";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -4842,6 +4843,7 @@ function TestDetail({ test, onBack }) {
       {tab === "info" && (
         <div>
           {test.id === "p204" && <P204Scenario equipment={EQUIPMENT_DATA} userSteps={test.steps} notes={notes} />}
+          {test.id === "p214" && <P214ConductedRfLimitCalculator />}
           {test.id === "p215" && <P215RadiatedLimitCalculator />}
           <div style={styles.card}>
             <div style={{fontSize:11,fontWeight:800,color:C.textSec,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>1. Что проверяем</div>
