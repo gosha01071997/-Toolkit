@@ -61,7 +61,8 @@ export default function GuidedTestRunner({ scenario, onOpenEquipment = () => {},
     const value = progress.inputs[definition.id] ?? "";
     const error = validateField(definition, value, progress.inputs);
     const status = typeof definition.status === "function" && value !== "" ? definition.status(progress.inputs) : "";
-    return <fieldset className={`guided-field ${definition.type === "radio" ? "radio-field" : ""}`} key={definition.id}><legend>{definition.label}</legend>{definition.type === "radio" ? definition.options.map(option => <label className="radio-option" key={option.value}><input type="radio" name={definition.id} value={option.value} checked={value === option.value} onChange={e => setInput(definition.id, e.target.value)}/>{option.label}</label>) : <input type={definition.type || "text"} inputMode={definition.inputMode} placeholder={definition.placeholder} value={value} onChange={e => setInput(definition.id, e.target.value)}/>} {definition.unit && <span className="field-unit">{definition.unit}</span>}{definition.hint && <small>{definition.hint}</small>}{error && value !== "" && <span className="field-error">{error}</span>}{status && <span className={status.startsWith("⚠") ? "field-status warning" : "field-status"}>{status}</span>}</fieldset>;
+    const label = typeof definition.label === "function" ? definition.label(progress.inputs, progress) : definition.label;
+    return <fieldset className={`guided-field ${definition.type === "radio" ? "radio-field" : ""}`} key={definition.id}><legend>{label}</legend>{definition.type === "radio" ? definition.options.map(option => <label className="radio-option" key={option.value}><input type="radio" name={definition.id} value={option.value} checked={value === option.value} onChange={e => setInput(definition.id, e.target.value)}/>{option.label}</label>) : <input type={definition.type || "text"} inputMode={definition.inputMode} placeholder={definition.placeholder} value={value} onChange={e => setInput(definition.id, e.target.value)}/>} {definition.unit && <span className="field-unit">{definition.unit}</span>}{definition.hint && <small>{definition.hint}</small>}{error && value !== "" && <span className="field-error">{error}</span>}{status && <span className={status.startsWith("⚠") ? "field-status warning" : "field-status"}>{status}</span>}</fieldset>;
   };
   const equipment = useMemo(() => readExistingEquipment(localStorage, fallbackEquipment), []);
   const result = stage?.result?.(progress.inputs, progress) || null;
@@ -69,19 +70,27 @@ export default function GuidedTestRunner({ scenario, onOpenEquipment = () => {},
   if (!stage) return <p>В сценарии нет доступных этапов.</p>;
   const showDerived = stage.derived && (!stage.derivedVisibleWhen || stage.derivedVisibleWhen(progress.inputs, progress));
   const derived = showDerived && <>{stage.derivedHeading && <h3 className="derived-heading">{stage.derivedHeading}</h3>}{stage.derived.map((item, index) => { const value = item.value(progress.inputs, progress); return value ? <div className={item.prominent ? "derived prominent" : "derived"} key={item.label || index}>{item.label && <span>{item.label}</span>}<strong>{value}</strong></div> : null; })}</>;
+  const beforeActionIds = new Set(stage.fieldsBeforeActions || []);
+  const beforeActionFields = (stage.fields || []).filter(item => beforeActionIds.has(item.id));
+  const afterActionFields = (stage.fields || []).filter(item => !beforeActionIds.has(item.id));
+  const stageRequirements = stage.equipmentRequirementIds
+    ? scenario.equipmentRequirements.filter(item => stage.equipmentRequirementIds.includes(item.id))
+    : scenario.equipmentRequirements.filter(item => item.showOnEquipmentStage !== false);
+  const canAdvance = typeof stage.canAdvance !== "function" || stage.canAdvance(progress.inputs, progress);
   return <main className="guided-runner">
     {onBackToSelection && <button className="back-selection" onClick={onBackToSelection}>← Вернуться к выбору испытания</button>}
     <header className="guided-header"><div><span className="guided-kicker">{scenario.standard} · {scenario.section}</span><h1>{scenario.title}</h1><p>{scenario.description}</p></div><div className="guided-progress"><b>Шаг {current + 1} из {stages.length}</b><progress value={current + 1} max={stages.length}/></div></header>
     {scenario.warnings?.map(text => <p className="guided-warning" key={text}>{text}</p>)}
-    <nav className="stage-list" aria-label="Этапы испытания">{stages.map((item, index) => <button key={item.id} className={index === current ? "active" : ""} onClick={() => update({ currentStage: index })}><span>{progress.completed[`stage:${item.id}`] ? "✓" : index + 1}</span>{item.title}</button>)}</nav>
+    <nav className="stage-list" aria-label="Этапы испытания">{stages.map((item, index) => <button key={item.id} className={index === current ? "active" : ""} disabled={index > current && !canAdvance} onClick={() => update({ currentStage: index })}><span>{progress.completed[`stage:${item.id}`] ? "✓" : index + 1}</span>{item.title}</button>)}</nav>
     <article className="guided-stage"><h2>{stage.heading || stage.title}</h2>
       {stage.intro && <p className="stage-intro">{stage.intro}</p>}
-      {stage.showEquipment && <EquipmentStage requirements={scenario.equipmentRequirements} selected={progress.equipment} onAddEquipment={onOpenEquipment} onSelect={(id, value) => update({ equipment: { ...progress.equipment, [id]: value } })}/>}
-      {stage.id === "magneticField" && progress.inputs.hKnown === "no" && <p className="guided-panel selected-equipment"><b>Магнитометр:</b> {equipmentOptionLabels(equipment).get(progress.equipment.magnetometer) || "не выбран"}</p>}
+      {stage.showEquipment && <EquipmentStage requirements={stageRequirements} selected={progress.equipment} onAddEquipment={onOpenEquipment} onSelect={(id, value) => update({ equipment: { ...progress.equipment, [id]: value } })}/>}
       {stage.diagram && <section className="guided-panel diagram"><h3>{stage.diagram.title}</h3><button title="Нажмите, чтобы увеличить" onClick={e => e.currentTarget.classList.toggle("enlarged")}>{stage.diagram.image && <img src={stage.diagram.image} alt={stage.diagram.alt || "Схема испытания"}/>}<strong>{stage.diagram.description}</strong><span>{stage.diagram.labels?.join(" → ")}</span><em>{stage.diagram.enlargeLabel || "Открыть схему крупнее"}</em></button></section>}
-      {stage.actions?.map(action => <section className="instruction" key={action.id}><h3>{action.title}</h3><p>{action.instruction}</p>{action.image && <img className="instruction-image" src={action.image} alt={action.imageAlt || action.title}/>} {action.explanation && <small>{action.explanation}</small>}{action.warning && <div className="guided-warning">{action.warning}</div>}{stage.showActionCompletion !== false && <label className="check"><input type="checkbox" checked={Boolean(progress.completed[action.id])} onChange={e => update({ completed: { ...progress.completed, [action.id]: e.target.checked } })}/> {action.checkboxLabel || "Выполнено"}</label>}</section>)}
+      <div className="guided-fields">{beforeActionFields.map(field)}</div>
+      {stage.id === "magneticField" && progress.inputs.hKnown === "no" && <EquipmentStage requirements={stageRequirements} selected={progress.equipment} onAddEquipment={onOpenEquipment} onSelect={(id, value) => update({ equipment: { ...progress.equipment, [id]: value } })}/>}
+      {stage.actions?.filter(action => isVisible(action, progress.inputs)).map(action => { const instruction = typeof action.instruction === "function" ? action.instruction(progress.inputs, progress) : action.instruction; return <section className="instruction" key={action.id}><h3>{action.title}</h3><p>{instruction}</p>{action.image && <img className="instruction-image" src={action.image} alt={action.imageAlt || action.title}/>} {action.explanation && <small>{action.explanation}</small>}{action.warning && <div className="guided-warning">{action.warning}</div>}{stage.showActionCompletion !== false && <label className="check"><input type="checkbox" checked={Boolean(progress.completed[action.id])} onChange={e => update({ completed: { ...progress.completed, [action.id]: e.target.checked } })}/> {action.checkboxLabel || "Выполнено"}</label>}</section>; })}
       {!stage.derivedAfterFields && derived}
-      <div className="guided-fields">{stage.fields?.map(field)}</div>
+      <div className="guided-fields">{afterActionFields.map(field)}</div>
       {stage.derivedAfterFields && derived}
       <MeasurementResult result={measurementResult}/>
       {stage.notices?.filter(item => isVisible(item, progress.inputs)).map((item, index) => <p className={item.tone === "warning" ? "guided-warning" : "guided-notice"} key={index}>{item.text}</p>)}
@@ -91,6 +100,7 @@ export default function GuidedTestRunner({ scenario, onOpenEquipment = () => {},
       {stage.id === "result" && !result && <section className="guided-panel"><h3>Сводка</h3><p>Выполнено действий: {Object.values(progress.completed).filter(Boolean).length}</p><p>Выбрано единиц оборудования: {Object.values(progress.equipment).filter(Boolean).length}</p><p className="guided-muted">Незавершённое испытание сохранено локально и восстановится при следующем открытии.</p></section>}
       {scenario.showStageCompletion !== false && <label className="stage-complete"><input type="checkbox" checked={Boolean(progress.completed[`stage:${stage.id}`])} onChange={e => update({ completed: { ...progress.completed, [`stage:${stage.id}`]: e.target.checked } })}/> Этап выполнен</label>}
     </article>
-    <footer><button disabled={current === 0} onClick={() => update({ currentStage: current - 1 })}>Назад</button><button disabled={current === stages.length - 1} onClick={() => update({ currentStage: current + 1 })}>Далее</button></footer>
+    {!canAdvance && stage.blockedMessage && <p className="guided-warning">{stage.blockedMessage}</p>}
+    <footer><button disabled={current === 0} onClick={() => update({ currentStage: current - 1 })}>Назад</button><button disabled={current === stages.length - 1 || !canAdvance} onClick={() => update({ currentStage: current + 1 })}>Далее</button></footer>
   </main>;
 }

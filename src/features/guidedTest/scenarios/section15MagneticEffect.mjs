@@ -15,6 +15,7 @@ const condition = (id, label, hint) => ({
 });
 const dc = inputs => { try { return calculateControlDeflection(inputs.h); } catch { return null; } };
 const fmt = (value, digits = 2) => value == null ? "—" : value.toLocaleString("ru-RU", { maximumFractionDigits: digits, minimumFractionDigits: digits });
+const dcText = inputs => dc(inputs) == null ? "—" : `${fmt(dc(inputs))}°`;
 
 export const section15MagneticEffect = createScenario({
   id: "section-15-magnetic-effect-v1",
@@ -26,12 +27,12 @@ export const section15MagneticEffect = createScenario({
   stageOrder: ["equipment", "magneticField", "setup", "maximumEffect", "distance", "result"],
   equipmentRequirements: [
     { id: "deflectionInstrument", type: "Компас / буссоль", aliases: ["Магнитный датчик", "Другое"], title: "Магнитный индикатор", optional: false, typeChoices: ["Компас / буссоль", "Магнитный датчик / эквивалентное средство"] },
-    { id: "magnetometer", type: "Магнитометр", aliases: ["Другое"], title: "Магнитометр — понадобится, если H неизвестна", optional: true },
+    { id: "magnetometer", type: "Магнитометр", aliases: ["Магнитный датчик"], title: "Чем измеряете магнитное поле?", optional: false, showOnEquipmentStage: false, typeChoices: ["Магнитометр", "Эквивалентное поддерживаемое средство измерения магнитного поля"] },
   ],
   stages: {
     equipment: {
       title: "Подготовьте оборудование", showEquipment: true,
-      intro: "Выберите магнитный индикатор. Если поле H в месте испытания неизвестно, подготовьте и выберите также магнитометр.",
+      intro: "Выберите магнитный индикатор. Средство измерения поля понадобится на следующем шаге только в том случае, если H неизвестна.",
       fields: [
         { id: "eutName", label: "Наименование изделия" },
         { id: "eutModel", label: "Обозначение / модель" },
@@ -40,7 +41,12 @@ export const section15MagneticEffect = createScenario({
       ],
     },
     magneticField: {
-      title: "Определите магнитное поле", derivedAfterFields: true,
+      title: "Определите магнитное поле", derivedAfterFields: true, showActionCompletion: false,
+      equipmentRequirementIds: ["magnetometer"],
+      fieldsBeforeActions: ["hKnown"],
+      canAdvance: (inputs, progress) => dc(inputs) != null && (inputs.hKnown === "yes" || (inputs.hKnown === "no" && Boolean(progress.equipment.magnetometer))),
+      blockedMessage: "Чтобы продолжить, укажите корректное H; если H неизвестна, также выберите средство измерения магнитного поля.",
+      actions: [{ id: "measureH", visibleWhen: inputs => inputs.hKnown === "no", title: "Измерьте H", instruction: "Уберите изделие из зоны испытания. Измерьте горизонтальную составляющую магнитного поля H в месте расположения магнитного индикатора при проведении испытания. Внесите полученное значение." }],
       fields: [
         { id: "hKnown", type: "radio", label: "Известна горизонтальная составляющая магнитного поля H в месте проведения испытания?", options: [{ value: "yes", label: "Да, известна" }, { value: "no", label: "Нет, необходимо измерить" }] },
         { id: "h", label: "H, А/м", inputMode: "decimal", visibleWhen: inputs => ["yes", "no"].includes(inputs.hKnown), validate: numeric("H должно быть конечным числом больше 0", { min: Number.MIN_VALUE }) },
@@ -49,7 +55,6 @@ export const section15MagneticEffect = createScenario({
         condition("pressure", "Давление, кПа", "84…107 кПа"),
       ],
       notices: [
-        { visibleWhen: inputs => inputs.hKnown === "no", text: "Измерьте горизонтальную составляющую магнитного поля в месте проведения испытания с помощью выбранного магнитометра и внесите полученное значение H." },
         { tone: "warning", visibleWhen: inputs => !checkLaboratoryConditions(inputs).ok, text: "Фактические лабораторные условия выходят за стандартный диапазон. Зафиксируйте их в результате." },
       ],
       derivedVisibleWhen: inputs => dc(inputs) != null,
@@ -62,10 +67,10 @@ export const section15MagneticEffect = createScenario({
     setup: {
       title: "Соберите установку", showActionCompletion: false,
       actions: [
-        { id: "prepareEut", title: "1. Подготовьте изделие к работе", instruction: "Подключите необходимые цепи питания и кабели, но пока не включайте изделие." },
-        { id: "prepareHarness", title: "2. Соберите испытательный жгут", instruction: "Используйте кабельный жгут, соответствующий проверяемой конфигурации изделия. Кабели изделия и необходимые провода питания соберите в эту конфигурацию." },
-        { id: "placeHarness", title: "3. Расположите жгут", instruction: "Направьте жгут относительно магнитного индикатора так, как показано на схеме, и сохраняйте это положение при последующем повороте изделия." },
-        { id: "placeEquipment", title: "4. Установите изделие и индикатор", instruction: "Поставьте изделие и магнитный индикатор на немагнитные опоры согласно схеме. Уберите поблизости посторонние магнитные и ферромагнитные предметы." },
+        { id: "prepareEut", title: "1. Подготовьте изделие", instruction: "Подключите необходимые цепи питания и кабели. Пока не включайте изделие." },
+        { id: "prepareHarness", title: "2. Подготовьте испытательный жгут", instruction: "Соберите в испытательную конфигурацию подключённые кабели изделия и необходимые провода питания — те же кабели, с которыми проверяется выбранный режим работы." },
+        { id: "placeHarness", title: "3. Расположите жгут", instruction: "Отведите испытательный жгут от изделия на восток вдоль линии Запад — Восток, перпендикулярно оси Север — Юг магнитного индикатора. При последующем повороте изделия сохраняйте эту конфигурацию жгута." },
+        { id: "placeEquipment", title: "4. Установите изделие и индикатор", instruction: "Разместите изделие и магнитный индикатор на немагнитной поверхности или немагнитных опорах. Уберите из зоны установки посторонние магнитные и ферромагнитные предметы." },
       ],
       diagram: { title: "Схема установки", image: SECTION_15_SETUP_IMAGE, alt: "Изделие, испытательный жгут и магнитный индикатор на немагнитных опорах", description: "D измеряется от оси магнитного индикатора до ближайшей части изделия.", enlargeLabel: "Открыть схему крупнее" },
       photos: true,
@@ -83,14 +88,25 @@ export const section15MagneticEffect = createScenario({
     distance: {
       title: "Определите расстояние D", showActionCompletion: false,
       derived: [{ label: "КОНТРОЛЬНОЕ ОТКЛОНЕНИЕ", value: inputs => dc(inputs) == null ? "Dc = —" : `Dc = ${fmt(dc(inputs))}°`, prominent: true }],
-      actions: [{ id: "adjustDistance", title: "Изменяйте расстояние", instruction: "Изменяйте расстояние между изделием и магнитным индикатором, сохраняя найденные ранее режим работы и ориентацию изделия. Найдите положение, при котором отклонение магнитного индикатора достигает Dc." }],
+      fieldsBeforeActions: ["method", "uniformity"],
+      actions: [
+        { id: "eutKeep", visibleWhen: inputs => inputs.method === "eut", title: "1. Сохраните режим и ориентацию", instruction: "Сохраните найденные ранее режим работы и ориентацию изделия." },
+        { id: "eutStart", visibleWhen: inputs => inputs.method === "eut", title: "2. Отведите изделие", instruction: "Начните с положения, в котором изделие удалено от магнитного индикатора." },
+        { id: "eutMove", visibleWhen: inputs => inputs.method === "eut", title: "3. Приближайте изделие", instruction: "Медленно приближайте изделие к магнитному индикатору." },
+        { id: "eutWatch", visibleWhen: inputs => inputs.method === "eut", title: "4. Следите за отклонением", instruction: "Наблюдайте за отклонением магнитного индикатора во время перемещения." },
+        { id: "eutStop", visibleWhen: inputs => inputs.method === "eut", title: "5. Остановите изделие", instruction: inputs => `Остановитесь, когда отклонение достигнет контрольного значения Dc = ${dcText(inputs)}.` },
+        { id: "sensorKeep", visibleWhen: inputs => inputs.method === "sensor", title: "1. Сохраните режим и ориентацию", instruction: "Сохраните найденные ранее режим работы и ориентацию изделия. Оставьте изделие неподвижным." },
+        { id: "sensorStart", visibleWhen: inputs => inputs.method === "sensor", title: "2. Отведите индикатор", instruction: "Начните с положения, в котором магнитный индикатор удалён от изделия." },
+        { id: "sensorMove", visibleWhen: inputs => inputs.method === "sensor", title: "3. Перемещайте индикатор", instruction: "Медленно приближайте магнитный индикатор к неподвижному изделию по проверенной траектории." },
+        { id: "sensorWatch", visibleWhen: inputs => inputs.method === "sensor", title: "4. Следите за отклонением", instruction: "Наблюдайте за отклонением магнитного индикатора во время перемещения." },
+        { id: "sensorStop", visibleWhen: inputs => inputs.method === "sensor", title: "5. Остановите индикатор", instruction: inputs => `Остановитесь, когда отклонение достигнет контрольного значения Dc = ${dcText(inputs)}.` },
+      ],
       fields: [
         { id: "method", type: "radio", label: "Метод проведения", options: [{ value: "eut", label: "Перемещаем изделие относительно магнитного индикатора" }, { value: "sensor", label: "Перемещаем магнитный индикатор относительно изделия" }] },
-        { id: "uniformity", label: "Максимальное изменение показаний вдоль траектории, °", hint: "Допустимо не более ±0,5°", inputMode: "decimal", visibleWhen: inputs => inputs.method === "sensor", validate: numeric("Введите конечное числовое значение"), status: inputs => checkFieldUniformity(inputs.uniformity).invalid ? "" : checkFieldUniformity(inputs.uniformity).ok ? "✓ Однородность поля достаточна." : "⚠ Изменение поля превышает ±0,5°. Выберите подходящее место и устраните влияние магнитных объектов." },
-        { id: "reachesDc", type: "radio", label: "Достигается ли контрольное отклонение Dc при приближении изделия к магнитному индикатору?", options: [{ value: "yes", label: "Да" }, { value: "no", label: "Нет, Dc не достигается даже при минимальном расстоянии" }] },
-        { id: "distance", label: "D, м", inputMode: "decimal", hint: "Измерьте от оси магнитного индикатора до ближайшей части изделия.", visibleWhen: inputs => inputs.reachesDc === "yes", validate: numeric("D должно быть конечным числом больше 0", { min: Number.MIN_VALUE }) },
+        { id: "uniformity", label: "Максимальное изменение показаний вдоль траектории, °", hint: "До установки изделия переместите магнитный индикатор по всей будущей траектории. Допустимо не более ±0,5°.", inputMode: "decimal", visibleWhen: inputs => inputs.method === "sensor", validate: numeric("Введите конечное числовое значение"), status: inputs => checkFieldUniformity(inputs.uniformity).invalid ? "" : checkFieldUniformity(inputs.uniformity).ok ? "✓ Однородность поля достаточна." : "⚠ Изменение поля превышает ±0,5°. Выберите подходящее место и устраните влияние магнитных объектов." },
+        { id: "reachesDc", type: "radio", label: inputs => `Удалось получить отклонение Dc = ${dcText(inputs)}?`, options: [{ value: "yes", label: "Да" }, { value: "no", label: "Нет, Dc не достигается даже при минимально возможном расстоянии" }] },
+        { id: "distance", label: "D, м", inputMode: "decimal", hint: "Не изменяя найденное положение, измерьте расстояние D от оси магнитного индикатора до ближайшей части изделия.", visibleWhen: inputs => inputs.reachesDc === "yes", validate: numeric("D должно быть конечным числом больше 0", { min: Number.MIN_VALUE }) },
       ],
-      notices: [{ visibleWhen: inputs => inputs.method === "sensor", text: "До установки изделия переместите магнитный индикатор по всей будущей траектории и убедитесь, что изменение фоновых показаний не превышает ±0,5°." }],
       measurementResult: inputs => inputs.reachesDc === "no" || (inputs.reachesDc === "yes" && normalizeNumber(inputs.distance) > 0) ? getMagneticEffectResult(inputs) : null,
     },
     result: {
