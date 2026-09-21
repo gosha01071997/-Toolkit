@@ -127,3 +127,25 @@ test("second-pass catalog covers equipment used by Russian/CIS EMC laboratories"
   assert.ok(EQUIPMENT_CATALOG.some(item => item.equipmentType === "tem_cell"));
   assert.ok(EQUIPMENT_CATALOG.some(item => item.equipmentType === "magnetic_field_generator"));
 });
+
+test("gap-audit control models and formerly empty categories are searchable", () => {
+  const ez = EQUIPMENT_CATALOG.find(item => item.id === "rs-ez-17");
+  assert.equal(ez.model, "R&S EZ-17");
+  assert.equal(ez.equipmentType, "current_probe");
+  for (const query of ["EZ-17", "EZ17", "Rohde", "R&S", "токосъёмник", "current probe"]) {
+    assert.ok(searchCatalog(EQUIPMENT_CATALOG, query).some(item => item.id === ez.id), query);
+  }
+  assert.ok(searchCatalog(EQUIPMENT_CATALOG, "LUMILOOP").some(item => item.id === "lumiloop-lsprobe-2-0"));
+  assert.ok(searchCatalog(EQUIPMENT_CATALOG, "магнитометр").length >= 6);
+  assert.ok(searchCatalog(EQUIPMENT_CATALOG, "кабель").length >= 9);
+  assert.ok(searchCatalog(EQUIPMENT_CATALOG, "АКИП").length >= 40);
+});
+
+test("cable instances retain asset-specific data but never invent calibration data", () => {
+  const cable = EQUIPMENT_CATALOG.find(item => item.id === "times-lmr-400");
+  const instance = createLaboratoryEquipment(cable, { length: "7.5 m", connectorFrom: "N male", connectorTo: "N male", serialNumber: "C-17" }, 17);
+  assert.equal(instance.length, "7.5 m");
+  assert.equal(instance.connectorFrom, "N male");
+  assert.equal(instance.connectorTo, "N male");
+  assert.equal("calibrationCharacteristic" in instance, false);
+});
