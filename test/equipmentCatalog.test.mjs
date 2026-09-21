@@ -108,6 +108,16 @@ test("catalog runtime stays offline and records contain no executable loaders", 
   }
 });
 
+test("catalog records do not embed third-party media or documents", () => {
+  const forbiddenPayloadFields = ["logo", "image", "photo", "datasheet", "manual", "illustration", "schematic", "chart"];
+  for (const item of EQUIPMENT_CATALOG) {
+    assert.equal(item.imageAsset, null, `${item.id}: bundled product image`);
+    for (const field of forbiddenPayloadFields) {
+      assert.equal(typeof item[field], "undefined", `${item.id}: forbidden embedded field ${field}`);
+    }
+  }
+});
+
 test("second-pass catalog covers equipment used by Russian/CIS EMC laboratories", () => {
   const ids = new Set(EQUIPMENT_CATALOG.map(item => item.id));
   for (const id of ["gcmo-ra-00140", "gcmo-tem-1218-500", "skard-p6-522m", "skard-p6-223n", "lumiloop-lsprobe-1-2", "lumiloop-lsprobe-2-0", "lumiloop-ci-250-plus"]) {
