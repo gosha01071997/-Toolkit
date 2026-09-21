@@ -1,9 +1,11 @@
 import { AMERICAS_MODELS } from "./manufacturers/americas.mjs";
 import { ASIA_CIS_MODELS } from "./manufacturers/asia-cis.mjs";
 import { EUROPE_MODELS } from "./manufacturers/europe.mjs";
+import { LUMILOOP_MODELS } from "./manufacturers/lumiloop.mjs";
+import { RUSSIA_CIS_MODELS } from "./manufacturers/russia-cis.mjs";
 export { EQUIPMENT_TYPE_IDS, EQUIPMENT_TYPE_OPTIONS, SPECIFICATION_LABELS, specificationLabel, typeLabel } from "./schema.mjs";
 
-export const EQUIPMENT_CATALOG = Object.freeze([...EUROPE_MODELS, ...AMERICAS_MODELS, ...ASIA_CIS_MODELS]);
+export const EQUIPMENT_CATALOG = Object.freeze([...EUROPE_MODELS, ...AMERICAS_MODELS, ...ASIA_CIS_MODELS, ...RUSSIA_CIS_MODELS, ...LUMILOOP_MODELS]);
 const aliases = {
   "приемник": "measurement_receiver", "измерительный приемник": "measurement_receiver", receiver: "measurement_receiver",
   "генератор": "signal_generator", "генератор сигналов": "signal_generator", "вч генератор": "signal_generator",
