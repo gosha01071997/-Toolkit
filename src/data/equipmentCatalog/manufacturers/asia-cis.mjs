@@ -1,0 +1,10 @@
+import { model, source } from "../schema.mjs";
+const rows = (manufacturer, url, items) => items.map(([name,equipmentType,id]) => model({ id, manufacturer, model:name, equipmentType, sources:[source(manufacturer,name,`${manufacturer} ${name}`,url)] }));
+export const ASIA_CIS_MODELS = [
+  model({ id:"akip-3208", manufacturer:"АКИП", model:"АКИП-3208", equipmentType:"signal_generator", subtype:"ВЧ-генератор сигналов", frequencyRange:{minHz:9000,maxHz:3200000000}, specifications:{frequencyRange:"9 кГц–3,2 ГГц",outputLevel:"−110…+13 дБм",impedance:"50 Ом"}, applications:["Формирование ВЧ-сигналов"], sources:[source("АКИП","АКИП-3208","ПриСТ — генераторы сигналов АКИП","https://prist.ru/productions/generatory-signalov/")]}),
+  ...rows("АКИП", "https://prist.ru/productions/", [["АКИП-4209/1","spectrum_analyzer","akip-4209-1"],["АКИП-3413/3","function_generator","akip-3413-3"],["АКИП-1148","dc_power_supply","akip-1148"],["АКИП-2201","multimeter","akip-2201"]]),
+  ...rows("SIGLENT", "https://www.siglenteu.com/products/", [["SSA3032X Plus","spectrum_analyzer","siglent-ssa3032x-plus"],["SSG3021X","signal_generator","siglent-ssg3021x"],["SDG2042X","function_generator","siglent-sdg2042x"],["SDS2104X Plus","oscilloscope","siglent-sds2104x-plus"],["SPD3303X-E","dc_power_supply","siglent-spd3303x-e"]]),
+  ...rows("RIGOL", "https://www.rigolna.com/products/", [["RSA3030N","spectrum_analyzer","rigol-rsa3030n"],["DSG3065B","signal_generator","rigol-dsg3065b"],["DG4162","function_generator","rigol-dg4162"],["MSO5074","oscilloscope","rigol-mso5074"],["DP832A","dc_power_supply","rigol-dp832a"]]),
+  ...rows("GW Instek", "https://www.gwinstek.com/en-global/products", [["GSP-9330","spectrum_analyzer","gw-gsp-9330"],["ASR-3400HF","ac_power_source","gw-asr-3400hf"],["GPP-4323","dc_power_supply","gw-gpp-4323"],["GDS-3504","oscilloscope","gw-gds-3504"]]),
+  ...rows("3ctest", "https://www.3ctest.com/products", [["ESD 30G","esd_generator","3ctest-esd-30g"],["EFT 500N8","eft_generator","3ctest-eft-500n8"],["CWS 600N4","surge_generator","3ctest-cws-600n4"],["VDS 200Q","voltage_dip_generator","3ctest-vds-200q"]]),
+];
