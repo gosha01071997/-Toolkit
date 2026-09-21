@@ -46,5 +46,14 @@ test("Guided Test sees a newly saved laboratory instance, not global models", ()
 
 test("unknown and null specifications are not rendered", () => {
   assert.deepEqual(visibleSpecifications({ specifications: { known: "1", absent: null, empty: "" } }), [["known", "1"]]);
-  assert.deepEqual(visibleSpecifications(akip), []);
+  assert.deepEqual(visibleSpecifications(akip), [["Диапазон частот", "9 кГц–3,2 ГГц"], ["Выходной уровень", "−110…+13 дБм"], ["Импеданс", "50 Ом"]]);
+});
+
+test("catalog data and details are synchronous local records", () => {
+  assert.ok(Array.isArray(EQUIPMENT_CATALOG));
+  assert.equal(akip.subtype, "ВЧ-генератор сигналов");
+  assert.equal(akip.frequencyRange.maxHz, 3_200_000_000);
+  assert.ok(akip.applications.length > 0);
+  assert.ok(akip.sources.length > 0);
+  assert.equal(EQUIPMENT_CATALOG.some(item => item.then || item.fetch), false);
 });
