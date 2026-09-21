@@ -29,7 +29,8 @@ export const MAGNETIC_EFFECT_CATEGORY_RANGES = Object.freeze({
 
 export function getMagneticEffectResult(values) {
   const reaches = values.reachesDc !== "no";
-  const distance = reaches ? normalizeNumber(values.distance) : 0;
+  const enteredDistance = normalizeNumber(values.distance);
+  const distance = reaches ? (values.distanceUnit === "cm" ? enteredDistance / 100 : enteredDistance) : 0;
   if (reaches && !Number.isFinite(distance)) return null;
   const category = classifyMagneticEffect(distance, reaches);
   let dc = null;

@@ -17,7 +17,12 @@ test("границы категорий Z, A, B и C не трактуются �
 });
 test("однородность использует абсолютный предел ±0,5°", () => { assert.equal(checkFieldUniformity("-0,5").ok, true); assert.equal(checkFieldUniformity(.51).ok, false); });
 test("условия помещения проверяются существующей функцией", () => { assert.equal(checkLaboratoryConditions({ temperature: 25, humidity: 85, pressure: 84 }).ok, true); assert.deepEqual(checkLaboratoryConditions({ temperature: 36, humidity: 86, pressure: 108 }).checks, { temperature: false, humidity: false, pressure: false }); });
-test("Section 15 состоит из шести ориентированных на действия шагов", () => assert.deepEqual(getVisibleStages(section15MagneticEffect).map(stage => stage.title), ["Подготовьте оборудование", "Определите магнитное поле", "Соберите установку", "Найдите максимальное воздействие", "Определите расстояние D", "Итог"]));
+test("Section 15 состоит из шести ориентированных на действия шагов", () => assert.deepEqual(getVisibleStages(section15MagneticEffect).map(stage => stage.title), ["Подготовьте испытание", "Определите магнитное поле", "Соберите установку", "Найдите худший режим", "Найдите расстояние D", "Результат"]));
+test("магнитный индикатор и изделие обязательны до продолжения", () => {
+  const canAdvance = section15MagneticEffect.stages.equipment.canAdvance;
+  assert.equal(canAdvance({ eutName: "Блок" }, { equipment: {} }), false);
+  assert.equal(canAdvance({ eutName: "Блок" }, { equipment: { deflectionInstrument: "compass" } }), true);
+});
 test("Section 15 не показывает checklist или подтверждение этапа", () => {
   assert.equal(section15MagneticEffect.showStageCompletion, false);
   for (const stage of Object.values(section15MagneticEffect.stages)) {
@@ -39,6 +44,16 @@ test("при перемещении индикатора отображаетс�
   const stage = section15MagneticEffect.stages.distance;
   assert.equal(isVisible(stage.fields.find(field => field.id === "uniformity"), { method: "sensor" }), true);
   assert.match(stage.fields.find(field => field.id === "uniformity").hint, /±0,5°/);
+  assert.equal(isVisible(stage.fields.find(field => field.id === "uniformity"), { method: "eut" }), false);
+});
+test("сантиметры нормализуются в метры, а D для Y скрыто", () => {
+  assert.equal(getMagneticEffectResult({ reachesDc: "yes", distance: "30", distanceUnit: "cm", h: 14.4 }).distance, .3);
+  assert.equal(getMagneticEffectResult({ reachesDc: "yes", distance: "30", distanceUnit: "cm", h: 14.4 }).category, "Z");
+  assert.equal(getMagneticEffectResult({ reachesDc: "no", distance: "300", distanceUnit: "cm", h: 14.4 }).distance, 0);
+});
+test("итог категории не объявляет соответствие требованиям", () => {
+  const source = JSON.stringify(section15MagneticEffect);
+  assert.doesNotMatch(source, /оборудование соответствует/i);
 });
 test("при неизвестном H переход требует средство измерения и корректное H", () => {
   const stage = section15MagneticEffect.stages.magneticField;
@@ -65,7 +80,7 @@ test("каждый метод D показывает физически соот
 test("итог повторяет рассчитанную ранее категорию", () => {
   const inputs = { reachesDc: "yes", distance: "0,42", h: "14", temperature: "20", humidity: "50", pressure: "100" };
   assert.equal(section15MagneticEffect.stages.distance.measurementResult(inputs).category, "A");
-  assert.equal(section15MagneticEffect.stages.result.result(inputs).category, getMagneticEffectResult(inputs).category);
+  assert.equal(section15MagneticEffect.stages.result.result(inputs, { equipment: { deflectionInstrument: "compass" } }).category, getMagneticEffectResult(inputs).category);
 });
 test("схема Section 15 является импортируемым production-ресурсом без сокращения «ИО»", async () => {
   assert.match(SECTION_15_SETUP_IMAGE, /section15-setup\.svg/);
