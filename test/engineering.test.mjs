@@ -76,7 +76,7 @@ test("порядок шагов сохраняется после повторн
   assert.deepEqual(reopened.map(step=>step.n),[1,2,3]);
 });
 test("тип и ручная иконка оборудования сохраняются, старые данные мигрируют", () => {
-  assert.deepEqual(migrateEquipmentItem({ id:"old" }), { id:"old", type:"Другое", icon:"🔧" });
+  assert.deepEqual(migrateEquipmentItem({ id:"old" }), { id:"old", type:"Другое", icon:"🔧", source:"custom", catalogModelId:null });
   assert.equal(migrateEquipmentItem({ type:"LISN", icon:"🔌" }).icon, "🔌");
 });
 
@@ -97,7 +97,8 @@ test("в пользовательское испытание добавляет�
 });
 test("общая форма оборудования сохраняет все поля одновременно", () => {
   const patch=createEquipmentPatch({name:"Генератор A",type:"Генератор",arm:"АРМ 1",desc:"Описание",specs:[{key:"f",value:"1 GHz"}],photo:"data:image/png;base64,x",icon:"⚡"});
-  assert.equal(Object.keys(patch).length,7); assert.equal(patch.name,"Генератор A"); assert.equal(patch.photo,"data:image/png;base64,x");
+  assert.equal(patch.name,"Генератор A"); assert.equal(patch.photo,"data:image/png;base64,x");
+  assert.equal(patch.serialNumber,""); assert.equal(patch.calibrationValidUntil,"");
 });
 test("выбранная иконка входит в общую транзакцию оборудования",()=>assert.equal(createEquipmentPatch({icon:"📡"}).icon,"📡"));
 

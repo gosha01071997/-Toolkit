@@ -1,4 +1,4 @@
-export const EQUIPMENT_TYPES = ["Компас / буссоль", "Магнитный датчик", "Магнитометр", "Генератор", "Усилитель", "Аттенюатор", "Антенна", "Инжектор / BCI probe", "Токосъёмник", "Токовый пробник", "Анализатор / измерительный приёмник", "LISN", "CDN", "Кабель", "Кабель / тракт", "Вспомогательное оборудование", "Другое"];
+export const EQUIPMENT_TYPES = ["Измерительный приёмник", "Анализатор спектра", "Генератор сигналов", "Источник питания", "Усилитель", "Токосъёмник / Current probe", "BCI-инжектор / Injection probe", "LISN / ЛИСН", "CDN", "Антенна", "Измеритель мощности", "Датчик мощности", "Аттенюатор", "Направленный ответвитель", "Калибровочная оснастка", "Кабель", "Переходник / адаптер", "Пробник поля", "Осциллограф", "Мультиметр", "Магнитометр", "Магнитный индикатор", "Генератор переходных процессов", "ESD/EFT/Surge оборудование", "Трансформатор", "Стенд", "Другое"];
 
 export const renumberSteps = (steps = []) => steps.map((step, index) => ({ ...step, n: index + 1 }));
 
@@ -39,5 +39,5 @@ export const deleteUserTest = (tests, id) => (tests || []).filter(test => !(test
 
 export function migrateEquipmentItem(item = {}) {
   const type = typeof item.type === "string" && item.type.trim() ? item.type : "Другое";
-  return { ...item, type, icon: typeof item.icon === "string" && item.icon ? item.icon : "🔧" };
+  return { ...item, type, icon: typeof item.icon === "string" && item.icon ? item.icon : "🔧", source: item.source === "catalog" && item.catalogModelId ? "catalog" : "custom", catalogModelId: item.catalogModelId || null };
 }

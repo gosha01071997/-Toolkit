@@ -20,6 +20,7 @@ import P214ConductedRfLimitCalculator from "./features/tests/P214ConductedRfLimi
 import CharacteristicTable from "./features/equipment/CharacteristicTable";
 import GuidedTestHub from "./features/guidedTest/GuidedTestHub";
 import { characteristicDefinitionForEquipment, normalizeEquipmentCharacteristic } from "./data/equipmentCharacteristics.mjs";
+import { EQUIPMENT_CATALOG, EQUIPMENT_TYPE_OPTIONS, createLaboratoryEquipment, searchCatalog, typeLabel, visibleSpecifications } from "./data/equipmentCatalog.mjs";
 // ─── ЦВЕТА И КОНСТАНТЫ ──────────────────────────────────────────────────────
 const C = {
   bg: "#050814",
@@ -5803,11 +5804,12 @@ const formatSpecsShort = (specs) => {
 };
 
 const EQUIPMENT_DATA = [
-  { id:"e1", photo:"", arm:"Станция A", name:"Оборудование 1", type:"Измерительное оборудование", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📻" },
-  { id:"e2", photo:"", arm:"Станция A", name:"Оборудование 2", type:"Анализатор", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📊" },
-  { id:"e3", photo:"", arm:"Станция B", name:"Оборудование 3", type:"Антенна", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"📡", antennaProfile: emptyAntennaProfile() },
-  { id:"e4", photo:"", arm:"Станция B", name:"Оборудование 4", type:"Генератор", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"⚡" },
-  { id:"e5", photo:"", arm:"Станция C", name:"Оборудование 5", type:"Токовый пробник", desc:"Добавьте описание оборудования", specs:"Добавьте технические характеристики", icon:"🔧" },
+  // Demo placeholders are not physical laboratory assets.
+];
+const LEGACY_EQUIPMENT_DATA = [
+  {id:"e1",name:"Оборудование 1",type:"Измерительное оборудование",arm:"Станция A"}, {id:"e2",name:"Оборудование 2",type:"Анализатор",arm:"Станция A"},
+  {id:"e3",name:"Оборудование 3",type:"Антенна",arm:"Станция B"}, {id:"e4",name:"Оборудование 4",type:"Генератор",arm:"Станция B"},
+  {id:"e5",name:"Оборудование 5",type:"Токовый пробник",arm:"Станция C"},
 ];
 
 const EQUIPMENT_ICONS = [
@@ -5829,9 +5831,10 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
       <div style={{fontSize:18,fontWeight:850,marginBottom:14}}>Редактирование оборудования</div>
       <div style={{display:"grid",gridTemplateColumns:"90px minmax(0,1fr)",gap:16,alignItems:"start"}}>
         <div><button type="button" aria-label="Выбрать иконку оборудования" onClick={()=>setChooseIcon(true)} className="premium-card-action" style={{width:76,height:76,borderRadius:18,border:`1px solid ${C.accent}`,background:C.accentLight,color:C.text,fontSize:34,cursor:"pointer"}}>{draft.icon||getEquipSVG(draft.type)}</button><div style={{fontSize:11,color:C.textSec,marginTop:6}}>Нажмите для выбора</div></div>
-        <div><Field label="Название оборудования"><input style={styles.input} value={draft.name||""} onChange={x=>set("name",x.target.value)}/></Field><Field label="Тип оборудования"><select style={styles.select} value={draft.type||"Другое"} onChange={x=>set("type",x.target.value)}>{EQUIPMENT_TYPES.map(x=><option key={x}>{x}</option>)}</select></Field><Field label="АРМ"><select style={styles.select} value={draft.arm||""} onChange={x=>set("arm",x.target.value)}>{arms.map(x=><option key={x}>{x}</option>)}</select></Field></div>
+        <div>{draft.catalogModelId&&<div style={{color:C.textSec,marginBottom:8}}>Модель каталога: <b style={{color:C.text}}>{draft.manufacturer} {draft.model}</b></div>}<Field label="Название оборудования"><input style={styles.input} value={draft.name||""} onChange={x=>set("name",x.target.value)}/></Field><Field label="Тип оборудования"><select style={styles.select} value={draft.type||"Другое"} onChange={x=>set("type",x.target.value)}>{EQUIPMENT_TYPES.map(x=><option key={x}>{x}</option>)}</select></Field><Field label="АРМ"><select style={styles.select} value={draft.arm||""} onChange={x=>set("arm",x.target.value)}><option value="">Не назначено</option>{arms.map(x=><option key={x}>{x}</option>)}</select></Field></div>
       </div>
       <Field label="Описание"><textarea style={{...styles.input,minHeight:72}} value={draft.desc||""} onChange={x=>set("desc",x.target.value)}/></Field>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}><Field label="Серийный / заводской №"><input style={styles.input} value={draft.serialNumber||""} onChange={x=>set("serialNumber",x.target.value)}/></Field><Field label="Инвентарный №"><input style={styles.input} value={draft.inventoryNumber||""} onChange={x=>set("inventoryNumber",x.target.value)}/></Field><Field label="Поверка / калибровка действительна до"><input type="date" style={styles.input} value={draft.calibrationValidUntil||""} onChange={x=>set("calibrationValidUntil",x.target.value)}/></Field></div>
       <Field label="Технические характеристики">{draft.specs.map((row,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8,marginBottom:8}}><input style={styles.input} placeholder="Параметр" value={row.key||""} onChange={x=>set("specs",draft.specs.map((v,j)=>j===i?{...v,key:x.target.value}:v))}/><input style={styles.input} placeholder="Значение" value={row.value||""} onChange={x=>set("specs",draft.specs.map((v,j)=>j===i?{...v,value:x.target.value}:v))}/><button style={styles.btn("fail")} onClick={()=>set("specs",draft.specs.filter((_,j)=>j!==i))}>Удалить</button></div>)}<button style={styles.btn("secondary")} onClick={()=>set("specs",[...draft.specs,{key:"",value:""}])}>+ Параметр</button></Field>
       <Field label="Фото">{draft.photo&&<img src={draft.photo} alt="Предпросмотр" style={{width:"100%",maxHeight:240,objectFit:"contain",borderRadius:12,marginBottom:8}}/>}<label style={styles.btn("secondary")}>{draft.photo?"Заменить фото":"Добавить фото"}<input type="file" accept="image/*" hidden onChange={onPhotoChange}/></label>{draft.photo&&<button style={{...styles.btn("fail"),marginLeft:8}} onClick={()=>set("photo","")}>Удалить фото</button>}</Field>
       {characteristicDefinition&&<CharacteristicTable definition={characteristicDefinition} value={draft.calibrationCharacteristic} onSave={calibrationCharacteristic=>{set("calibrationCharacteristic",calibrationCharacteristic);onSaveChanges(e.id,{calibrationCharacteristic})}}/>}
@@ -5844,6 +5847,11 @@ function EquipDetailCard({ e, onBack, getEquipSVG, onSaveChanges, onDelete, arms
 
 function EquipmentTab({ compact = false } = {}) {
  const [search, setSearch] = useState("");
+const [catalogOpen, setCatalogOpen] = useState(false);
+const [catalogSearch, setCatalogSearch] = useState("");
+const [catalogType, setCatalogType] = useState("");
+const [catalogSelection, setCatalogSelection] = useState(null);
+const [instanceDraft, setInstanceDraft] = useState({serialNumber:"",arm:"",calibrationValidUntil:""});
 const [selected, setSelected] = useState(null);
 const [deleteCandidateId, setDeleteCandidateId] = useState(null);
 const [customEquip, setCustomEquip] = useState(() => {
@@ -5856,7 +5864,9 @@ const [equipmentEdits, setEquipmentEdits] = useState(() => {
   const [newArmName, setNewArmName] = useState("");
   const arms = ["Все", ...armsList];
   const [armFilter, setArmFilter] = useState("Все");
-const allEquip = [...EQUIPMENT_DATA, ...customEquip]
+// Untouched demo rows disappear, while any legacy row the user edited is retained.
+const retainedLegacyEquipment = LEGACY_EQUIPMENT_DATA.filter(item => equipmentEdits[item.id] && !equipmentEdits[item.id].deleted);
+const allEquip = [...EQUIPMENT_DATA, ...retainedLegacyEquipment, ...customEquip]
   .map((item) => normalizeEquipmentItem(item, equipmentEdits[item.id] || {}))
   .filter((item) => !item.deleted);
 const saveEquipmentChanges = (id, patch) => {
@@ -5907,11 +5917,20 @@ const createEquipment = () => {
     specs: [],
     photo: null,
     icon: "🔧",
+    source: "custom",
+    catalogModelId: null,
   });
   const updated = [...customEquip, item];
   setCustomEquip(updated);
   try { localStorage.setItem("emc_custom_equip_v1", JSON.stringify(updated)); } catch(e) {}
   setSelected(item.id);
+};
+const addCatalogEquipment = () => {
+  const model=EQUIPMENT_CATALOG.find(item=>item.id===catalogSelection); if(!model)return;
+  const item=normalizeEquipmentItem(createLaboratoryEquipment(model,instanceDraft));
+  const updated=[...customEquip,item]; setCustomEquip(updated);
+  try{localStorage.setItem("emc_custom_equip_v1",JSON.stringify(updated));}catch(e){}
+  setCatalogOpen(false); setCatalogSelection(null); setInstanceDraft({serialNumber:"",arm:"",calibrationValidUntil:""}); setSelected(item.id);
 };
 const saveArms = (next) => { setArmsList(next); localStorage.setItem("emc_arms_v1", JSON.stringify(next)); };
 const addArm = () => { const name=newArmName.trim(); if(!name||armsList.includes(name)) return; saveArms([...armsList,name]); setNewArmName(""); setArmFilter(name); };
@@ -6022,9 +6041,11 @@ const deleteArm = () => { if(armFilter==="Все") return; if(allEquip.some(e=>e
       <PremiumPills items={arms.map(a => [a, a])} active={armFilter} onSet={setArmFilter} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14, flexWrap:"wrap" }}>
         <div style={{display:"flex",gap:8}}><input style={{...styles.input,width:220}} value={newArmName} onChange={e=>setNewArmName(e.target.value)} placeholder="Название нового АРМ"/><button onClick={addArm} style={styles.btn("secondary")}>+ Добавить АРМ</button>{armFilter!=="Все"&&<><button onClick={renameArm} style={styles.btn("secondary")}>Переименовать АРМ</button><button onClick={deleteArm} style={styles.btn("fail")}>Удалить АРМ</button></>}</div>
-        <button onClick={createEquipment} style={{ ...styles.btn(), padding: "9px 14px", fontSize: 12, borderRadius: 12 }}>+ Добавить оборудование</button>
+        <button onClick={()=>setCatalogOpen(true)} style={{ ...styles.btn(), padding: "9px 14px", fontSize: 12, borderRadius: 12 }}>+ Добавить оборудование</button>
       </div>
+      {catalogOpen&&<div role="dialog" aria-modal="true" aria-label="Добавить оборудование" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.76)",display:"grid",placeItems:"center",padding:20}}><div className="premium-card" style={{width:"min(760px,100%)",maxHeight:"90vh",overflow:"auto",padding:22}}><div style={{display:"flex",justifyContent:"space-between",gap:12}}><h2 style={{marginTop:0}}>Добавить оборудование</h2><button style={styles.btn("secondary")} onClick={()=>{setCatalogOpen(false);setCatalogSelection(null)}}>Закрыть</button></div>{catalogSelection?(()=>{const model=EQUIPMENT_CATALOG.find(x=>x.id===catalogSelection);return <><div style={{padding:14,border:`1px solid ${C.border}`,borderRadius:12,marginBottom:12}}><b>{model.manufacturer} {model.model}</b><div style={{color:C.textSec}}>{typeLabel(model.equipmentType)}</div></div><Field label="Серийный / заводской № (необязательно)"><input style={styles.input} value={instanceDraft.serialNumber} onChange={e=>setInstanceDraft({...instanceDraft,serialNumber:e.target.value})}/></Field><Field label="АРМ / станция"><select style={styles.select} value={instanceDraft.arm} onChange={e=>setInstanceDraft({...instanceDraft,arm:e.target.value})}><option value="">Не назначено</option>{armsList.map(a=><option key={a}>{a}</option>)}</select></Field><Field label="Поверка / калибровка действительна до (необязательно)"><input type="date" style={styles.input} value={instanceDraft.calibrationValidUntil} onChange={e=>setInstanceDraft({...instanceDraft,calibrationValidUntil:e.target.value})}/></Field><button style={{...styles.btn(),width:"100%"}} onClick={addCatalogEquipment}>Добавить в лабораторию</button></>})():<><div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10}}><input autoFocus style={styles.input} placeholder="Поиск по производителю или модели" value={catalogSearch} onChange={e=>setCatalogSearch(e.target.value)}/><select style={styles.select} value={catalogType} onChange={e=>setCatalogType(e.target.value)}><option value="">Все типы</option>{EQUIPMENT_TYPE_OPTIONS.map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></div><div style={{display:"grid",gap:10,marginTop:14}}>{searchCatalog(EQUIPMENT_CATALOG,catalogSearch,catalogType).map(model=><div key={model.id} style={{padding:14,border:`1px solid ${C.border}`,borderRadius:12,display:"grid",gridTemplateColumns:"1fr auto",gap:12}}><div><b>{model.model}</b><div>{typeLabel(model.equipmentType)}</div><div style={{color:C.textSec}}>Производитель: {model.manufacturer}</div>{visibleSpecifications(model).map(([key,value])=><small key={key}>{key}: {String(value)}</small>)}<details style={{marginTop:7}}><summary>Источник данных</summary>{model.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={{display:"block",color:C.cyan}}>{source.title}</a>)}</details></div><button style={styles.btn()} onClick={()=>{setCatalogSelection(model.id);setInstanceDraft(v=>({...v,arm:armFilter!=="Все"?armFilter:""}))}}>Добавить</button></div>)}</div><div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${C.border}`}}>Не нашли свою модель? <button style={styles.btn("secondary")} onClick={()=>{setCatalogOpen(false);createEquipment()}}>Добавить оборудование вручную</button></div></> }</div></div>}
       {deleteConfirmModal}
+      {allEquip.length===0&&<div style={{...styles.card,textAlign:"center",padding:30}}><h3>В вашей лаборатории пока нет оборудования.</h3><p style={{color:C.textSec}}>Найдите оборудование во встроенном каталоге EMC Toolkit или добавьте его вручную.</p><button style={styles.btn()} onClick={()=>setCatalogOpen(true)}>Добавить оборудование</button></div>}
       <div className="premium-list">
         {filtered.map(e => (
           <button key={e.id} onClick={() => setSelected(e.id)} className="premium-card premium-card-action" style={{ width: "100%", display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto 20px", alignItems: "center", gap: 14, padding: "16px 18px" }}>
