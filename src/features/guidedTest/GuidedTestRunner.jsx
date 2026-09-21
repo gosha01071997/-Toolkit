@@ -3,13 +3,8 @@ import { checkEquipmentCompatibility, computeTableRows, equipmentMatchesType, eq
 import { deletePhoto, loadPhotos, loadProgress, readExistingEquipment, savePhoto, saveProgress } from "./persistence.mjs";
 import "./guidedTest.css";
 
-const fallbackEquipment = [
-  { id: "e1", name: "Оборудование 1", type: "Измерительное оборудование" },
-  { id: "e2", name: "Оборудование 2", type: "Анализатор" },
-  { id: "e3", name: "Оборудование 3", type: "Антенна" },
-  { id: "e4", name: "Оборудование 4", type: "Генератор" },
-  { id: "e5", name: "Оборудование 5", type: "Токовый пробник" },
-];
+// Guided Test offers only physical instances from the user's laboratory park.
+const fallbackEquipment = [];
 
 const EquipmentStage = ({ requirements, selected, onSelect, onAddEquipment }) => {
   const [query, setQuery] = useState("");

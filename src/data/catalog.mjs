@@ -47,6 +47,8 @@ export function createEquipmentPatch(draft = {}) {
     name: String(draft.name || ""), type: String(draft.type || "Другое"), arm: String(draft.arm || ""),
     desc: String(draft.desc || ""), specs: Array.isArray(draft.specs) ? draft.specs : draft.specs || "",
     photo: String(draft.photo || ""), icon: String(draft.icon || "🔧"),
+    serialNumber: String(draft.serialNumber || ""), inventoryNumber: String(draft.inventoryNumber || ""),
+    calibrationValidUntil: String(draft.calibrationValidUntil || ""), note: String(draft.note || ""),
     ...(draft.antennaProfile ? { antennaProfile: draft.antennaProfile } : {}),
     ...(draft.calibrationCharacteristic ? { calibrationCharacteristic: draft.calibrationCharacteristic } : {}),
   };
