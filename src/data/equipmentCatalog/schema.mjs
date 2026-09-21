@@ -14,6 +14,9 @@ export const EQUIPMENT_TYPE_OPTIONS = [
   ["eft_generator", "EFT-генератор"], ["surge_generator", "Surge-генератор"], ["esd_generator", "ESD-генератор"],
   ["voltage_dip_generator", "Генератор провалов и прерываний"], ["transient_generator", "Генератор переходных процессов"],
   ["transformer", "Трансформатор"], ["load", "Эквивалент нагрузки"], ["rf_switch", "RF-коммутатор"],
+  ["rf_load", "Мощная ВЧ-нагрузка"], ["frequency_counter", "Частотомер"], ["electronic_load", "Электронная нагрузка"],
+  ["tem_cell", "TEM-камера / полосковая линия"], ["magnetic_field_generator", "Генератор магнитного поля"],
+  ["test_fixture", "Испытательная оснастка"],
   ["test_system", "Испытательная система / стенд"], ["other", "Другое"],
 ];
 
@@ -29,6 +32,8 @@ export const SPECIFICATION_LABELS = {
   maxPowerVa: "Максимальная мощность", connector: "Разъём", detectors: "Детекторы", rbw: "Полоса разрешения",
   phenomenon: "Испытательное воздействие", bandwidths: "Полосы пропускания", riseTime: "Время нарастания",
   compatibleModels: "Совместимые модели", channels: "Число каналов", displaySpecification: "Документированная характеристика",
+  fieldStrengthRange: "Диапазон напряжённости поля", probeType: "Тип пробника", interface: "Интерфейс / система",
+  variants: "Варианты исполнения", measurement: "Измерительные свойства",
 };
 export const specificationLabel = key => SPECIFICATION_LABELS[key] || key;
 

@@ -107,3 +107,13 @@ test("catalog runtime stays offline and records contain no executable loaders", 
     assert.equal(typeof item.load, "undefined");
   }
 });
+
+test("second-pass catalog covers equipment used by Russian/CIS EMC laboratories", () => {
+  const ids = new Set(EQUIPMENT_CATALOG.map(item => item.id));
+  for (const id of ["gcmo-ra-00140", "gcmo-tem-1218-500", "skard-p6-522m", "skard-p6-223n", "lumiloop-lsprobe-1-2", "lumiloop-lsprobe-2-0", "lumiloop-ci-250-plus"]) {
+    assert.ok(ids.has(id), `missing ${id}`);
+  }
+  assert.ok(EQUIPMENT_CATALOG.filter(item => item.manufacturer === "АКИП" && item.equipmentType === "signal_generator").length >= 10);
+  assert.ok(EQUIPMENT_CATALOG.some(item => item.equipmentType === "tem_cell"));
+  assert.ok(EQUIPMENT_CATALOG.some(item => item.equipmentType === "magnetic_field_generator"));
+});
